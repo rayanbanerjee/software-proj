@@ -21,9 +21,9 @@ DOC-009,Add initial container diagram source file,Docs,Backlog,Medium,,"ADR-002,
 DOC-010,Add sequence diagram for open document and join session,Docs,Backlog,Medium,,DOC-004,Sequence diagram source is committed,diagram,/docs/diagrams
 ADR-002,Decide NestJS vs Fastify for API,Architecture,Done,High,,,ADR accepted and linked from relevant tasks,ADR + task doc,/docs/adr
 ADR-003,Decide Next.js app setup details,Architecture,Done,High,,,ADR accepted and linked from web setup tasks,ADR + task doc,/docs/adr
-ADR-004,Decide collab server stack around Yjs/Hocuspocus,Architecture,Backlog,High,,,ADR accepted and linked from collaboration tasks,ADR + task doc,/docs/adr
-ADR-005,Decide queue and job framework for worker,Architecture,Backlog,High,,,ADR accepted and linked from worker tasks,ADR + task doc,/docs/adr
-ADR-006,Decide database ORM or query layer,Architecture,Backlog,High,,,ADR accepted and linked from DB tasks,ADR + task doc,/docs/adr
+ADR-004,Decide collab server stack around Yjs/Hocuspocus,Architecture,Done,High,,,ADR accepted and linked from collaboration tasks,ADR + task doc,/docs/adr
+ADR-005,Decide queue and job framework for worker,Architecture,Done,High,,,ADR accepted and linked from worker tasks,ADR + task doc,/docs/adr
+ADR-006,Decide database ORM or query layer,Architecture,Done,High,,,ADR accepted and linked from DB tasks,ADR + task doc,/docs/adr
 ADR-007,Decide auth token and session strategy,Architecture,Backlog,High,,,ADR accepted and linked from auth tasks,ADR + task doc,/docs/adr
 ADR-008,Decide snapshot storage format,Architecture,Backlog,Medium,,ADR-004,ADR accepted and linked from versioning and collab tasks,ADR + task doc,/docs/adr
 WEB-001,Turn apps/web into a real Next.js app,Web,Backlog,High,,ADR-003,apps/web boots as a real Next.js app,task doc + change note,/apps/web

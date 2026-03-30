@@ -38,9 +38,9 @@ Default status values:
 5. `AUTH-001` Add Google auth config fields.
 6. `AUTH-002` Implement Google token validation service stub.
 7. `INFRA-001` Add Docker Compose for Postgres and Redis.
-8. `ADR-004` Decide collab server stack around `Yjs/Hocuspocus`.
-9. `ADR-005` Decide queue and job framework for worker.
-10. `ADR-006` Decide database ORM or query layer.
+8. `COLLAB-001` Initialize real collaboration server.
+9. `WORK-001` Initialize worker runtime.
+10. `TEST-002` Add shared test config.
 
 ## Recently completed
 
@@ -57,6 +57,9 @@ Default status values:
 - `DOC-001` Commit current documentation pipeline changes
 - `ADR-002` Decide `NestJS` vs `Fastify` for API
 - `ADR-003` Decide `Next.js` app setup details
+- `ADR-004` Decide collab server stack around `Yjs/Hocuspocus`
+- `ADR-005` Decide queue and job framework for worker
+- `ADR-006` Decide database ORM or query layer
 - `TEST-001` Decide and set up Vitest or Jest
 
 ## Micro Tasks
