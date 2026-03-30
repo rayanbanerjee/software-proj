@@ -12,6 +12,18 @@ Base monorepo scaffold for the collaborative document editor and AI writing assi
 - `infrastructure/*`: deployment and local environment assets
 - `docs/*`: ADRs, API notes, and diagrams
 
+## Documentation pipeline
+
+This repository assumes a large share of implementation will be done by AI agents. The collaboration contract lives in [docs/process/documentation-pipeline.md](/Users/rayan.banerjee/courses/software%20project/docs/process/documentation-pipeline.md).
+
+Required artifacts:
+
+- architecture and decision changes: `docs/adr/*`
+- implementation specs and interface notes: `docs/specs/*`, `docs/api/*`
+- active work tracking: `docs/tasks/*`
+- agent handoffs and execution notes: `docs/handoffs/*`
+- user-visible or repo-level change log entries: `docs/changes/*`
+
 ## Getting started
 
 1. Install `pnpm`.
@@ -25,3 +37,6 @@ Base monorepo scaffold for the collaborative document editor and AI writing assi
 - add collaboration transport with Yjs/Hocuspocus
 - define shared DTOs, authz matrix, and editor schema
 
+## Validation
+
+Run `pnpm docs:check` to validate the documentation pipeline structure and templates.

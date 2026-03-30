@@ -1,5 +1,14 @@
 # API Notes
 
+Use this directory for durable interface documentation.
+
+Expected contents:
+
+- REST endpoint contracts
+- WebSocket event schemas
+- request and response examples
+- auth and versioning notes
+
 Planned REST surface:
 
 - `/v1/documents`
@@ -8,4 +17,3 @@ Planned REST surface:
 - `/v1/documents/{documentId}/versions`
 - `/v1/documents/{documentId}/ai`
 - `/v1/documents/{documentId}/exports`
-

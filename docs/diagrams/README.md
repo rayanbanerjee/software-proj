@@ -2,3 +2,8 @@
 
 Add container, sequence, and deployment diagrams derived from the system design document.
 
+Recommended conventions:
+
+- one file per diagram topic
+- include the source format next to rendered exports when possible
+- link each diagram from the relevant ADR or spec
