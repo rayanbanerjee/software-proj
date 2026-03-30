@@ -11,7 +11,7 @@ FOUND-009,Add root test placeholders that pass,Foundation,Done,Medium,,,Root tes
 FOUND-010,Add commit and branch naming conventions doc,Foundation,Done,Medium,,TASK-0001,Conventions doc exists in docs/process,change note,/docs/process
 DOC-001,Commit current documentation pipeline changes,Docs,Done,High,,TASK-0001,Pipeline changes are committed and pushed,handoff + change note,/docs
 DOC-002,Add docs/api/websocket-events.md,Docs,Backlog,High,,COLLAB-001,WebSocket events are documented with payloads,api doc + change note,/docs/api
-DOC-003,Add authentication flow spec,Docs,Backlog,High,,AUTH-002,Authentication flow spec exists and is linked from task docs,spec,/docs/specs
+DOC-003,Add authentication flow spec,Docs,Done,High,,AUTH-002,Authentication flow spec exists and is linked from task docs,spec,/docs/specs
 DOC-004,Add document session lifecycle spec,Docs,Backlog,High,,COLLAB-003,Session lifecycle spec covers join leave reconnect,spec,/docs/specs
 DOC-005,Add permission propagation spec,Docs,Backlog,High,,"SHARE-005,COLLAB-008",Permission propagation behavior is documented,spec,/docs/specs
 DOC-006,Add AI proposal lifecycle spec,Docs,Backlog,High,,"AI-002,AI-007",AI proposal lifecycle is documented from request through apply,spec,/docs/specs
@@ -62,11 +62,11 @@ PKG-008,Add test fixtures for sample documents,Packages,Backlog,Medium,,TEST-006
 PKG-009,Add reusable UI primitives package structure,Packages,Backlog,Medium,,WEB-001,UI package has base structure for shared components,none,/packages/ui
 PKG-010,Make package build and typecheck scripts work,Packages,Backlog,High,,FOUND-008,All package scripts run without placeholder failures,none,/packages
 API-001,Initialize real API framework in apps/api,API,Done,High,,ADR-002,apps/api boots with chosen framework,task doc + change note,/apps/api
-API-002,Add health check endpoint,API,Backlog,Medium,,API-001,Health endpoint returns success payload,none,/apps/api
+API-002,Add health check endpoint,API,Done,Medium,,API-001,Health endpoint returns success payload,none,/apps/api
 API-003,Add config loader and env validation,API,Done,High,,API-001,Env values are parsed and validated on startup,change note,/apps/api/src/config
 API-004,Add request logging middleware,API,Backlog,Medium,,"API-001,OPS-001",Requests are logged through shared logger abstraction,none,/apps/api
 API-005,Add standard error response shape,API,Backlog,High,,API-001,Errors return documented consistent shape,api doc,/apps/api
-API-006,Add auth module skeleton,API,Backlog,High,,API-001,Auth module is registered and compiles,none,/apps/api/src/modules/auth
+API-006,Add auth module skeleton,API,Done,High,,API-001,Auth module is registered and compiles,none,/apps/api/src/modules/auth
 API-007,Add documents module skeleton,API,Backlog,High,,API-001,Documents module is registered and compiles,none,/apps/api/src/modules/documents
 API-008,Add sharing module skeleton,API,Backlog,High,,API-001,Sharing module is registered and compiles,none,/apps/api/src/modules/sharing
 API-009,Add versions module skeleton,API,Backlog,Medium,,API-001,Versions module is registered and compiles,none,/apps/api/src/modules/versions
@@ -75,7 +75,7 @@ API-011,Add exports module skeleton,API,Backlog,Medium,,API-001,Exports module i
 API-012,Add comments module skeleton,API,Backlog,Low,,API-001,Comments module is registered and compiles,none,/apps/api/src/modules/comments
 API-013,Add audit module skeleton,API,Backlog,Medium,,API-001,Audit module is registered and compiles,none,/apps/api/src/modules/audit
 AUTH-001,Add Google auth config fields,Auth,Done,High,,API-003,Required Google auth env vars are defined,api doc,/apps/api/src/config
-AUTH-002,Implement Google token validation service stub,Auth,Backlog,High,,"AUTH-001,API-006",Validation service exists behind an abstraction,spec + change note,/apps/api/src/modules/auth
+AUTH-002,Implement Google token validation service stub,Auth,Done,High,,"AUTH-001,API-006",Validation service exists behind an abstraction,spec + change note,/apps/api/src/modules/auth
 AUTH-003,Add user profile model,Auth,Backlog,High,,DB-002,User profile model exists and is wired into auth flow,none,"/apps/api,/packages/shared-types"
 AUTH-004,Add auth callback endpoint,Auth,Backlog,High,,AUTH-002,Callback endpoint accepts token and returns session payload,api doc,/apps/api/src/modules/auth
 AUTH-005,Add session issuance logic,Auth,Backlog,High,,"ADR-007,AUTH-002",Session issuance flow works with chosen token strategy,ADR or spec,/apps/api/src/modules/auth

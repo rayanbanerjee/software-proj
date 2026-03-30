@@ -1,7 +1,7 @@
 import { createApp } from "./app.js";
 
 async function start() {
-  const { app, env } = createApp();
+  const { app, env } = await createApp();
 
   try {
     await app.listen({
@@ -15,4 +15,3 @@ async function start() {
 }
 
 void start();
-
