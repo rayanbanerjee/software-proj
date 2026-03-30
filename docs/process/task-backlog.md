@@ -32,22 +32,26 @@ Default status values:
 ## Prioritized first slice
 
 1. `ADR-002` Decide API framework.
-2. `FOUND-005` Add shared ESLint config.
-3. `TEST-001` Decide and set up Vitest or Jest.
-4. `WEB-001` Turn `apps/web` into a real Next.js app.
-5. `API-001` Initialize a real API framework in `apps/api`.
-6. `DB-001` Choose ORM and add initial config.
-7. `DOCSVC-001` Implement create document endpoint.
-8. `AUTH-001` Add Google auth config fields.
-9. `AUTH-002` Implement Google token validation service stub.
-10. `INFRA-001` Add Docker Compose for Postgres and Redis.
+2. `TEST-001` Decide and set up Vitest or Jest.
+3. `WEB-001` Turn `apps/web` into a real Next.js app.
+4. `API-001` Initialize a real API framework in `apps/api`.
+5. `DB-001` Choose ORM and add initial config.
+6. `DOCSVC-001` Implement create document endpoint.
+7. `AUTH-001` Add Google auth config fields.
+8. `AUTH-002` Implement Google token validation service stub.
+9. `INFRA-001` Add Docker Compose for Postgres and Redis.
+10. `FOUND-009` Add root `test` placeholders that pass.
 
 ## Recently completed
 
 - `FOUND-001` Add root `CONTRIBUTING.md` with repo workflow
 - `FOUND-002` Add `.nvmrc` or `.node-version`
+- `FOUND-003` Add pinned `pnpm-lock.yaml`
 - `FOUND-004` Add app-level `.env.example` files
+- `FOUND-005` Add shared ESLint config
 - `FOUND-006` Add shared Prettier config
+- `FOUND-007` Add root `lint` script that actually runs
+- `FOUND-008` Make root `typecheck` pass cleanly
 - `FOUND-010` Add commit and branch naming conventions doc
 - `DOC-001` Commit current documentation pipeline changes
 

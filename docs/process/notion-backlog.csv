@@ -1,12 +1,12 @@
 Task ID,Title,Area,Status,Priority,Owner,Depends On,Definition of Done,Docs Required,Repo Path
 FOUND-001,Add root CONTRIBUTING.md with repo workflow,Foundation,Done,High,,TASK-0001,CONTRIBUTING.md documents workflow and is linked from README,change note,/
 FOUND-002,Add .nvmrc or .node-version,Foundation,Done,Medium,,,Node version file exists and matches CI runtime,none,/
-FOUND-003,Add pinned pnpm-lock.yaml,Foundation,Backlog,Medium,,,Lockfile is committed and install is reproducible,change note,/
+FOUND-003,Add pinned pnpm-lock.yaml,Foundation,Done,Medium,,,Lockfile is committed and install is reproducible,change note,/
 FOUND-004,Add app-level .env.example files,Foundation,Done,High,,,Each app has a local env example with required variables,change note,/apps
-FOUND-005,Add shared ESLint config,Foundation,Backlog,High,,,Lint config is reusable across apps and packages,task doc + change note,/
+FOUND-005,Add shared ESLint config,Foundation,Done,High,,,Lint config is reusable across apps and packages,task doc + change note,/
 FOUND-006,Add shared Prettier config,Foundation,Done,High,,,Formatting config is committed and documented,change note,/
-FOUND-007,Add root lint script that actually runs,Foundation,Backlog,High,,FOUND-005,Root lint command succeeds,change note,/package.json
-FOUND-008,Make root typecheck pass cleanly,Foundation,Backlog,High,,,Root typecheck command succeeds,change note,/
+FOUND-007,Add root lint script that actually runs,Foundation,Done,High,,FOUND-005,Root lint command succeeds,change note,/package.json
+FOUND-008,Make root typecheck pass cleanly,Foundation,Done,High,,,Root typecheck command succeeds,change note,/
 FOUND-009,Add root test placeholders that pass,Foundation,Backlog,Medium,,,Root test command succeeds without failing placeholders,none,/
 FOUND-010,Add commit and branch naming conventions doc,Foundation,Done,Medium,,TASK-0001,Conventions doc exists in docs/process,change note,/docs/process
 DOC-001,Commit current documentation pipeline changes,Docs,Done,High,,TASK-0001,Pipeline changes are committed and pushed,handoff + change note,/docs
