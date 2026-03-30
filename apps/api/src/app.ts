@@ -1,7 +1,9 @@
 import Fastify from "fastify";
 
+import { registerErrorHandling } from "./common/error-handler.js";
 import { parseApiEnv } from "./config/env.js";
 import { registerAuthModule } from "./modules/auth/index.js";
+import { registerDocumentsModule } from "./modules/documents/index.js";
 import { registerHealthRoutes } from "./modules/health/routes.js";
 
 export async function createApp() {
@@ -13,7 +15,9 @@ export async function createApp() {
 
   app.decorate("apiEnv", env);
 
+  registerErrorHandling(app);
   await registerAuthModule(app);
+  await registerDocumentsModule(app);
   await registerHealthRoutes(app);
 
   return {

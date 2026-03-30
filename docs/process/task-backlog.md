@@ -37,10 +37,10 @@ Default status values:
 4. `COLLAB-001` Initialize real collaboration server.
 5. `WORK-001` Initialize worker runtime.
 6. `TEST-002` Add shared test config.
-7. `DB-002` Create users table or model.
-8. `AUTH-004` Add auth callback endpoint.
-9. `AUTH-005` Add session issuance logic.
-10. `API-005` Add standard error response shape.
+7. `AUTH-004` Add auth callback endpoint.
+8. `AUTH-005` Add session issuance logic.
+9. `AUTH-007` Add current-user endpoint.
+10. `DB-003` Create documents table or model.
 
 ## Recently completed
 
@@ -64,10 +64,14 @@ Default status values:
 - `API-001` Initialize a real API framework in `apps/api`
 - `API-002` Add health check endpoint
 - `API-003` Add config loader and env validation
+- `API-005` Add standard error response shape
 - `API-006` Add auth module skeleton
+- `API-007` Add documents module skeleton
 - `DB-001` Choose ORM and add initial config
+- `DB-002` Create users table or model
 - `AUTH-001` Add Google auth config fields
 - `AUTH-002` Implement Google token validation service stub
+- `AUTH-003` Add user profile model
 - `DOC-003` Add authentication flow spec
 
 ## Micro Tasks
