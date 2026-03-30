@@ -31,16 +31,16 @@ Default status values:
 
 ## Prioritized first slice
 
-1. `ADR-002` Decide API framework.
-2. `TEST-001` Decide and set up Vitest or Jest.
-3. `WEB-001` Turn `apps/web` into a real Next.js app.
-4. `API-001` Initialize a real API framework in `apps/api`.
-5. `DB-001` Choose ORM and add initial config.
-6. `DOCSVC-001` Implement create document endpoint.
-7. `AUTH-001` Add Google auth config fields.
-8. `AUTH-002` Implement Google token validation service stub.
-9. `INFRA-001` Add Docker Compose for Postgres and Redis.
-10. `FOUND-009` Add root `test` placeholders that pass.
+1. `WEB-001` Turn `apps/web` into a real Next.js app.
+2. `API-001` Initialize a real API framework in `apps/api`.
+3. `DB-001` Choose ORM and add initial config.
+4. `DOCSVC-001` Implement create document endpoint.
+5. `AUTH-001` Add Google auth config fields.
+6. `AUTH-002` Implement Google token validation service stub.
+7. `INFRA-001` Add Docker Compose for Postgres and Redis.
+8. `ADR-004` Decide collab server stack around `Yjs/Hocuspocus`.
+9. `ADR-005` Decide queue and job framework for worker.
+10. `ADR-006` Decide database ORM or query layer.
 
 ## Recently completed
 
@@ -52,8 +52,12 @@ Default status values:
 - `FOUND-006` Add shared Prettier config
 - `FOUND-007` Add root `lint` script that actually runs
 - `FOUND-008` Make root `typecheck` pass cleanly
+- `FOUND-009` Add root `test` placeholders that pass
 - `FOUND-010` Add commit and branch naming conventions doc
 - `DOC-001` Commit current documentation pipeline changes
+- `ADR-002` Decide `NestJS` vs `Fastify` for API
+- `ADR-003` Decide `Next.js` app setup details
+- `TEST-001` Decide and set up Vitest or Jest
 
 ## Micro Tasks
 
