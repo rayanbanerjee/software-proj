@@ -1,12 +1,2 @@
-export const apiModules = [
-  "auth",
-  "documents",
-  "sharing",
-  "permissions",
-  "versions",
-  "ai",
-  "exports",
-  "comments",
-  "audit"
-] as const;
-
+export { createApp } from "./app.js";
+export { parseApiEnv } from "./config/env.js";

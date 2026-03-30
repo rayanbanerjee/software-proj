@@ -1,5 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src/**/*.ts", "tests/**/*.ts"]
+  "compilerOptions": {
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "prisma/**/*.ts"]
 }
-

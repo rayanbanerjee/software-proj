@@ -61,9 +61,9 @@ PKG-007,Add prompt template version model,Packages,Backlog,Medium,,AI-002,Prompt
 PKG-008,Add test fixtures for sample documents,Packages,Backlog,Medium,,TEST-006,Fixture documents are reusable across tests,none,/packages/test-fixtures
 PKG-009,Add reusable UI primitives package structure,Packages,Backlog,Medium,,WEB-001,UI package has base structure for shared components,none,/packages/ui
 PKG-010,Make package build and typecheck scripts work,Packages,Backlog,High,,FOUND-008,All package scripts run without placeholder failures,none,/packages
-API-001,Initialize real API framework in apps/api,API,Backlog,High,,ADR-002,apps/api boots with chosen framework,task doc + change note,/apps/api
+API-001,Initialize real API framework in apps/api,API,Done,High,,ADR-002,apps/api boots with chosen framework,task doc + change note,/apps/api
 API-002,Add health check endpoint,API,Backlog,Medium,,API-001,Health endpoint returns success payload,none,/apps/api
-API-003,Add config loader and env validation,API,Backlog,High,,API-001,Env values are parsed and validated on startup,change note,/apps/api/src/config
+API-003,Add config loader and env validation,API,Done,High,,API-001,Env values are parsed and validated on startup,change note,/apps/api/src/config
 API-004,Add request logging middleware,API,Backlog,Medium,,"API-001,OPS-001",Requests are logged through shared logger abstraction,none,/apps/api
 API-005,Add standard error response shape,API,Backlog,High,,API-001,Errors return documented consistent shape,api doc,/apps/api
 API-006,Add auth module skeleton,API,Backlog,High,,API-001,Auth module is registered and compiles,none,/apps/api/src/modules/auth
@@ -74,7 +74,7 @@ API-010,Add AI module skeleton,API,Backlog,Medium,,API-001,AI module is register
 API-011,Add exports module skeleton,API,Backlog,Medium,,API-001,Exports module is registered and compiles,none,/apps/api/src/modules/exports
 API-012,Add comments module skeleton,API,Backlog,Low,,API-001,Comments module is registered and compiles,none,/apps/api/src/modules/comments
 API-013,Add audit module skeleton,API,Backlog,Medium,,API-001,Audit module is registered and compiles,none,/apps/api/src/modules/audit
-AUTH-001,Add Google auth config fields,Auth,Backlog,High,,API-003,Required Google auth env vars are defined,api doc,/apps/api/src/config
+AUTH-001,Add Google auth config fields,Auth,Done,High,,API-003,Required Google auth env vars are defined,api doc,/apps/api/src/config
 AUTH-002,Implement Google token validation service stub,Auth,Backlog,High,,"AUTH-001,API-006",Validation service exists behind an abstraction,spec + change note,/apps/api/src/modules/auth
 AUTH-003,Add user profile model,Auth,Backlog,High,,DB-002,User profile model exists and is wired into auth flow,none,"/apps/api,/packages/shared-types"
 AUTH-004,Add auth callback endpoint,Auth,Backlog,High,,AUTH-002,Callback endpoint accepts token and returns session payload,api doc,/apps/api/src/modules/auth
@@ -82,7 +82,7 @@ AUTH-005,Add session issuance logic,Auth,Backlog,High,,"ADR-007,AUTH-002",Sessio
 AUTH-006,Add auth guard middleware,Auth,Backlog,High,,AUTH-005,Protected endpoints require auth successfully,none,/apps/api
 AUTH-007,Add current-user endpoint,Auth,Backlog,Medium,,AUTH-006,Current user endpoint returns normalized profile,api doc,/apps/api/src/modules/auth
 AUTH-008,Add auth integration tests,Auth,Backlog,Medium,,"TEST-003,AUTH-004",Auth integration tests run in CI,none,/apps/api/tests/integration
-DB-001,Choose ORM and add initial config,Database,Backlog,High,,ADR-006,ORM is chosen and initial config compiles,ADR + task doc,"/apps/api,/docs/adr"
+DB-001,Choose ORM and add initial config,Database,Done,High,,ADR-006,ORM is chosen and initial config compiles,ADR + task doc,"/apps/api,/docs/adr"
 DB-002,Create users table or model,Database,Backlog,High,,DB-001,Users schema exists and migrates,change note,/apps/api
 DB-003,Create documents table or model,Database,Backlog,High,,DB-001,Documents schema exists and migrates,change note,/apps/api
 DB-004,Create memberships table or model,Database,Backlog,High,,DB-001,Memberships schema exists and migrates,change note,/apps/api
