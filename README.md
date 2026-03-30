@@ -16,6 +16,8 @@ Base monorepo scaffold for the collaborative document editor and AI writing assi
 
 This repository assumes a large share of implementation will be done by AI agents. The collaboration contract lives in [docs/process/documentation-pipeline.md](/Users/rayan.banerjee/courses/software%20project/docs/process/documentation-pipeline.md).
 
+Contribution and git workflow guidance lives in [CONTRIBUTING.md](/Users/rayan.banerjee/courses/software%20project/CONTRIBUTING.md) and [docs/process/git-conventions.md](/Users/rayan.banerjee/courses/software%20project/docs/process/git-conventions.md).
+
 Required artifacts:
 
 - architecture and decision changes: `docs/adr/*`

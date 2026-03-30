@@ -33,7 +33,7 @@ Default status values:
 
 1. `ADR-002` Decide API framework.
 2. `FOUND-005` Add shared ESLint config.
-3. `FOUND-006` Add shared Prettier config.
+3. `TEST-001` Decide and set up Vitest or Jest.
 4. `WEB-001` Turn `apps/web` into a real Next.js app.
 5. `API-001` Initialize a real API framework in `apps/api`.
 6. `DB-001` Choose ORM and add initial config.
@@ -41,6 +41,15 @@ Default status values:
 8. `AUTH-001` Add Google auth config fields.
 9. `AUTH-002` Implement Google token validation service stub.
 10. `INFRA-001` Add Docker Compose for Postgres and Redis.
+
+## Recently completed
+
+- `FOUND-001` Add root `CONTRIBUTING.md` with repo workflow
+- `FOUND-002` Add `.nvmrc` or `.node-version`
+- `FOUND-004` Add app-level `.env.example` files
+- `FOUND-006` Add shared Prettier config
+- `FOUND-010` Add commit and branch naming conventions doc
+- `DOC-001` Commit current documentation pipeline changes
 
 ## Micro Tasks
 
