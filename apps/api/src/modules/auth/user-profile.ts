@@ -1,7 +1,16 @@
 import type { UserProfile } from "@repo/shared-types";
-import type { User } from "@prisma/client";
 
-export function toUserProfile(user: User): UserProfile {
+type UserProfileRecord = {
+  id: string;
+  email: string;
+  name: string | null;
+  imageUrl: string | null;
+  googleSubject: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+export function toUserProfile(user: UserProfileRecord): UserProfile {
   return {
     id: user.id,
     email: user.email,
@@ -10,4 +19,3 @@ export function toUserProfile(user: User): UserProfile {
     googleSubject: user.googleSubject
   };
 }
-
