@@ -33,14 +33,14 @@ Default status values:
 
 1. `WEB-001` Turn `apps/web` into a real Next.js app.
 2. `DOCSVC-001` Implement create document endpoint.
-3. `INFRA-001` Add Docker Compose for Postgres and Redis.
-4. `COLLAB-001` Initialize real collaboration server.
-5. `WORK-001` Initialize worker runtime.
-6. `TEST-002` Add shared test config.
-7. `AUTH-004` Add auth callback endpoint.
-8. `AUTH-005` Add session issuance logic.
-9. `AUTH-007` Add current-user endpoint.
-10. `DB-003` Create documents table or model.
+3. `COLLAB-001` Initialize real collaboration server.
+4. `WORK-001` Initialize worker runtime.
+5. `TEST-002` Add shared test config.
+6. `AUTH-004` Add auth callback endpoint.
+7. `AUTH-005` Add session issuance logic.
+8. `AUTH-007` Add current-user endpoint.
+9. `DB-003` Create documents table or model.
+10. `INFRA-003` Add API service container.
 
 ## Recently completed
 
@@ -73,6 +73,10 @@ Default status values:
 - `AUTH-002` Implement Google token validation service stub
 - `AUTH-003` Add user profile model
 - `DOC-003` Add authentication flow spec
+- `INFRA-001` Add Docker Compose for Postgres and Redis
+- `INFRA-002` Add local object storage service to Compose
+- `INFRA-006` Add startup helper scripts
+- `INFRA-007` Add local bootstrap README
 
 ## Micro Tasks
 

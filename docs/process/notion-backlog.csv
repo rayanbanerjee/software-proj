@@ -158,13 +158,13 @@ EXP-004,Add PDF renderer stub,Export,Backlog,Medium,,EXP-001,PDF export stub exi
 EXP-005,Add DOCX renderer stub,Export,Backlog,Medium,,EXP-001,DOCX export stub exists behind job interface,none,/apps/worker/src/export-jobs
 EXP-006,Add secure download URL flow,Export,Backlog,Medium,,EXP-002,Completed exports return secure download references,spec,"/apps/api,/apps/worker"
 EXP-007,Add export UI integration,Export,Backlog,Medium,,"WEB-013,EXP-002",UI can request export and show status,none,/apps/web
-INFRA-001,Add Docker Compose for Postgres and Redis,Infrastructure,Backlog,High,,DB-001,Compose file starts required local services,change note,/infrastructure/docker
-INFRA-002,Add local object storage service to Compose,Infrastructure,Backlog,Medium,,INFRA-001,Compose includes local object storage,none,/infrastructure/docker
+INFRA-001,Add Docker Compose for Postgres and Redis,Infrastructure,Done,High,,DB-001,Compose file starts required local services,change note,/infrastructure/docker
+INFRA-002,Add local object storage service to Compose,Infrastructure,Done,Medium,,INFRA-001,Compose includes local object storage,none,/infrastructure/docker
 INFRA-003,Add API service container,Infrastructure,Backlog,Medium,,API-001,Docker setup can run API service,none,/infrastructure/docker
 INFRA-004,Add collab service container,Infrastructure,Backlog,Medium,,COLLAB-001,Docker setup can run collab service,none,/infrastructure/docker
 INFRA-005,Add worker service container,Infrastructure,Backlog,Medium,,WORK-001,Docker setup can run worker service,none,/infrastructure/docker
-INFRA-006,Add startup helper scripts,Infrastructure,Backlog,Medium,,INFRA-001,Helper scripts exist for common local startup flows,none,/infrastructure/scripts
-INFRA-007,Add local bootstrap README,Infrastructure,Backlog,Medium,,INFRA-001,Infrastructure README explains local setup,change note,/infrastructure
+INFRA-006,Add startup helper scripts,Infrastructure,Done,Medium,,INFRA-001,Helper scripts exist for common local startup flows,none,/infrastructure/scripts
+INFRA-007,Add local bootstrap README,Infrastructure,Done,Medium,,INFRA-001,Infrastructure README explains local setup,change note,/infrastructure
 TEST-001,Decide and set up Vitest or Jest,Testing,Done,High,,"ADR-002,ADR-003",Chosen test framework is configured and runs,task doc + change note,/
 TEST-002,Add shared test config,Testing,Backlog,High,,TEST-001,Shared test config is reused by apps and packages,none,/
 TEST-003,Add API integration test harness,Testing,Backlog,High,,"TEST-001,API-001,DB-001",API integration tests can run against local test DB,none,/apps/api/tests
