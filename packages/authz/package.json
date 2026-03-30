@@ -1,0 +1,14 @@
+{
+  "name": "@repo/authz",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "build": "echo \"authz build not wired yet\"",
+    "lint": "echo \"authz lint not wired yet\"",
+    "test": "echo \"authz tests not wired yet\"",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
+

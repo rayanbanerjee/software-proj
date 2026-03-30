@@ -1,0 +1,13 @@
+{
+  "name": "@repo/web",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "echo \"web build not wired yet\"",
+    "dev": "echo \"web dev not wired yet\"",
+    "lint": "echo \"web lint not wired yet\"",
+    "test": "echo \"web tests not wired yet\"",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
+

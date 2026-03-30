@@ -1,0 +1,13 @@
+{
+  "name": "@repo/worker",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "echo \"worker build not wired yet\"",
+    "dev": "echo \"worker dev not wired yet\"",
+    "lint": "echo \"worker lint not wired yet\"",
+    "test": "echo \"worker tests not wired yet\"",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
+

@@ -1,0 +1,13 @@
+{
+  "name": "@repo/collab",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "echo \"collab build not wired yet\"",
+    "dev": "echo \"collab dev not wired yet\"",
+    "lint": "echo \"collab lint not wired yet\"",
+    "test": "echo \"collab tests not wired yet\"",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
+

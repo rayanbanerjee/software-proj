@@ -1,0 +1,14 @@
+{
+  "name": "@repo/shared-types",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "build": "echo \"shared-types build not wired yet\"",
+    "lint": "echo \"shared-types lint not wired yet\"",
+    "test": "echo \"shared-types tests not wired yet\"",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
+

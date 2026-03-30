@@ -1,0 +1,13 @@
+{
+  "name": "@repo/api",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "echo \"api build not wired yet\"",
+    "dev": "echo \"api dev not wired yet\"",
+    "lint": "echo \"api lint not wired yet\"",
+    "test": "echo \"api tests not wired yet\"",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
+
