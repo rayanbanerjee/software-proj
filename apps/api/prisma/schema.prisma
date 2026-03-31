@@ -16,7 +16,9 @@ model User {
   aiRequests    AiRequest[]
   auditEvents   AuditEvent[]
   exportJobs    ExportJob[]
+  invitationsSent Invitation[]
   memberships   DocumentMembership[]
+  revisions     Revision[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -28,7 +30,9 @@ model Document {
   aiRequests  AiRequest[]
   auditEvents AuditEvent[]
   exportJobs  ExportJob[]
+  invitations Invitation[]
   memberships DocumentMembership[]
+  revisions   Revision[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 }
@@ -45,6 +49,46 @@ model DocumentMembership {
 
   @@unique([documentId, userId])
   @@index([userId])
+}
+
+model Invitation {
+  id            String           @id @default(cuid())
+  documentId    String
+  invitedByUserId String
+  inviteeEmail  String
+  role          DocumentRole
+  tokenHash     String
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  document      Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  invitedByUser User             @relation(fields: [invitedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, createdAt])
+  @@index([inviteeEmail])
+  @@index([tokenHash])
+}
+
+model Revision {
+  id               String    @id @default(cuid())
+  documentId       String
+  createdByUserId  String?
+  label            String
+  snapshotRef      String
+  snapshotMimeType String?
+  sourceRevisionId String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  document         Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdByUser    User?     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  sourceRevision   Revision? @relation("RevisionLineage", fields: [sourceRevisionId], references: [id], onDelete: SetNull)
+  derivedRevisions Revision[] @relation("RevisionLineage")
+
+  @@index([documentId, createdAt])
+  @@index([createdByUserId])
+  @@index([sourceRevisionId])
 }
 
 model AiRequest {
