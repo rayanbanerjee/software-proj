@@ -5,10 +5,9 @@
   "type": "module",
   "exports": "./src/index.ts",
   "scripts": {
-    "build": "echo \"shared-types build not wired yet\"",
-    "lint": "echo \"shared-types lint not wired yet\"",
-    "test": "echo \"shared-types tests not wired yet\"",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src --max-warnings=0",
+    "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json"
   }
 }
-
