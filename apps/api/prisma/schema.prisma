@@ -13,6 +13,9 @@ model User {
   googleSubject String?  @unique
   name          String?
   imageUrl      String?
+  aiRequests    AiRequest[]
+  auditEvents   AuditEvent[]
+  exportJobs    ExportJob[]
   memberships   DocumentMembership[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -22,6 +25,9 @@ model Document {
   id          String               @id @default(cuid())
   title       String
   archivedAt  DateTime?
+  aiRequests  AiRequest[]
+  auditEvents AuditEvent[]
+  exportJobs  ExportJob[]
   memberships DocumentMembership[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
@@ -41,9 +47,125 @@ model DocumentMembership {
   @@index([userId])
 }
 
+model AiRequest {
+  id               String          @id @default(cuid())
+  documentId       String
+  requestedByUserId String
+  action           AiAction
+  status           AiRequestStatus @default(queued)
+  scope            AiSelectionScope
+  prompt           String?
+  selectedText     String?
+  surroundingText  String?
+  maskPersonalData Boolean         @default(false)
+  errorMessage     String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  document         Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  requestedByUser  User            @relation(fields: [requestedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, createdAt])
+  @@index([requestedByUserId])
+  @@index([status])
+}
+
+model ExportJob {
+  id               String          @id @default(cuid())
+  documentId       String
+  requestedByUserId String
+  format           ExportFormat
+  status           ExportJobStatus @default(queued)
+  storageKey       String?
+  downloadUrl      String?
+  errorMessage     String?
+  completedAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  document         Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  requestedByUser  User            @relation(fields: [requestedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, createdAt])
+  @@index([requestedByUserId])
+  @@index([status])
+}
+
+model AuditEvent {
+  id               String           @id @default(cuid())
+  documentId       String?
+  actorUserId      String?
+  eventType        AuditEventType
+  targetType       AuditTargetType
+  targetId         String?
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+  actorUser        User?            @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  document         Document?        @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([documentId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([eventType, createdAt])
+}
+
 enum DocumentRole {
   owner
   editor
   commenter
   viewer
+}
+
+enum AiAction {
+  rewrite
+  summarize
+  translate
+  restructure
+}
+
+enum AiRequestStatus {
+  queued
+  running
+  succeeded
+  failed
+  cancelled
+  stale
+}
+
+enum AiSelectionScope {
+  document
+  selection
+}
+
+enum ExportFormat {
+  txt
+  pdf
+  docx
+}
+
+enum ExportJobStatus {
+  queued
+  running
+  succeeded
+  failed
+}
+
+enum AuditEventType {
+  document_created
+  document_renamed
+  document_archived
+  access_granted
+  access_updated
+  access_revoked
+  ai_requested
+  ai_applied
+  export_requested
+  export_completed
+}
+
+enum AuditTargetType {
+  document
+  membership
+  ai_request
+  export_job
+  revision
 }
