@@ -5,10 +5,9 @@
   "type": "module",
   "exports": "./src/index.ts",
   "scripts": {
-    "build": "echo \"test-fixtures build not wired yet\"",
-    "lint": "echo \"test-fixtures lint not wired yet\"",
-    "test": "echo \"test-fixtures tests not wired yet\"",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src --max-warnings=0",
+    "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json"
   }
 }
-

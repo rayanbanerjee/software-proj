@@ -5,10 +5,9 @@
   "type": "module",
   "exports": "./src/index.ts",
   "scripts": {
-    "build": "echo \"editor-schema build not wired yet\"",
-    "lint": "echo \"editor-schema lint not wired yet\"",
-    "test": "echo \"editor-schema tests not wired yet\"",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src --max-warnings=0",
+    "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json"
   }
 }
-
