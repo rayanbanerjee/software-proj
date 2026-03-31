@@ -13,6 +13,37 @@ model User {
   googleSubject String?  @unique
   name          String?
   imageUrl      String?
+  memberships   DocumentMembership[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model Document {
+  id          String               @id @default(cuid())
+  title       String
+  archivedAt  DateTime?
+  memberships DocumentMembership[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+model DocumentMembership {
+  id         String       @id @default(cuid())
+  userId     String
+  documentId String
+  role       DocumentRole
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document   Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, userId])
+  @@index([userId])
+}
+
+enum DocumentRole {
+  owner
+  editor
+  commenter
+  viewer
 }
