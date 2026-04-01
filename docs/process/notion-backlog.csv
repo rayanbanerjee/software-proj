@@ -64,16 +64,16 @@ PKG-010,Make package build and typecheck scripts work,Packages,Backlog,High,,FOU
 API-001,Initialize real API framework in apps/api,API,Done,High,,ADR-002,apps/api boots with chosen framework,task doc + change note,/apps/api
 API-002,Add health check endpoint,API,Done,Medium,,API-001,Health endpoint returns success payload,none,/apps/api
 API-003,Add config loader and env validation,API,Done,High,,API-001,Env values are parsed and validated on startup,change note,/apps/api/src/config
-API-004,Add request logging middleware,API,Backlog,Medium,,"API-001,OPS-001",Requests are logged through shared logger abstraction,none,/apps/api
+API-004,Add request logging middleware,API,Done,Medium,,"API-001,OPS-001",Requests are logged through shared logger abstraction,none,/apps/api
 API-005,Add standard error response shape,API,Done,High,,API-001,Errors return documented consistent shape,api doc,/apps/api
 API-006,Add auth module skeleton,API,Done,High,,API-001,Auth module is registered and compiles,none,/apps/api/src/modules/auth
 API-007,Add documents module skeleton,API,Done,High,,API-001,Documents module is registered and compiles,none,/apps/api/src/modules/documents
-API-008,Add sharing module skeleton,API,Backlog,High,,API-001,Sharing module is registered and compiles,none,/apps/api/src/modules/sharing
-API-009,Add versions module skeleton,API,Backlog,Medium,,API-001,Versions module is registered and compiles,none,/apps/api/src/modules/versions
-API-010,Add AI module skeleton,API,Backlog,Medium,,API-001,AI module is registered and compiles,none,/apps/api/src/modules/ai
-API-011,Add exports module skeleton,API,Backlog,Medium,,API-001,Exports module is registered and compiles,none,/apps/api/src/modules/exports
-API-012,Add comments module skeleton,API,Backlog,Low,,API-001,Comments module is registered and compiles,none,/apps/api/src/modules/comments
-API-013,Add audit module skeleton,API,Backlog,Medium,,API-001,Audit module is registered and compiles,none,/apps/api/src/modules/audit
+API-008,Add sharing module skeleton,API,Done,High,,API-001,Sharing module is registered and compiles,none,/apps/api/src/modules/sharing
+API-009,Add versions module skeleton,API,Done,Medium,,API-001,Versions module is registered and compiles,none,/apps/api/src/modules/versions
+API-010,Add AI module skeleton,API,Done,Medium,,API-001,AI module is registered and compiles,none,/apps/api/src/modules/ai
+API-011,Add exports module skeleton,API,Done,Medium,,API-001,Exports module is registered and compiles,none,/apps/api/src/modules/exports
+API-012,Add comments module skeleton,API,Done,Low,,API-001,Comments module is registered and compiles,none,/apps/api/src/modules/comments
+API-013,Add audit module skeleton,API,Done,Medium,,API-001,Audit module is registered and compiles,none,/apps/api/src/modules/audit
 AUTH-001,Add Google auth config fields,Auth,Done,High,,API-003,Required Google auth env vars are defined,api doc,/apps/api/src/config
 AUTH-002,Implement Google token validation service stub,Auth,Done,High,,"AUTH-001,API-006",Validation service exists behind an abstraction,spec + change note,/apps/api/src/modules/auth
 AUTH-003,Add user profile model,Auth,Done,High,,DB-002,User profile model exists and is wired into auth flow,none,"/apps/api,/packages/shared-types"
