@@ -2,12 +2,15 @@ import { randomUUID } from "node:crypto";
 
 import type {
   CreateDocumentResponse,
+  GetDocumentMetadataResponse,
   DocumentMetadata,
   DocumentPermissionSummary,
   DocumentRole,
   DocumentSummary,
-  ListDocumentsResponse
+  ListDocumentsResponse,
+  RenameDocumentResponse
 } from "@repo/shared-types";
+import { AppError } from "../../common/errors.js";
 
 type StoredMembership = {
   role: DocumentRole;
@@ -97,6 +100,10 @@ function toDocumentSummary(document: StoredDocument, role: DocumentRole): Docume
 export class DocumentsService {
   private readonly documents = new Map<string, StoredDocument>();
 
+  private getMembership(document: StoredDocument, userId: string): StoredMembership | undefined {
+    return document.memberships.find((entry) => entry.userId === userId);
+  }
+
   createDocument(title: string, actor: DocumentActor): CreateDocumentResponse {
     const now = new Date().toISOString();
     const document: StoredDocument = {
@@ -123,11 +130,12 @@ export class DocumentsService {
   listDocuments(actor: DocumentActor): ListDocumentsResponse {
     const documents = Array.from(this.documents.values())
       .map((document) => {
-        const membership = document.memberships.find(
-          (entry) => entry.userId === actor.userId && rolePermissions[entry.role].canView
+        const membership = this.getMembership(
+          document,
+          actor.userId
         );
 
-        if (!membership) {
+        if (!membership || !rolePermissions[membership.role].canView) {
           return null;
         }
 
@@ -137,5 +145,48 @@ export class DocumentsService {
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 
     return { documents };
+  }
+
+  getDocumentMetadata(documentId: string, actor: DocumentActor): GetDocumentMetadataResponse {
+    const document = this.documents.get(documentId);
+
+    if (!document) {
+      throw new AppError("DOCUMENT_NOT_FOUND", 404, "Document not found.");
+    }
+
+    const membership = this.getMembership(document, actor.userId);
+
+    if (!membership || !rolePermissions[membership.role].canView) {
+      throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have access to this document.");
+    }
+
+    return {
+      document: toDocumentMetadata(document, membership.role)
+    };
+  }
+
+  renameDocument(
+    documentId: string,
+    title: string,
+    actor: DocumentActor
+  ): RenameDocumentResponse {
+    const document = this.documents.get(documentId);
+
+    if (!document) {
+      throw new AppError("DOCUMENT_NOT_FOUND", 404, "Document not found.");
+    }
+
+    const membership = this.getMembership(document, actor.userId);
+
+    if (!membership || !rolePermissions[membership.role].canEdit) {
+      throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have permission to rename this document.");
+    }
+
+    document.title = title;
+    document.updatedAt = new Date().toISOString();
+
+    return {
+      document: toDocumentMetadata(document, membership.role)
+    };
   }
 }

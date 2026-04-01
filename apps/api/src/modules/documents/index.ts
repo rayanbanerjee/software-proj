@@ -8,6 +8,10 @@ const createDocumentBodySchema = z.object({
   title: z.string().trim().min(1)
 });
 
+const renameDocumentBodySchema = z.object({
+  title: z.string().trim().min(1)
+});
+
 function getActor(app: FastifyInstance, headers: Record<string, string | string[] | undefined>): DocumentActor {
   const userIdHeader = headers["x-user-id"];
   const userNameHeader = headers["x-user-name"];
@@ -41,5 +45,20 @@ export async function registerDocumentsModule(app: FastifyInstance) {
   app.get("/v1/documents", async (request) => {
     const actor = getActor(app, request.headers);
     return app.documentsService.listDocuments(actor);
+  });
+
+  app.get("/v1/documents/:documentId", async (request) => {
+    const actor = getActor(app, request.headers);
+    const params = request.params as { documentId: string };
+
+    return app.documentsService.getDocumentMetadata(params.documentId, actor);
+  });
+
+  app.patch("/v1/documents/:documentId", async (request) => {
+    const actor = getActor(app, request.headers);
+    const params = request.params as { documentId: string };
+    const body = renameDocumentBodySchema.parse(request.body);
+
+    return app.documentsService.renameDocument(params.documentId, body.title, actor);
   });
 }

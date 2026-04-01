@@ -102,4 +102,150 @@ describe("documents module", () => {
 
     await app.close();
   });
+
+  it("returns document metadata for an authorized user", async () => {
+    const { app } = await createApp();
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: {
+        "x-user-id": "user_owner"
+      },
+      payload: {
+        title: "Metadata document"
+      }
+    });
+
+    const documentId = createResponse.json().document.id as string;
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}`,
+      headers: {
+        "x-user-id": "user_owner"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      document: {
+        id: documentId,
+        title: "Metadata document",
+        permissions: {
+          role: "owner"
+        }
+      }
+    });
+
+    await app.close();
+  });
+
+  it("renames a document for a user with edit access", async () => {
+    const { app } = await createApp();
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: {
+        "x-user-id": "user_owner"
+      },
+      payload: {
+        title: "Original title"
+      }
+    });
+
+    const documentId = createResponse.json().document.id as string;
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/v1/documents/${documentId}`,
+      headers: {
+        "x-user-id": "user_owner"
+      },
+      payload: {
+        title: "Renamed title"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      document: {
+        id: documentId,
+        title: "Renamed title"
+      }
+    });
+
+    const metadataResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}`,
+      headers: {
+        "x-user-id": "user_owner"
+      }
+    });
+
+    expect(metadataResponse.json()).toMatchObject({
+      document: {
+        title: "Renamed title"
+      }
+    });
+
+    await app.close();
+  });
+
+  it("rejects metadata and rename access for other users", async () => {
+    const { app } = await createApp();
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: {
+        "x-user-id": "user_owner"
+      },
+      payload: {
+        title: "Private doc"
+      }
+    });
+
+    const documentId = createResponse.json().document.id as string;
+
+    const metadataResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}`,
+      headers: {
+        "x-user-id": "user_other"
+      }
+    });
+
+    expect(metadataResponse.statusCode).toBe(403);
+    expect(metadataResponse.json()).toEqual({
+      error: {
+        code: "DOCUMENT_FORBIDDEN",
+        message: "You do not have access to this document.",
+        statusCode: 403
+      }
+    });
+
+    const renameResponse = await app.inject({
+      method: "PATCH",
+      url: `/v1/documents/${documentId}`,
+      headers: {
+        "x-user-id": "user_other"
+      },
+      payload: {
+        title: "Should fail"
+      }
+    });
+
+    expect(renameResponse.statusCode).toBe(403);
+    expect(renameResponse.json()).toEqual({
+      error: {
+        code: "DOCUMENT_FORBIDDEN",
+        message: "You do not have permission to rename this document.",
+        statusCode: 403
+      }
+    });
+
+    await app.close();
+  });
 });

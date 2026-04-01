@@ -64,6 +64,78 @@ Response:
 }
 ```
 
+## `GET /v1/documents/:documentId`
+
+Returns document metadata and permission summary for an authorized user.
+
+Required headers:
+
+- `x-user-id`
+
+Response:
+
+```json
+{
+  "document": {
+    "id": "uuid",
+    "title": "Project kickoff",
+    "createdAt": "2026-04-01T10:00:00.000Z",
+    "updatedAt": "2026-04-01T10:00:00.000Z",
+    "archivedAt": null,
+    "permissions": {
+      "role": "owner",
+      "canView": true,
+      "canComment": true,
+      "canEdit": true,
+      "canShare": true,
+      "canExport": true,
+      "canUseAi": true,
+      "canRollback": true
+    }
+  }
+}
+```
+
+## `PATCH /v1/documents/:documentId`
+
+Renames a document when the current user has edit access.
+
+Required headers:
+
+- `x-user-id`
+
+Request body:
+
+```json
+{
+  "title": "Renamed title"
+}
+```
+
+Response:
+
+```json
+{
+  "document": {
+    "id": "uuid",
+    "title": "Renamed title",
+    "createdAt": "2026-04-01T10:00:00.000Z",
+    "updatedAt": "2026-04-01T10:05:00.000Z",
+    "archivedAt": null,
+    "permissions": {
+      "role": "owner",
+      "canView": true,
+      "canComment": true,
+      "canEdit": true,
+      "canShare": true,
+      "canExport": true,
+      "canUseAi": true,
+      "canRollback": true
+    }
+  }
+}
+```
+
 ## Notes
 
 - the current implementation uses an app-scoped in-memory repository while the API is still being wired to Prisma-backed persistence
