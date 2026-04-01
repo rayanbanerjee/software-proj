@@ -40,4 +40,17 @@ describe("api app", () => {
 
     await app.close();
   });
+
+  it("registers the requested API module skeletons", async () => {
+    const app = await createApiTestApp();
+
+    expect(app.aiService.moduleName).toBe("ai");
+    expect(app.auditService.moduleName).toBe("audit");
+    expect(app.commentsService.moduleName).toBe("comments");
+    expect(app.exportsService.moduleName).toBe("exports");
+    expect(app.sharingService.moduleName).toBe("sharing");
+    expect(app.versionsService.moduleName).toBe("versions");
+
+    await app.close();
+  });
 });

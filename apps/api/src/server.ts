@@ -9,7 +9,9 @@ async function start() {
       port: env.PORT
     });
   } catch (error) {
-    app.log.error(error);
+    app.appLogger.error("server.start_failed", {
+      error
+    });
     process.exit(1);
   }
 }
