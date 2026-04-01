@@ -2,6 +2,7 @@ import type { AppLogger } from "../common/logger.js";
 import type { AiService } from "../modules/ai/service.js";
 import type { AuditService } from "../modules/audit/service.js";
 import type { GoogleTokenValidator } from "../modules/auth/google-token-validator.js";
+import type { AuthSessionService } from "../modules/auth/session.js";
 import type { CommentsService } from "../modules/comments/service.js";
 import type { DocumentsService } from "../modules/documents/service.js";
 import type { ExportsService } from "../modules/exports/service.js";
@@ -14,6 +15,7 @@ declare module "fastify" {
     aiService: AiService;
     apiEnv: ApiEnv;
     appLogger: AppLogger;
+    authSessionService: AuthSessionService;
     auditService: AuditService;
     commentsService: CommentsService;
     documentsService: DocumentsService;

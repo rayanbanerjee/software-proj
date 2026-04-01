@@ -23,5 +23,4 @@ Use Yjs for document CRDT state and Hocuspocus as the initial collaboration serv
 
 - Task: `docs/tasks/TASK-0003-core-platform-adrs.md`
 - Spec:
-- Related ADR: `docs/adr/0001-monorepo.md`
-
+- Related ADR: `docs/adr/0001-monorepo.md`, `docs/adr/0008-snapshot-storage-format.md`

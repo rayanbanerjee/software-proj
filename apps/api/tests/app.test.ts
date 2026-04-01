@@ -37,6 +37,7 @@ describe("api app", () => {
       audience: "client-id",
       email: "stub-user@example.com"
     });
+    expect(app.authSessionService).toBeDefined();
 
     await app.close();
   });

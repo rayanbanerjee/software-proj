@@ -1,0 +1,222 @@
+:root {
+  --paper: #f4efe3;
+  --ink: #132238;
+  --ink-soft: rgba(19, 34, 56, 0.72);
+  --card: rgba(255, 250, 240, 0.78);
+  --card-border: rgba(19, 34, 56, 0.12);
+  --sun: #e98b2a;
+  --sage: #52796f;
+  --berry: #8a3b53;
+  --shadow: 0 24px 60px rgba(19, 34, 56, 0.14);
+  --heading-font: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  --body-font: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(233, 139, 42, 0.25), transparent 32%),
+    radial-gradient(circle at top right, rgba(82, 121, 111, 0.2), transparent 28%),
+    linear-gradient(180deg, #f7f1e8 0%, #efe5d2 100%);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: var(--body-font);
+}
+
+a {
+  color: inherit;
+}
+
+.landing-shell {
+  padding: 32px 20px 56px;
+}
+
+.landing-frame {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: grid;
+  gap: 24px;
+}
+
+.hero-card,
+.module-card,
+.track-card {
+  border: 1px solid var(--card-border);
+  border-radius: 28px;
+  background: var(--card);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow);
+}
+
+.hero-card {
+  padding: 32px;
+  display: grid;
+  gap: 24px;
+}
+
+.hero-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: rgba(19, 34, 56, 0.08);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
+  gap: 24px;
+}
+
+.hero-copy h1 {
+  margin: 0 0 16px;
+  font-family: var(--heading-font);
+  font-size: clamp(2.8rem, 7vw, 5.4rem);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+
+.hero-copy p {
+  margin: 0;
+  max-width: 56ch;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.hero-panel {
+  padding: 22px;
+  border-radius: 24px;
+  background:
+    linear-gradient(160deg, rgba(19, 34, 56, 0.94), rgba(82, 121, 111, 0.92));
+  color: #fdf7ef;
+}
+
+.hero-panel p {
+  margin: 0 0 14px;
+  line-height: 1.6;
+  color: rgba(253, 247, 239, 0.82);
+}
+
+.hero-panel strong {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.hero-stats div {
+  padding-top: 12px;
+  border-top: 1px solid rgba(253, 247, 239, 0.18);
+}
+
+.hero-stats dt {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(253, 247, 239, 0.68);
+}
+
+.hero-stats dd {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.section-heading {
+  display: grid;
+  gap: 8px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-family: var(--heading-font);
+  font-size: clamp(1.8rem, 3.6vw, 2.7rem);
+}
+
+.section-heading p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.module-grid,
+.track-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.module-card,
+.track-card {
+  padding: 22px;
+}
+
+.module-accent {
+  display: inline-flex;
+  margin-bottom: 14px;
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: rgba(233, 139, 42, 0.12);
+  color: var(--berry);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.module-card h3,
+.track-card h3 {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+}
+
+.module-card p,
+.track-card p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.footer-note {
+  padding: 18px 4px 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+@media (max-width: 900px) {
+  .hero-grid,
+  .module-grid,
+  .track-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-card {
+    padding: 24px;
+  }
+}

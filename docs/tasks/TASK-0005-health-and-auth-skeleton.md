@@ -23,7 +23,7 @@ Formalize the API health endpoint and introduce the first auth module boundary, 
 
 ## Dependencies
 
-- ADRs: `docs/adr/0002-api-framework.md`
+- ADRs: `docs/adr/0002-api-framework.md`, `docs/adr/0007-auth-token-and-session-strategy.md`
 - Specs: `docs/specs/authentication-flow.md`
 - Blockers:
 
@@ -32,6 +32,7 @@ Formalize the API health endpoint and introduce the first auth module boundary, 
 - the auth module stays intentionally small so later work can extend it without refactoring the app bootstrap
 - the token validator is a stub, not a real verifier
 - the health endpoint should be treated as part of the stable service surface from now on
+- auth callback and session follow-up work now build on `docs/adr/0007-auth-token-and-session-strategy.md`
 
 ## Progress Log
 
@@ -47,4 +48,3 @@ Formalize the API health endpoint and introduce the first auth module boundary, 
 - code merged
 - related docs updated
 - follow-up items recorded
-

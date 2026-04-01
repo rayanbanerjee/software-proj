@@ -11,6 +11,7 @@ Expected contents:
 
 Planned REST surface:
 
+- `/v1/auth/callback`
 - `/v1/documents`
 - `/v1/documents/{documentId}/sessions`
 - `/v1/documents/{documentId}/invitations`

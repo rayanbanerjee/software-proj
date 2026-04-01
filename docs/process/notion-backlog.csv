@@ -17,16 +17,16 @@ DOC-005,Add permission propagation spec,Docs,Backlog,High,,"SHARE-005,COLLAB-008
 DOC-006,Add AI proposal lifecycle spec,Docs,Backlog,High,,"AI-002,AI-007",AI proposal lifecycle is documented from request through apply,spec,/docs/specs
 DOC-007,Add versioning model spec,Docs,Backlog,High,,VER-001,Versioning model spec exists,spec,/docs/specs
 DOC-008,Add export pipeline spec,Docs,Backlog,Medium,,EXP-001,Export flow and job lifecycle are documented,spec,/docs/specs
-DOC-009,Add initial container diagram source file,Docs,Backlog,Medium,,"ADR-002,ADR-004,ADR-005",Container diagram source is committed,diagram,/docs/diagrams
+DOC-009,Add initial container diagram source file,Docs,Done,Medium,,"ADR-002,ADR-004,ADR-005",Container diagram source is committed,diagram,/docs/diagrams
 DOC-010,Add sequence diagram for open document and join session,Docs,Backlog,Medium,,DOC-004,Sequence diagram source is committed,diagram,/docs/diagrams
 ADR-002,Decide NestJS vs Fastify for API,Architecture,Done,High,,,ADR accepted and linked from relevant tasks,ADR + task doc,/docs/adr
 ADR-003,Decide Next.js app setup details,Architecture,Done,High,,,ADR accepted and linked from web setup tasks,ADR + task doc,/docs/adr
 ADR-004,Decide collab server stack around Yjs/Hocuspocus,Architecture,Done,High,,,ADR accepted and linked from collaboration tasks,ADR + task doc,/docs/adr
 ADR-005,Decide queue and job framework for worker,Architecture,Done,High,,,ADR accepted and linked from worker tasks,ADR + task doc,/docs/adr
 ADR-006,Decide database ORM or query layer,Architecture,Done,High,,,ADR accepted and linked from DB tasks,ADR + task doc,/docs/adr
-ADR-007,Decide auth token and session strategy,Architecture,Backlog,High,,,ADR accepted and linked from auth tasks,ADR + task doc,/docs/adr
-ADR-008,Decide snapshot storage format,Architecture,Backlog,Medium,,ADR-004,ADR accepted and linked from versioning and collab tasks,ADR + task doc,/docs/adr
-WEB-001,Turn apps/web into a real Next.js app,Web,Backlog,High,,ADR-003,apps/web boots as a real Next.js app,task doc + change note,/apps/web
+ADR-007,Decide auth token and session strategy,Architecture,Done,High,,,ADR accepted and linked from auth tasks,ADR + task doc,/docs/adr
+ADR-008,Decide snapshot storage format,Architecture,Done,Medium,,ADR-004,ADR accepted and linked from versioning and collab tasks,ADR + task doc,/docs/adr
+WEB-001,Turn apps/web into a real Next.js app,Web,Done,High,,ADR-003,apps/web boots as a real Next.js app,task doc + change note,/apps/web
 WEB-002,Add base layout and route structure,Web,Backlog,High,,WEB-001,Core app routes and layout are present,none,/apps/web
 WEB-003,Add shared design tokens and CSS foundation,Web,Backlog,Medium,,WEB-001,Design tokens and global styles are committed,change note,/apps/web
 WEB-004,Add auth shell states,Web,Backlog,Medium,,AUTH-004,Signed in signed out and loading shells exist,none,/apps/web
@@ -77,7 +77,7 @@ API-013,Add audit module skeleton,API,Done,Medium,,API-001,Audit module is regis
 AUTH-001,Add Google auth config fields,Auth,Done,High,,API-003,Required Google auth env vars are defined,api doc,/apps/api/src/config
 AUTH-002,Implement Google token validation service stub,Auth,Done,High,,"AUTH-001,API-006",Validation service exists behind an abstraction,spec + change note,/apps/api/src/modules/auth
 AUTH-003,Add user profile model,Auth,Done,High,,DB-002,User profile model exists and is wired into auth flow,none,"/apps/api,/packages/shared-types"
-AUTH-004,Add auth callback endpoint,Auth,Backlog,High,,AUTH-002,Callback endpoint accepts token and returns session payload,api doc,/apps/api/src/modules/auth
+AUTH-004,Add auth callback endpoint,Auth,Done,High,,AUTH-002,Callback endpoint accepts token and returns session payload,api doc,/apps/api/src/modules/auth
 AUTH-005,Add session issuance logic,Auth,Backlog,High,,"ADR-007,AUTH-002",Session issuance flow works with chosen token strategy,ADR or spec,/apps/api/src/modules/auth
 AUTH-006,Add auth guard middleware,Auth,Backlog,High,,AUTH-005,Protected endpoints require auth successfully,none,/apps/api
 AUTH-007,Add current-user endpoint,Auth,Backlog,Medium,,AUTH-006,Current user endpoint returns normalized profile,api doc,/apps/api/src/modules/auth
