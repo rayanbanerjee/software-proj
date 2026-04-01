@@ -1,22 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { createApp } from "../src/app.js";
+import { createApiTestApp, applyApiTestEnv } from "./integration/harness.js";
 
 const originalEnv = { ...process.env };
 
 beforeEach(() => {
-  process.env = {
-    ...originalEnv,
-    DATABASE_URL: "postgres://postgres:postgres@localhost:5432/collab_editor",
-    GOOGLE_CLIENT_ID: "client-id",
-    GOOGLE_CLIENT_SECRET: "client-secret",
-    NODE_ENV: "test",
-    OBJECT_STORAGE_BUCKET: "collab-editor",
-    OBJECT_STORAGE_ENDPOINT: "http://localhost:9000",
-    PORT: "4000",
-    REDIS_URL: "redis://localhost:6379",
-    SESSION_SECRET: "secret"
-  };
+  process.env = applyApiTestEnv();
 });
 
 afterEach(() => {
@@ -25,7 +14,7 @@ afterEach(() => {
 
 describe("documents module", () => {
   it("creates a document and returns owner permissions", async () => {
-    const { app } = await createApp();
+    const app = await createApiTestApp();
 
     const response = await app.inject({
       method: "POST",
@@ -56,7 +45,7 @@ describe("documents module", () => {
   });
 
   it("lists only documents the current user can view", async () => {
-    const { app } = await createApp();
+    const app = await createApiTestApp();
 
     await app.inject({
       method: "POST",
@@ -104,7 +93,7 @@ describe("documents module", () => {
   });
 
   it("returns document metadata for an authorized user", async () => {
-    const { app } = await createApp();
+    const app = await createApiTestApp();
 
     const createResponse = await app.inject({
       method: "POST",
@@ -142,7 +131,7 @@ describe("documents module", () => {
   });
 
   it("renames a document for a user with edit access", async () => {
-    const { app } = await createApp();
+    const app = await createApiTestApp();
 
     const createResponse = await app.inject({
       method: "POST",
@@ -194,7 +183,7 @@ describe("documents module", () => {
   });
 
   it("rejects metadata and rename access for other users", async () => {
-    const { app } = await createApp();
+    const app = await createApiTestApp();
 
     const createResponse = await app.inject({
       method: "POST",
@@ -250,7 +239,7 @@ describe("documents module", () => {
   });
 
   it("archives a document for an owner and removes it from listings", async () => {
-    const { app } = await createApp();
+    const app = await createApiTestApp();
 
     const createResponse = await app.inject({
       method: "POST",
@@ -310,7 +299,7 @@ describe("documents module", () => {
   });
 
   it("rejects archive requests from non-owners", async () => {
-    const { app } = await createApp();
+    const app = await createApiTestApp();
 
     const createResponse = await app.inject({
       method: "POST",
@@ -346,7 +335,7 @@ describe("documents module", () => {
   });
 
   it("covers the create read update archive flow end to end", async () => {
-    const { app } = await createApp();
+    const app = await createApiTestApp();
 
     const createResponse = await app.inject({
       method: "POST",

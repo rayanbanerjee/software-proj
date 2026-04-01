@@ -1,22 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { createApp } from "../src/app.js";
+import { createApiTestApp, applyApiTestEnv } from "./integration/harness.js";
 
 const originalEnv = { ...process.env };
 
 beforeEach(() => {
-  process.env = {
-    ...originalEnv,
-    DATABASE_URL: "postgres://postgres:postgres@localhost:5432/collab_editor",
-    GOOGLE_CLIENT_ID: "client-id",
-    GOOGLE_CLIENT_SECRET: "client-secret",
-    NODE_ENV: "test",
-    OBJECT_STORAGE_BUCKET: "collab-editor",
-    OBJECT_STORAGE_ENDPOINT: "http://localhost:9000",
-    PORT: "4000",
-    REDIS_URL: "redis://localhost:6379",
-    SESSION_SECRET: "secret"
-  };
+  process.env = applyApiTestEnv();
 });
 
 afterEach(() => {
@@ -25,7 +14,7 @@ afterEach(() => {
 
 describe("api app", () => {
   it("responds on the health endpoint", async () => {
-    const { app } = await createApp();
+    const app = await createApiTestApp();
 
     const response = await app.inject({
       method: "GET",
@@ -42,7 +31,7 @@ describe("api app", () => {
   });
 
   it("registers the google token validator", async () => {
-    const { app } = await createApp();
+    const app = await createApiTestApp();
 
     await expect(app.googleTokenValidator.validateIdToken("stub-valid-token")).resolves.toMatchObject({
       audience: "client-id",
@@ -52,4 +41,3 @@ describe("api app", () => {
     await app.close();
   });
 });
-
