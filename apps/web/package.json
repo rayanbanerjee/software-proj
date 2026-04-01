@@ -3,11 +3,20 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "build": "echo \"web build not wired yet\"",
-    "dev": "echo \"web dev not wired yet\"",
-    "lint": "echo \"web lint not wired yet\"",
-    "test": "echo \"web tests not wired yet\"",
-    "typecheck": "tsc -p tsconfig.json"
+    "build": "next build",
+    "dev": "next dev",
+    "lint": "eslint src tests next-env.d.ts next.config.ts --max-warnings=0",
+    "start": "next start",
+    "test": "vitest run tests/app-shell.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "next": "^16.2.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2"
   }
 }
-

@@ -7,3 +7,7 @@ Recommended conventions:
 - one file per diagram topic
 - include the source format next to rendered exports when possible
 - link each diagram from the relevant ADR or spec
+
+Current source files:
+
+- `docs/diagrams/container-diagram.mmd`: initial service/container view based on the accepted monorepo, API, web, collaboration, worker, and database ADRs
