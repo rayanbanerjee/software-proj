@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type {
+  ArchiveDocumentResponse,
   CreateDocumentResponse,
   GetDocumentMetadataResponse,
   DocumentMetadata,
@@ -139,6 +140,10 @@ export class DocumentsService {
           return null;
         }
 
+        if (document.archivedAt) {
+          return null;
+        }
+
         return toDocumentSummary(document, membership.role);
       })
       .filter((document): document is DocumentSummary => document !== null)
@@ -187,6 +192,32 @@ export class DocumentsService {
 
     return {
       document: toDocumentMetadata(document, membership.role)
+    };
+  }
+
+  archiveDocument(
+    documentId: string,
+    actor: DocumentActor
+  ): ArchiveDocumentResponse {
+    const document = this.documents.get(documentId);
+
+    if (!document) {
+      throw new AppError("DOCUMENT_NOT_FOUND", 404, "Document not found.");
+    }
+
+    const membership = this.getMembership(document, actor.userId);
+
+    if (!membership || membership.role !== "owner") {
+      throw new AppError("DOCUMENT_FORBIDDEN", 403, "Only owners can archive this document.");
+    }
+
+    const archivedAt = new Date().toISOString();
+    document.archivedAt = archivedAt;
+    document.updatedAt = archivedAt;
+
+    return {
+      documentId: document.id,
+      archivedAt
     };
   }
 }

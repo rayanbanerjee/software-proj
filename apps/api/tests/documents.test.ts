@@ -248,4 +248,149 @@ describe("documents module", () => {
 
     await app.close();
   });
+
+  it("archives a document for an owner and removes it from listings", async () => {
+    const { app } = await createApp();
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: {
+        "x-user-id": "user_owner"
+      },
+      payload: {
+        title: "Archive me"
+      }
+    });
+
+    const documentId = createResponse.json().document.id as string;
+
+    const archiveResponse = await app.inject({
+      method: "DELETE",
+      url: `/v1/documents/${documentId}`,
+      headers: {
+        "x-user-id": "user_owner"
+      }
+    });
+
+    expect(archiveResponse.statusCode).toBe(200);
+    expect(archiveResponse.json()).toMatchObject({
+      documentId
+    });
+
+    const listResponse = await app.inject({
+      method: "GET",
+      url: "/v1/documents",
+      headers: {
+        "x-user-id": "user_owner"
+      }
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json()).toEqual({
+      documents: []
+    });
+
+    const metadataResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}`,
+      headers: {
+        "x-user-id": "user_owner"
+      }
+    });
+
+    expect(metadataResponse.statusCode).toBe(200);
+    expect(metadataResponse.json()).toMatchObject({
+      document: {
+        archivedAt: expect.any(String)
+      }
+    });
+
+    await app.close();
+  });
+
+  it("rejects archive requests from non-owners", async () => {
+    const { app } = await createApp();
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: {
+        "x-user-id": "user_owner"
+      },
+      payload: {
+        title: "Owner only archive"
+      }
+    });
+
+    const documentId = createResponse.json().document.id as string;
+
+    const archiveResponse = await app.inject({
+      method: "DELETE",
+      url: `/v1/documents/${documentId}`,
+      headers: {
+        "x-user-id": "user_other"
+      }
+    });
+
+    expect(archiveResponse.statusCode).toBe(403);
+    expect(archiveResponse.json()).toEqual({
+      error: {
+        code: "DOCUMENT_FORBIDDEN",
+        message: "Only owners can archive this document.",
+        statusCode: 403
+      }
+    });
+
+    await app.close();
+  });
+
+  it("covers the create read update archive flow end to end", async () => {
+    const { app } = await createApp();
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: {
+        "x-user-id": "user_owner"
+      },
+      payload: {
+        title: "CRUD flow"
+      }
+    });
+
+    const documentId = createResponse.json().document.id as string;
+
+    const readResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}`,
+      headers: {
+        "x-user-id": "user_owner"
+      }
+    });
+
+    const renameResponse = await app.inject({
+      method: "PATCH",
+      url: `/v1/documents/${documentId}`,
+      headers: {
+        "x-user-id": "user_owner"
+      },
+      payload: {
+        title: "CRUD flow renamed"
+      }
+    });
+
+    const archiveResponse = await app.inject({
+      method: "DELETE",
+      url: `/v1/documents/${documentId}`,
+      headers: {
+        "x-user-id": "user_owner"
+      }
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    expect(readResponse.statusCode).toBe(200);
+    expect(renameResponse.statusCode).toBe(200);
+    expect(archiveResponse.statusCode).toBe(200);
+  });
 });

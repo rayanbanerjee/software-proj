@@ -61,4 +61,11 @@ export async function registerDocumentsModule(app: FastifyInstance) {
 
     return app.documentsService.renameDocument(params.documentId, body.title, actor);
   });
+
+  app.delete("/v1/documents/:documentId", async (request) => {
+    const actor = getActor(app, request.headers);
+    const params = request.params as { documentId: string };
+
+    return app.documentsService.archiveDocument(params.documentId, actor);
+  });
 }

@@ -136,7 +136,25 @@ Response:
 }
 ```
 
+## `DELETE /v1/documents/:documentId`
+
+Archives a document when the current user is the owner.
+
+Required headers:
+
+- `x-user-id`
+
+Response:
+
+```json
+{
+  "documentId": "uuid",
+  "archivedAt": "2026-04-01T10:10:00.000Z"
+}
+```
+
 ## Notes
 
 - the current implementation uses an app-scoped in-memory repository while the API is still being wired to Prisma-backed persistence
 - owner membership is created together with the document creation flow
+- archived documents are removed from list responses but can still be retrieved directly by id
