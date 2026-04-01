@@ -1,23 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { AppError } from "../src/common/errors.js";
-import { createApp } from "../src/app.js";
+import { createApiTestApp, applyApiTestEnv } from "./integration/harness.js";
 
 const originalEnv = { ...process.env };
 
 beforeEach(() => {
-  process.env = {
-    ...originalEnv,
-    DATABASE_URL: "postgres://postgres:postgres@localhost:5432/collab_editor",
-    GOOGLE_CLIENT_ID: "client-id",
-    GOOGLE_CLIENT_SECRET: "client-secret",
-    NODE_ENV: "test",
-    OBJECT_STORAGE_BUCKET: "collab-editor",
-    OBJECT_STORAGE_ENDPOINT: "http://localhost:9000",
-    PORT: "4000",
-    REDIS_URL: "redis://localhost:6379",
-    SESSION_SECRET: "secret"
-  };
+  process.env = applyApiTestEnv();
 });
 
 afterEach(() => {
@@ -26,7 +15,7 @@ afterEach(() => {
 
 describe("api error handling", () => {
   it("returns the standard not found shape", async () => {
-    const { app } = await createApp();
+    const app = await createApiTestApp();
 
     const response = await app.inject({
       method: "GET",
@@ -46,7 +35,7 @@ describe("api error handling", () => {
   });
 
   it("maps app errors to the standard error shape", async () => {
-    const { app } = await createApp();
+    const app = await createApiTestApp();
 
     app.get("/boom", async () => {
       throw new AppError("BAD_REQUEST", 400, "Bad request.");
@@ -69,4 +58,3 @@ describe("api error handling", () => {
     await app.close();
   });
 });
-
