@@ -116,7 +116,7 @@ COLLAB-006,Add writer-slot allocation logic,Collaboration,Backlog,High,,COLLAB-0
 COLLAB-007,Add writer-slot queue logic,Collaboration,Backlog,Medium,,COLLAB-006,Queued editors are promoted correctly,none,/apps/collab/src/writer-slots
 COLLAB-008,Add permission update push event,Collaboration,Backlog,High,,"SHARE-003,COLLAB-003",Permission updates propagate to active sessions,spec + api doc,/apps/collab/src/permissions
 COLLAB-009,Add disconnect and reconnect handling,Collaboration,Done,High,,COLLAB-003,Reconnect flow restores session state safely,spec,/apps/collab/src/sessions
-COLLAB-010,Add collaboration service tests,Collaboration,Backlog,Medium,,"TEST-004,COLLAB-009",Core collaboration flows are covered by tests,none,/apps/collab/tests
+COLLAB-010,Add collaboration service tests,Collaboration,Done,Medium,,"TEST-004,COLLAB-009",Core collaboration flows are covered by tests,none,/apps/collab/tests
 SYNC-001,Add IndexedDB persistence for local edits,Sync,Backlog,High,,"EDIT-002,COLLAB-003",Offline local edits persist in browser storage,spec,/apps/web/src/editor
 SYNC-002,Add reconnect banner UX,Sync,Backlog,Medium,,WEB-014,Reconnect status is visible in the UI,none,/apps/web
 SYNC-003,Add state-vector reconnect flow,Sync,Backlog,High,,"SYNC-001,COLLAB-009",Client and server merge state on reconnect,spec,"/apps/web,/apps/collab"
@@ -168,7 +168,7 @@ INFRA-007,Add local bootstrap README,Infrastructure,Done,Medium,,INFRA-001,Infra
 TEST-001,Decide and set up Vitest or Jest,Testing,Done,High,,"ADR-002,ADR-003",Chosen test framework is configured and runs,task doc + change note,/
 TEST-002,Add shared test config,Testing,Done,High,,TEST-001,Shared test config is reused by apps and packages,none,/
 TEST-003,Add API integration test harness,Testing,Done,High,,"TEST-001,API-001,DB-001",API integration tests can run against local test DB,none,/apps/api/tests
-TEST-004,Add collaboration test harness,Testing,Backlog,High,,"TEST-001,COLLAB-001",Collab tests can run service-level scenarios,none,/apps/collab/tests
+TEST-004,Add collaboration test harness,Testing,Done,High,,"TEST-001,COLLAB-001",Collab tests can run service-level scenarios,none,/apps/collab/tests
 TEST-005,Add web E2E framework setup,Testing,Backlog,Medium,,"TEST-001,WEB-001",Web E2E tests are configured,none,/apps/web/tests
 TEST-006,Add fixture factories,Testing,Done,Medium,,TEST-001,Fixture factories exist for tests and demos,none,/packages/test-fixtures
 TEST-007,Refine CI test matrix,Testing,Backlog,Low,,"TEST-003,TEST-004,TEST-005",CI splits or optimizes tests appropriately,change note,/.github/workflows
