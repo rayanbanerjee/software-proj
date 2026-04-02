@@ -1,11 +1,6 @@
 import { defineConfig } from "vitest/config";
+import { sharedVitestConfig } from "./tests/config/shared-vitest";
 
 export default defineConfig({
-  test: {
-    include: ["tests/**/*.test.ts", "apps/**/tests/**/*.test.ts", "packages/**/tests/**/*.test.ts"],
-    environment: "node",
-    coverage: {
-      enabled: false
-    }
-  }
+  test: sharedVitestConfig
 });
