@@ -9,6 +9,11 @@ import {
   readStoredDraft,
   writeStoredDraft
 } from "./local-persistence";
+import {
+  getEditorHistoryState,
+  runRedo,
+  runUndo
+} from "./history";
 import { getSelectionSummary } from "./selection";
 
 const starterContent = `
@@ -69,6 +74,7 @@ export function BaseEditor({ documentId = "route-shell-document" }: BaseEditorPr
   }, [documentId, editor, hasHydratedDraft]);
 
   const selection = getSelectionSummary(editor);
+  const history = getEditorHistoryState(editor);
 
   function setParagraph() {
     editor?.chain().focus().setParagraph().run();
@@ -115,6 +121,22 @@ export function BaseEditor({ documentId = "route-shell-document" }: BaseEditorPr
         >
           H3
         </button>
+        <button
+          className="base-editor-button"
+          disabled={!history.canUndo}
+          onClick={() => runUndo(editor)}
+          type="button"
+        >
+          Undo
+        </button>
+        <button
+          className="base-editor-button"
+          disabled={!history.canRedo}
+          onClick={() => runRedo(editor)}
+          type="button"
+        >
+          Redo
+        </button>
       </div>
 
       <dl className="base-editor-selection-stats">
@@ -129,6 +151,10 @@ export function BaseEditor({ documentId = "route-shell-document" }: BaseEditorPr
         <div>
           <dt>Local draft</dt>
           <dd>{hasHydratedDraft ? "hydrated" : "booting"}</dd>
+        </div>
+        <div>
+          <dt>History</dt>
+          <dd>{`${history.canUndo ? "undo" : "no-undo"} / ${history.canRedo ? "redo" : "no-redo"}`}</dd>
         </div>
       </dl>
 
