@@ -8,12 +8,17 @@ This directory defines the local backing services used during development:
 - Redis on `localhost:6379`
 - MinIO object storage on `localhost:9000`
 - MinIO console on `localhost:9001`
+- API service on `localhost:4000`
+- collaboration service on `localhost:4001`
+- worker health endpoint on `localhost:4002`
 
 ## Start
 
 ```bash
 ./infrastructure/scripts/start-local.sh
 ```
+
+This now starts the backing services and the `api`, `collab`, and `worker` containers defined in Compose.
 
 ## Stop
 
@@ -25,6 +30,12 @@ This directory defines the local backing services used during development:
 
 ```bash
 ./infrastructure/scripts/logs-local.sh
+```
+
+To follow logs for one service only:
+
+```bash
+./infrastructure/scripts/logs-local.sh api
 ```
 
 ## Prisma workflow
@@ -70,5 +81,6 @@ pnpm --filter @repo/api db:seed
 
 - these settings are for local development only
 - the object storage bucket still needs to be created by the application bootstrap or a future helper script
-- service containers for `api`, `collab`, and `worker` are intentionally deferred to later tasks
+- the service containers run the workspace `dev` commands inside a shared monorepo image built from `infrastructure/docker/Dockerfile.dev`
+- `api`, `collab`, and `worker` depend on the backing services but do not yet run database migrations automatically
 - the seed script assumes Prisma migrations have already been applied to the local database
