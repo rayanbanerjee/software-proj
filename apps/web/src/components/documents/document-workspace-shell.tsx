@@ -2,7 +2,8 @@ import type {
   DocumentOverlay,
   DocumentRecord,
   DocumentScreenState,
-  SyncConnectionState
+  SyncConnectionState,
+  SyncPermissionState
 } from "../../lib/app-shell";
 import { createAiPanelState } from "../../lib/ai-panel-state";
 import type { ExportPanelState } from "../../lib/export-panel-state";
@@ -22,6 +23,8 @@ interface DocumentWorkspaceShellProps {
   document: DocumentRecord;
   exportPanelState: ExportPanelState;
   overlay: DocumentOverlay;
+  permissionState: SyncPermissionState;
+  serverStateVector: string | null;
   syncState: SyncConnectionState;
   versionHistoryEntries: readonly VersionHistoryEntry[];
   view: DocumentScreenState;
@@ -31,6 +34,8 @@ export function DocumentWorkspaceShell({
   document,
   exportPanelState,
   overlay,
+  permissionState,
+  serverStateVector,
   syncState,
   versionHistoryEntries,
   view
@@ -55,15 +60,18 @@ export function DocumentWorkspaceShell({
         view={view}
       />
 
-      {syncState !== "online" ? <OfflineStatusBanner state={syncState} /> : null}
+      {syncState !== "online" ? <OfflineStatusBanner permissionState={permissionState} state={syncState} /> : null}
 
       <div className="document-workspace-grid">
         <div className="document-workspace-main">
           {view === "ready" ? (
             <BaseEditor
+              accessLevel={permissionState === "revoked" ? "none" : permissionState === "read-only" ? "read" : "write"}
               documentId={document.id}
               initialTitle={document.title}
               role={document.role}
+              serverStateVector={serverStateVector}
+              syncState={syncState}
             />
           ) : (
             <DocumentStateShell document={document} view={view} />

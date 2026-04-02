@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
 import { WORKER_QUEUES } from "./jobs/names.js";
-import type { WorkerLogger } from "./worker/runtime.js";
+import type { WorkerLogger } from "./logger.js";
 
 export interface WorkerReadinessState {
   workerCount: number;

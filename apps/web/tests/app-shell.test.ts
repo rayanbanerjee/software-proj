@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applySyncPermissionState,
+  applySyncViewOverride,
   activeOverlayCopy,
   authShellStates,
   createDraftDocumentRecord,
@@ -9,6 +11,8 @@ import {
   parseDocumentOverlay,
   parseDocumentScreenState,
   parseSyncConnectionState,
+  parseSyncPermissionState,
+  parseSyncStateVector,
   workspaceNavigation
 } from "../src/lib/app-shell";
 
@@ -87,6 +91,20 @@ describe("editor route query parsing", () => {
     expect(parseSyncConnectionState("offline")).toBe("offline");
     expect(parseSyncConnectionState(["reconnecting"])).toBe("reconnecting");
     expect(parseSyncConnectionState("unknown")).toBe("online");
+    expect(parseSyncPermissionState("read-only")).toBe("read-only");
+    expect(parseSyncPermissionState("anything-else")).toBe("normal");
+    expect(parseSyncStateVector(["sv-42"])).toBe("sv-42");
     expect(activeOverlayCopy.export).toBe("export options preview");
+  });
+
+  it("applies offline permission changes to the workspace document and view", () => {
+    const document = applySyncPermissionState(getDocumentRecord("project-kickoff"), "read-only");
+    const revokedDocument = applySyncPermissionState(getDocumentRecord("project-kickoff"), "revoked");
+
+    expect(document.role).toBe("viewer");
+    expect(document.summary).toContain("Access was downgraded while the client was offline");
+    expect(revokedDocument.role).toBe("viewer");
+    expect(applySyncViewOverride("ready", "revoked")).toBe("error");
+    expect(applySyncViewOverride("empty", "normal")).toBe("empty");
   });
 });

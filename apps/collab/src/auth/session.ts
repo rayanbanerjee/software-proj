@@ -20,6 +20,7 @@ interface SessionTokenClaims {
 export interface CollabSessionContext {
   accessLevel?: SessionAccessLevel;
   reconnectSessionId?: string | null;
+  stateVector?: string | null;
   presenceSessionId?: string;
   session: {
     expiresAt: string;

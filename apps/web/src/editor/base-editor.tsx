@@ -7,9 +7,14 @@ import type { DocumentRecord } from "../lib/app-shell";
 
 import { getEditorModeLabel, isEditorReadOnly } from "./access";
 import {
+  clearRecoveryBuffer,
+  createRecoveryBufferKey,
   createLocalDraftKey,
+  readRecoveryBuffer,
   readStoredDraft,
   readStoredDraftFromIndexedDb,
+  shouldReplayRecoveryBuffer,
+  writeRecoveryBuffer,
   writeStoredDraft,
   writeStoredDraftToIndexedDb
 } from "./local-persistence";
@@ -32,19 +37,27 @@ const starterContent = `
 `;
 
 interface BaseEditorProps {
+  accessLevel?: "none" | "read" | "write";
   documentId?: string;
   initialTitle?: string;
   role?: DocumentRecord["role"];
+  serverStateVector?: string | null;
+  syncState?: "online" | "offline" | "reconnecting" | "recovered";
 }
 
 export function BaseEditor({
+  accessLevel = "write",
   documentId = "route-shell-document",
   initialTitle = "Untitled document",
-  role = "owner"
+  role = "owner",
+  serverStateVector = null,
+  syncState = "online"
 }: BaseEditorProps) {
+  type EditorContentValue = Parameters<NonNullable<typeof editor>["commands"]["setContent"]>[0];
   const [hasHydratedDraft, setHasHydratedDraft] = useState(false);
+  const [recoveryStatus, setRecoveryStatus] = useState<"buffered" | "none" | "replayed">("none");
   const [title, setTitle] = useState(initialTitle);
-  const readOnly = isEditorReadOnly(role);
+  const readOnly = accessLevel !== "write" || isEditorReadOnly(role);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -62,6 +75,7 @@ export function BaseEditor({
       }
 
       const key = createLocalDraftKey(documentId);
+      const recoveryKey = createRecoveryBufferKey(documentId);
       const content = currentEditor.getJSON();
 
       writeStoredDraft(
@@ -70,6 +84,13 @@ export function BaseEditor({
         content
       );
       void writeStoredDraftToIndexedDb(window.indexedDB, key, content);
+      writeRecoveryBuffer(window.localStorage, recoveryKey, {
+        content,
+        pendingWrites: syncState === "online" ? 0 : 1,
+        savedAt: new Date().toISOString(),
+        sourceStateVector: serverStateVector
+      });
+      setRecoveryStatus(syncState === "online" ? "none" : "buffered");
     }
   });
 
@@ -87,14 +108,30 @@ export function BaseEditor({
     void (async () => {
       const indexedDbDraft = await readStoredDraftFromIndexedDb(window.indexedDB, key);
       const storedDraft = indexedDbDraft ?? readStoredDraft(window.localStorage, key);
+      const recoveryBuffer = readRecoveryBuffer(window.localStorage, createRecoveryBufferKey(documentId));
+      const shouldReplay = shouldReplayRecoveryBuffer({
+        recoveryBuffer,
+        serverStateVector,
+        syncState
+      });
 
-      if (storedDraft) {
-        editor.commands.setContent(storedDraft);
+      if (shouldReplay && recoveryBuffer) {
+        editor.commands.setContent(recoveryBuffer.content as EditorContentValue);
+        setRecoveryStatus("replayed");
+      } else if (storedDraft) {
+        editor.commands.setContent(storedDraft as EditorContentValue);
+        setRecoveryStatus(recoveryBuffer?.pendingWrites ? "buffered" : "none");
+      } else {
+        setRecoveryStatus("none");
+      }
+
+      if (syncState === "recovered" && recoveryBuffer && !shouldReplay) {
+        clearRecoveryBuffer(window.localStorage, createRecoveryBufferKey(documentId));
       }
 
       setHasHydratedDraft(true);
     })();
-  }, [documentId, editor, hasHydratedDraft]);
+  }, [documentId, editor, hasHydratedDraft, serverStateVector, syncState]);
 
   const selection = getSelectionSummary(editor);
   const history = getEditorHistoryState(editor);
@@ -200,6 +237,10 @@ export function BaseEditor({
         <div>
           <dt>Mode</dt>
           <dd>{getEditorModeLabel(role)}</dd>
+        </div>
+        <div>
+          <dt>Recovery</dt>
+          <dd>{recoveryStatus}</dd>
         </div>
       </dl>
 

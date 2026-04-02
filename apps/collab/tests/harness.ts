@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 
 import type { CollabEnv } from "../src/config/env.js";
-import type { CollabLogger } from "../src/server.js";
+import type { CollabLogger } from "../src/logger.js";
 import { createCollabServer } from "../src/server.js";
 
 type LoggedEntry = {
@@ -47,7 +47,16 @@ export function createCollabTestHarness() {
   const infoLogs: LoggedEntry[] = [];
   const errorLogs: LoggedEntry[] = [];
   const logger: CollabLogger = {
+    child() {
+      return logger;
+    },
     info(message, meta) {
+      infoLogs.push({
+        message,
+        meta: meta ?? {}
+      });
+    },
+    warn(message, meta) {
       infoLogs.push({
         message,
         meta: meta ?? {}

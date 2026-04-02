@@ -89,7 +89,7 @@ export const authShellStates = [
 export type DocumentRecord = {
   id: string;
   title: string;
-  role: "owner" | "editor" | "commenter";
+  role: "owner" | "editor" | "commenter" | "viewer";
   updatedLabel: string;
   collaborators: number;
   summary: string;
@@ -159,6 +159,7 @@ export const documentListSections: readonly DocumentSection[] = [
 export type DocumentScreenState = "ready" | "empty" | "error";
 export type DocumentOverlay = "sharing" | "ai" | "export" | null;
 export type SyncConnectionState = "online" | "offline" | "reconnecting" | "recovered";
+export type SyncPermissionState = "normal" | "read-only" | "revoked";
 
 export const collaboratorPresence = [
   {
@@ -334,4 +335,55 @@ export function parseSyncConnectionState(
   }
 
   return "online";
+}
+
+export function parseSyncStateVector(value: string | string[] | undefined): string | null {
+  const normalized = getStringValue(value)?.trim();
+  return normalized ? normalized : null;
+}
+
+export function parseSyncPermissionState(
+  value: string | string[] | undefined
+): SyncPermissionState {
+  const normalized = getStringValue(value);
+
+  if (normalized === "read-only" || normalized === "revoked") {
+    return normalized;
+  }
+
+  return "normal";
+}
+
+export function applySyncPermissionState(
+  document: DocumentRecord,
+  permissionState: SyncPermissionState
+): DocumentRecord {
+  if (permissionState === "normal") {
+    return document;
+  }
+
+  if (permissionState === "read-only") {
+    return {
+      ...document,
+      role: "viewer",
+      summary: `${document.summary} Access was downgraded while the client was offline, so edits are paused until the next sync window.`
+    };
+  }
+
+  return {
+    ...document,
+    role: "viewer",
+    summary: `${document.summary} Access was revoked while the client was offline, so the workspace is preserved only for local recovery.`
+  };
+}
+
+export function applySyncViewOverride(
+  view: DocumentScreenState,
+  permissionState: SyncPermissionState
+): DocumentScreenState {
+  if (permissionState === "revoked") {
+    return "error";
+  }
+
+  return view;
 }

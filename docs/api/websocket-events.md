@@ -17,11 +17,12 @@ Required query parameters:
 Optional query parameters:
 
 - `lastKnownSessionId`: the prior collab session id the client is attempting to resume
+- `stateVector`: optional reconnect hint representing the browser's latest local sync state
 
 Example:
 
 ```text
-ws://localhost:4001?documentName=project-kickoff&token=<signed-session-token>&accessLevel=write&lastKnownSessionId=<prior-session-id>
+ws://localhost:4001?documentName=project-kickoff&token=<signed-session-token>&accessLevel=write&lastKnownSessionId=<prior-session-id>&stateVector=<client-state-vector>
 ```
 
 Authentication behavior:
@@ -75,6 +76,7 @@ Behavior:
 - disconnect removes the collaborator from the active snapshot
 - silent or abandoned sessions are pruned after the collab timeout window and rebroadcast as removed
 - a reconnecting client may replace its prior disconnected session when `lastKnownSessionId` matches a recent session for the same user
+- reconnect resumptions log the provided `stateVector` hint so the browser's recovery-buffer replay can be correlated with the resumed session
 
 ## Stateless Rollback Payload
 

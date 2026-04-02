@@ -2,11 +2,15 @@ import { headers } from "next/headers";
 
 import { DocumentWorkspaceShell } from "../../../../components/documents/document-workspace-shell";
 import {
+  applySyncPermissionState,
+  applySyncViewOverride,
   getDocumentRecord,
   parseExportJobId,
   parseDocumentOverlay,
   parseDocumentScreenState,
-  parseSyncConnectionState
+  parseSyncConnectionState,
+  parseSyncPermissionState,
+  parseSyncStateVector
 } from "../../../../lib/app-shell";
 import { getExportPanelState } from "../../../../lib/export-panel-state";
 import { getVersionHistoryEntries } from "../../../../lib/version-history";
@@ -19,7 +23,8 @@ type DocumentPageProps = {
 export default async function DocumentPage({ params, searchParams }: DocumentPageProps) {
   const { documentId } = await params;
   const currentSearchParams = await searchParams;
-  const document = getDocumentRecord(documentId);
+  const permissionState = parseSyncPermissionState(currentSearchParams.permission);
+  const document = applySyncPermissionState(getDocumentRecord(documentId), permissionState);
   const requestHeaders = await headers();
   const versionHistoryEntries = await getVersionHistoryEntries(documentId, {
     cookieHeader: requestHeaders.get("cookie")
@@ -35,9 +40,11 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
         document={document}
         exportPanelState={exportPanelState}
         overlay={parseDocumentOverlay(currentSearchParams.overlay)}
+        permissionState={permissionState}
+        serverStateVector={parseSyncStateVector(currentSearchParams.stateVector)}
         syncState={parseSyncConnectionState(currentSearchParams.sync)}
         versionHistoryEntries={versionHistoryEntries}
-        view={parseDocumentScreenState(currentSearchParams.view)}
+        view={applySyncViewOverride(parseDocumentScreenState(currentSearchParams.view), permissionState)}
       />
     </div>
   );

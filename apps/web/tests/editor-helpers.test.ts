@@ -7,10 +7,16 @@ import {
 import {
   LOCAL_EDITOR_DRAFT_DATABASE,
   LOCAL_EDITOR_DRAFT_KEY_PREFIX,
+  LOCAL_EDITOR_RECOVERY_KEY_PREFIX,
   LOCAL_EDITOR_DRAFT_STORE,
+  clearRecoveryBuffer,
+  createRecoveryBufferKey,
   createLocalDraftKey,
+  readRecoveryBuffer,
   readStoredDraft,
   readStoredDraftFromIndexedDb,
+  shouldReplayRecoveryBuffer,
+  writeRecoveryBuffer,
   writeStoredDraftToIndexedDb
 } from "../src/editor/local-persistence";
 import {
@@ -140,6 +146,9 @@ describe("editor local persistence", () => {
     expect(createLocalDraftKey("project-kickoff")).toBe(
       `${LOCAL_EDITOR_DRAFT_KEY_PREFIX}:project-kickoff`
     );
+    expect(createRecoveryBufferKey("project-kickoff")).toBe(
+      `${LOCAL_EDITOR_RECOVERY_KEY_PREFIX}:project-kickoff`
+    );
   });
 
   it("parses stored JSON drafts and ignores invalid payloads", () => {
@@ -172,6 +181,67 @@ describe("editor local persistence", () => {
       type: "doc",
       version: 1
     });
+  });
+
+  it("stores replayable recovery buffers for reconnect flows", () => {
+    const storage = new Map<string, string>();
+    const key = createRecoveryBufferKey("project-kickoff");
+
+    writeRecoveryBuffer(
+      {
+        setItem(itemKey, value) {
+          storage.set(itemKey, value);
+        }
+      },
+      key,
+      {
+        content: { type: "doc", version: 2 },
+        pendingWrites: 1,
+        savedAt: "2026-04-02T19:30:00.000Z",
+        sourceStateVector: "sv-local"
+      }
+    );
+
+    expect(
+      readRecoveryBuffer(
+        {
+          getItem(itemKey) {
+            return storage.get(itemKey) ?? null;
+          }
+        },
+        key
+      )
+    ).toEqual({
+      content: { type: "doc", version: 2 },
+      pendingWrites: 1,
+      savedAt: "2026-04-02T19:30:00.000Z",
+      sourceStateVector: "sv-local"
+    });
+    expect(
+      shouldReplayRecoveryBuffer({
+        recoveryBuffer: readRecoveryBuffer(
+          {
+            getItem(itemKey) {
+              return storage.get(itemKey) ?? null;
+            }
+          },
+          key
+        ),
+        serverStateVector: "sv-remote",
+        syncState: "reconnecting"
+      })
+    ).toBe(true);
+
+    clearRecoveryBuffer(
+      {
+        removeItem(itemKey) {
+          storage.delete(itemKey);
+        }
+      },
+      key
+    );
+
+    expect(storage.has(key)).toBe(false);
   });
 });
 

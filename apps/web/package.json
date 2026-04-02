@@ -7,6 +7,7 @@
     "dev": "next dev",
     "lint": "eslint src tests next-env.d.ts next.config.ts --max-warnings=0",
     "start": "next start",
+    "test:e2e": "playwright test --config=playwright.config.mjs",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -19,6 +20,7 @@
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2"
   }

@@ -15,13 +15,9 @@ import {
 } from "./awareness/presence.js";
 import { requireCollabSession, type CollabSessionContext } from "./auth/session.js";
 import { getCollabEnv, type CollabEnv } from "./config/env.js";
+import { createCollabLogger, type CollabLogger } from "./logger.js";
 import { isDocumentPermissionUpdatedEvent } from "./permissions/events.js";
 import { WriterSlotManager } from "./writer-slots/manager.js";
-
-export interface CollabLogger {
-  info: (message: string, meta?: Record<string, unknown>) => void;
-  error: (message: string, meta?: Record<string, unknown>) => void;
-}
 
 type CollabDocumentRuntime = {
   broadcastStateless: (payload: string) => void;
@@ -42,17 +38,6 @@ type InternalCollabRuntime = CollabDocumentsRuntime & {
   presence?: PresenceManager;
   writerSlots?: WriterSlotManager;
 };
-
-export function createCollabLogger(): CollabLogger {
-  return {
-    info(message, meta) {
-      console.log(message, meta ?? {});
-    },
-    error(message, meta) {
-      console.error(message, meta ?? {});
-    }
-  };
-}
 
 function writeJson(
   response: ServerResponse,
@@ -277,6 +262,7 @@ export function createCollabServer(
           reconnectSessionId: data.requestParameters.get("lastKnownSessionId"),
           presenceSessionId: data.socketId,
           session: sessionContext.session,
+          stateVector: data.requestParameters.get("stateVector"),
           user: sessionContext.user
         } satisfies CollabSessionContext;
       } catch (error) {
@@ -318,6 +304,7 @@ export function createCollabServer(
         if (resumed.resumedFromSessionId) {
           logger.info("collab.connection.resumed", {
             documentName: document.name,
+            stateVector: context.stateVector,
             resumedFromSessionId: resumed.resumedFromSessionId,
             socketId: data.socketId,
             userId: context.user.id

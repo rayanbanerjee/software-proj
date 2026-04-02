@@ -45,7 +45,8 @@ describe("collab lifecycle hooks", () => {
     const reconnectPayload = harness.createHookPayload({
       requestParameters: new URLSearchParams([
         ["token", token],
-        ["lastKnownSessionId", "socket-1"]
+        ["lastKnownSessionId", "socket-1"],
+        ["stateVector", "sv-42"]
       ]),
       socketId: "socket-2"
     });
@@ -69,6 +70,7 @@ describe("collab lifecycle hooks", () => {
       harness.infoLogs.some((entry) =>
         entry.message === "collab.connection.resumed"
         && entry.meta.resumedFromSessionId === "socket-1"
+        && entry.meta.stateVector === "sv-42"
       )
     ).toBe(true);
   });

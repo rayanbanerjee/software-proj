@@ -31,7 +31,11 @@ describe("worker runtime", () => {
     };
 
     const logger = {
+      child() {
+        return logger;
+      },
       info: vi.fn(),
+      warn: vi.fn(),
       error: vi.fn()
     };
 

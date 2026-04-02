@@ -48,12 +48,16 @@ describe("request logging middleware", () => {
 
     const response = await app.inject({
       method: "GET",
+      headers: {
+        "x-request-id": "request-123"
+      },
       url: "/health"
     });
 
     expect(response.statusCode).toBe(200);
+    expect(response.headers["x-request-id"]).toBe("request-123");
     expect(spyLogger.child).toHaveBeenCalledWith({
-      requestId: expect.any(String)
+      requestId: "request-123"
     });
     expect(spyLogger.info).toHaveBeenCalledWith(
       "request.completed",

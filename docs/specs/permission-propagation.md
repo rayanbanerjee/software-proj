@@ -35,6 +35,7 @@ Define how document roles propagate into API authorization decisions for documen
 4. Document routes derive permission summaries from the shared authz helpers.
 5. Owners may later update or revoke a member role, and those changes are audited.
 6. The API posts a `document.permission.updated` event into the collab service so active sessions can downgrade writer access or be removed from presence.
+7. Browsers that reconnect after an offline period must treat `accessLevel=read` as a forced read-only reopen and `accessLevel=none` as a local-recovery-only state until the user leaves the document.
 
 ## Failure Cases
 

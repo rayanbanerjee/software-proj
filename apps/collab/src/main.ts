@@ -1,7 +1,8 @@
 import { pathToFileURL } from "node:url";
 
 import { getCollabEnv } from "./config/env.js";
-import { createCollabLogger, createCollabServer } from "./server.js";
+import { createCollabLogger } from "./logger.js";
+import { createCollabServer } from "./server.js";
 
 export const collabResponsibilities = [
   "session-sync",
@@ -13,7 +14,9 @@ export const collabResponsibilities = [
 
 export async function bootstrap() {
   const env = getCollabEnv();
-  const logger = createCollabLogger();
+  const logger = createCollabLogger({
+    service: "collab"
+  });
   const server = createCollabServer(env, logger);
 
   try {

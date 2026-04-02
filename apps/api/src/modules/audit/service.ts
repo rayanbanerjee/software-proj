@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import type { AuditEventRecord } from "@repo/shared-types";
 
-type AuditMetadata = Record<string, string | null>;
+import {
+  auditEventRecordSchema,
+  recordAuditEventInputSchema
+} from "./schema.js";
 
 export class AuditService {
   readonly moduleName = "audit";
@@ -14,21 +17,23 @@ export class AuditService {
     actorUserId: string;
     documentId?: string | null;
     targetUserId?: string | null;
-    metadata?: AuditMetadata;
+    metadata?: Record<string, string | null>;
   }): AuditEventRecord {
+    const validatedInput = recordAuditEventInputSchema.parse(input);
     const event: AuditEventRecord = {
       id: randomUUID(),
-      action: input.action,
-      actorUserId: input.actorUserId,
-      documentId: input.documentId ?? null,
-      targetUserId: input.targetUserId ?? null,
+      action: validatedInput.action,
+      actorUserId: validatedInput.actorUserId,
+      documentId: validatedInput.documentId ?? null,
+      targetUserId: validatedInput.targetUserId ?? null,
       occurredAt: new Date().toISOString(),
-      metadata: input.metadata ?? {}
+      metadata: validatedInput.metadata ?? {}
     };
 
-    this.events.push(event);
+    const validatedEvent = auditEventRecordSchema.parse(event);
+    this.events.push(validatedEvent);
 
-    return event;
+    return validatedEvent;
   }
 
   listEvents(): AuditEventRecord[] {

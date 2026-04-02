@@ -12,11 +12,7 @@ import type {
   ExportJobPayload,
   RevisionSummaryJobPayload
 } from "../processors/types";
-
-export interface WorkerLogger {
-  info: (message: string, meta?: Record<string, unknown>) => void;
-  error: (message: string, meta?: Record<string, unknown>) => void;
-}
+import { createWorkerLogger, type WorkerLogger } from "../logger.js";
 
 type SupportedWorkerPayload = AiJobPayload | ExportJobPayload | RevisionSummaryJobPayload;
 
@@ -38,17 +34,6 @@ export interface WorkerFactoryInput {
 }
 
 export type WorkerFactory = (input: WorkerFactoryInput) => ClosableWorker;
-
-export function createLogger(): WorkerLogger {
-  return {
-    info: (message, meta) => {
-      console.log(message, meta ?? {});
-    },
-    error: (message, meta) => {
-      console.error(message, meta ?? {});
-    }
-  };
-}
 
 export function buildWorkerDefinitions(): WorkerDefinition[] {
   return [
@@ -80,7 +65,7 @@ export function bullMqWorkerFactory({
 
 export function startWorkerRuntime(
   env: WorkerEnv = getWorkerEnv(),
-  logger: WorkerLogger = createLogger(),
+  logger: WorkerLogger = createWorkerLogger(),
   factory: WorkerFactory = bullMqWorkerFactory
 ) {
   const connection = getQueueConnection(env);

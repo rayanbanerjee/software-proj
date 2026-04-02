@@ -9,6 +9,8 @@ import type {
 function buildDocumentHref(
   documentId: string,
   options: {
+    permissionState?: "normal" | "read-only" | "revoked";
+    stateVector?: string | null;
     overlay: DocumentOverlay;
     syncState: SyncConnectionState;
     view: DocumentScreenState;
@@ -26,6 +28,14 @@ function buildDocumentHref(
 
   if (options.syncState !== "online") {
     params.set("sync", options.syncState);
+  }
+
+  if (options.permissionState && options.permissionState !== "normal") {
+    params.set("permission", options.permissionState);
+  }
+
+  if (options.stateVector) {
+    params.set("stateVector", options.stateVector);
   }
 
   const query = params.toString();
@@ -65,6 +75,8 @@ export function EditorToolbarShell({
                 className={`toolbar-link${overlay === item.key ? " toolbar-link-active" : ""}`}
                 href={buildDocumentHref(documentId, {
                   overlay: nextOverlay,
+                  permissionState: "normal",
+                  stateVector: syncState === "online" ? null : "sv-reconnect-demo",
                   syncState,
                   view
                 })}
@@ -85,6 +97,8 @@ export function EditorToolbarShell({
               className={`toolbar-link${view === item ? " toolbar-link-active" : ""}`}
               href={buildDocumentHref(documentId, {
                 overlay,
+                permissionState: "normal",
+                stateVector: syncState === "online" ? null : "sv-reconnect-demo",
                 syncState,
                 view: item
               })}
@@ -98,6 +112,8 @@ export function EditorToolbarShell({
               className={`toolbar-link${syncState === state ? " toolbar-link-active" : ""}`}
               href={buildDocumentHref(documentId, {
                 overlay,
+                permissionState: "normal",
+                stateVector: state === "offline" ? "sv-offline-demo" : "sv-reconnect-demo",
                 syncState: syncState === state ? "online" : state,
                 view
               })}
@@ -108,6 +124,21 @@ export function EditorToolbarShell({
                 : state === "reconnecting"
                   ? "Reconnecting"
                   : "Recovered"}
+            </Link>
+          ))}
+          {(["read-only", "revoked"] as const).map((permissionState) => (
+            <Link
+              className={`toolbar-link${permissionState === "read-only" ? "" : ""}`}
+              href={buildDocumentHref(documentId, {
+                overlay,
+                permissionState,
+                stateVector: "sv-permission-demo",
+                syncState: permissionState === "revoked" ? "recovered" : "offline",
+                view
+              })}
+              key={permissionState}
+            >
+              {permissionState === "read-only" ? "Permission read-only" : "Permission revoked"}
             </Link>
           ))}
         </div>

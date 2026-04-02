@@ -29,6 +29,7 @@ declare module "fastify" {
   interface FastifyRequest {
     authSession?: VerifiedAuthSession;
     currentUser?: UserProfile;
+    requestId?: string;
     requestStartedAt?: bigint;
   }
 }

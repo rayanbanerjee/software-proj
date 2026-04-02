@@ -119,10 +119,10 @@ COLLAB-009,Add disconnect and reconnect handling,Collaboration,Done,High,,COLLAB
 COLLAB-010,Add collaboration service tests,Collaboration,Done,Medium,,"TEST-004,COLLAB-009",Core collaboration flows are covered by tests,none,/apps/collab/tests
 SYNC-001,Add IndexedDB persistence for local edits,Sync,Done,High,,"EDIT-002,COLLAB-003",Offline local edits persist in browser storage,spec,/apps/web/src/editor
 SYNC-002,Add reconnect banner UX,Sync,Done,Medium,,WEB-014,Reconnect status is visible in the UI,none,/apps/web
-SYNC-003,Add state-vector reconnect flow,Sync,Backlog,High,,"SYNC-001,COLLAB-009",Client and server merge state on reconnect,spec,"/apps/web,/apps/collab"
-SYNC-004,Add unsynced local recovery buffer,Sync,Backlog,High,,SYNC-003,Unsynced local edits are preserved for recovery,spec,/apps/web/src/editor
-SYNC-005,Add permission-changed-while-offline handling,Sync,Backlog,High,,"SYNC-004,SHARE-005",Offline edits are handled safely after permission downgrade,spec,"/apps/web,/apps/collab"
-SYNC-006,Add reconnect integration test,Sync,Backlog,Medium,,"TEST-004,SYNC-003",Reconnect scenario is covered by integration tests,none,/apps/collab/tests
+SYNC-003,Add state-vector reconnect flow,Sync,Done,High,,"SYNC-001,COLLAB-009",Client and server merge state on reconnect,spec,"/apps/web,/apps/collab"
+SYNC-004,Add unsynced local recovery buffer,Sync,Done,High,,SYNC-003,Unsynced local edits are preserved for recovery,spec,/apps/web/src/editor
+SYNC-005,Add permission-changed-while-offline handling,Sync,Done,High,,"SYNC-004,SHARE-005",Offline edits are handled safely after permission downgrade,spec,"/apps/web,/apps/collab"
+SYNC-006,Add reconnect integration test,Sync,Done,Medium,,"TEST-004,SYNC-003",Reconnect scenario is covered by integration tests,none,/apps/collab/tests
 VER-001,Add revision creation policy service,Versioning,Done,High,,"DB-006,ADR-008",Revision service creates checkpoints by policy,spec + change note,/apps/api/src/modules/versions
 VER-002,Add revision list endpoint,Versioning,Done,High,,VER-001,Revision list endpoint returns revision metadata,api doc,/apps/api/src/modules/versions
 VER-003,Add revision detail endpoint,Versioning,Done,Medium,,VER-002,Revision detail endpoint returns requested revision,api doc,/apps/api/src/modules/versions
@@ -169,12 +169,12 @@ TEST-001,Decide and set up Vitest or Jest,Testing,Done,High,,"ADR-002,ADR-003",C
 TEST-002,Add shared test config,Testing,Done,High,,TEST-001,Shared test config is reused by apps and packages,none,/
 TEST-003,Add API integration test harness,Testing,Done,High,,"TEST-001,API-001,DB-001",API integration tests can run against local test DB,none,/apps/api/tests
 TEST-004,Add collaboration test harness,Testing,Done,High,,"TEST-001,COLLAB-001",Collab tests can run service-level scenarios,none,/apps/collab/tests
-TEST-005,Add web E2E framework setup,Testing,Backlog,Medium,,"TEST-001,WEB-001",Web E2E tests are configured,none,/apps/web/tests
+TEST-005,Add web E2E framework setup,Testing,Done,Medium,,"TEST-001,WEB-001",Web E2E tests are configured,none,/apps/web/tests
 TEST-006,Add fixture factories,Testing,Done,Medium,,TEST-001,Fixture factories exist for tests and demos,none,/packages/test-fixtures
-TEST-007,Refine CI test matrix,Testing,Backlog,Low,,"TEST-003,TEST-004,TEST-005",CI splits or optimizes tests appropriately,change note,/.github/workflows
-OPS-001,Add structured logger abstraction,Ops,Backlog,Medium,,API-001,Shared logger abstraction exists and is used by services,change note,"/apps/api,/apps/collab,/apps/worker"
-OPS-002,Add request ID propagation,Ops,Backlog,Medium,,OPS-001,Request IDs flow through API request handling,none,/apps/api
-OPS-003,Add audit event schema,Ops,Backlog,Medium,,"API-013,DB-009",Audit schema is documented and implemented,spec,"/apps/api,/packages/shared-types"
+TEST-007,Refine CI test matrix,Testing,Done,Low,,"TEST-003,TEST-004,TEST-005",CI splits or optimizes tests appropriately,change note,/.github/workflows
+OPS-001,Add structured logger abstraction,Ops,Done,Medium,,API-001,Shared logger abstraction exists and is used by services,change note,"/apps/api,/apps/collab,/apps/worker"
+OPS-002,Add request ID propagation,Ops,Done,Medium,,OPS-001,Request IDs flow through API request handling,none,/apps/api
+OPS-003,Add audit event schema,Ops,Done,Medium,,"API-013,DB-009",Audit schema is documented and implemented,spec,"/apps/api,/packages/shared-types"
 OPS-004,Add basic metrics list doc,Ops,Done,Low,,TASK-0001,Metrics spec exists for service owners,spec,/docs/specs
 OPS-005,Add health and readiness endpoints,Ops,Done,Medium,,"API-002,COLLAB-001,WORK-001",All services expose health or readiness endpoints,api doc,/apps
 OPS-006,Add rate-limit config placeholders,Ops,Done,Low,,API-003,Rate-limit config keys exist in env and config parsing,none,/apps/api

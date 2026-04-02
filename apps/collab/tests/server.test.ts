@@ -28,7 +28,11 @@ function createMockResponse() {
 
 describe("collab server", () => {
   const logger = {
+    child() {
+      return logger;
+    },
     info() {},
+    warn() {},
     error() {}
   };
 

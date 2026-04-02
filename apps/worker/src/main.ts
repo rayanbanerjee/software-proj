@@ -1,15 +1,19 @@
 import { pathToFileURL } from "node:url";
 
-import { getWorkerEnv } from "./config/env";
-import { startWorkerHealthServer } from "./health";
-import { WORKER_QUEUES } from "./jobs/names";
-import { startWorkerRuntime } from "./worker/runtime";
+import { getWorkerEnv } from "./config/env.js";
+import { startWorkerHealthServer } from "./health.js";
+import { WORKER_QUEUES } from "./jobs/names.js";
+import { createWorkerLogger } from "./logger.js";
+import { startWorkerRuntime } from "./worker/runtime.js";
 
 export { WORKER_QUEUES as workerQueues };
 
 export async function bootstrap() {
   const env = getWorkerEnv();
-  const runtime = startWorkerRuntime(env);
+  const logger = createWorkerLogger({
+    service: "worker"
+  });
+  const runtime = startWorkerRuntime(env, logger);
   const healthServer = await startWorkerHealthServer(
     env.port,
     {
@@ -19,7 +23,7 @@ export async function bootstrap() {
   );
 
   const shutdown = async (signal: string) => {
-    console.log("worker shutdown signal received", {
+    logger.info("worker.shutdown_signal_received", {
       signal,
       queues: WORKER_QUEUES
     });

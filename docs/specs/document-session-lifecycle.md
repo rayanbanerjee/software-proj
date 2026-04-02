@@ -64,7 +64,8 @@ Define the expected lifecycle for opening a document, joining a collaboration se
 1. The client determines the target `documentId`.
 2. The client obtains or reuses the signed API session token established by the auth callback.
 3. The client prepares `JoinDocumentSessionRequest`, optionally including `lastKnownSessionId` when reconnecting.
-4. The client derives the collab WebSocket URL and passes the signed session token as the `token` query parameter.
+4. If the browser has unsynced local edits, it also records the last known local state vector so reconnect logic can decide whether to replay the recovery buffer.
+5. The client derives the collab WebSocket URL and passes the signed session token as the `token` query parameter.
 
 ### 3. Connect To Collaboration Service
 
@@ -102,8 +103,10 @@ Define the expected lifecycle for opening a document, joining a collaboration se
 
 1. The client may reconnect using a fresh WebSocket plus the current signed session token.
 2. The client may provide `lastKnownSessionId` to both the API bootstrap and the collab handshake so the server can mark the new session as a resumption attempt.
-3. If resumption succeeds, the collab service replaces the prior disconnected session id with the new live session and `resumedFromSessionId` is set in the returned session state.
-4. If resumption is not possible, the server creates a new session and the client performs a normal state resync.
+3. The client may provide a `stateVector` reconnect hint during the collab handshake so the resumed session can be correlated with the browser's latest local draft state.
+4. If resumption succeeds, the collab service replaces the prior disconnected session id with the new live session and `resumedFromSessionId` is set in the returned session state.
+5. If the reconnect hint no longer matches the latest live document head, the browser replays the local recovery buffer before returning to a steady synchronized state.
+6. If resumption is not possible, the server creates a new session and the client performs a normal state resync.
 
 ## Failure Cases
 
@@ -111,6 +114,7 @@ Define the expected lifecycle for opening a document, joining a collaboration se
 - session token is missing or invalid during WebSocket connect
 - reconnect occurs after the prior session has already been fully cleaned up
 - permission changes during an active session downgrade access and require the connection to be limited or closed
+- permission changes that arrive while the browser is offline may reopen the document in read-only or revoked recovery mode on the next reconnect
 
 ## Open Questions
 
