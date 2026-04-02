@@ -4,6 +4,14 @@
   "version": "0.1.0",
   "type": "module",
   "exports": "./src/index.ts",
+  "dependencies": {
+    "@tiptap/core": "^2.26.4",
+    "@tiptap/extension-document": "^2.26.4",
+    "@tiptap/extension-heading": "^2.26.4",
+    "@tiptap/extension-history": "^2.26.4",
+    "@tiptap/extension-paragraph": "^2.26.4",
+    "@tiptap/extension-text": "^2.26.4"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src --max-warnings=0",

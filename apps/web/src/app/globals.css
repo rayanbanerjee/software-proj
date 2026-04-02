@@ -358,6 +358,139 @@ ul {
   color: var(--text-soft);
 }
 
+.base-editor-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.base-editor-title {
+  display: grid;
+  gap: 10px;
+}
+
+.base-editor-title small {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.base-editor-title-input {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 250, 242, 0.9);
+  color: var(--text);
+  font: inherit;
+  font-family: var(--heading-font);
+  font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+  letter-spacing: -0.03em;
+  padding: 16px 18px;
+}
+
+.base-editor-title-input:disabled,
+.base-editor-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.base-editor-toolbar,
+.base-editor-selection-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.base-editor-button,
+.base-editor-selection-stats div {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 250, 242, 0.78);
+}
+
+.base-editor-button {
+  padding: 10px 14px;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.base-editor-button-active,
+.base-editor-button:hover {
+  border-color: rgba(125, 74, 33, 0.34);
+  background: rgba(208, 109, 56, 0.12);
+}
+
+.base-editor-header {
+  display: grid;
+  gap: 8px;
+}
+
+.base-editor-header h3 {
+  margin: 0;
+  font-size: 1.12rem;
+}
+
+.base-editor-header p {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.base-editor-frame {
+  min-height: 24rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 242, 233, 0.92)),
+    var(--surface-strong);
+  box-shadow: 0 20px 50px rgba(32, 24, 14, 0.08);
+  padding: 24px;
+}
+
+.base-editor-content {
+  min-height: 20rem;
+  display: grid;
+  gap: 16px;
+  color: var(--text);
+  line-height: 1.7;
+  outline: none;
+}
+
+.base-editor-content h1,
+.base-editor-content h2,
+.base-editor-content h3 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.base-editor-content p {
+  margin: 0;
+}
+
+.base-editor-content-readonly {
+  opacity: 0.84;
+}
+
+.base-editor-selection-stats div {
+  padding: 10px 14px;
+}
+
+.base-editor-selection-stats dt {
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.base-editor-selection-stats dd {
+  margin: 0;
+  font-weight: 700;
+}
+
 .auth-shell-points li {
   line-height: 1.55;
 }
