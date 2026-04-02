@@ -1,4 +1,5 @@
 import type { DocumentOverlay, DocumentRecord, DocumentScreenState } from "../../lib/app-shell";
+import { BaseEditor } from "../../editor/base-editor";
 import { activeOverlayCopy } from "../../lib/app-shell";
 import { AiActionMenuShell } from "./ai-action-menu-shell";
 import { DocumentStateShell } from "./document-state-shell";
@@ -44,7 +45,7 @@ export function DocumentWorkspaceShell({
 
       <div className="document-workspace-grid">
         <div className="document-workspace-main">
-          <DocumentStateShell document={document} view={view} />
+          {view === "ready" ? <BaseEditor /> : <DocumentStateShell document={document} view={view} />}
 
           {overlay ? (
             <div className="overlay-stack">
