@@ -46,10 +46,12 @@ describe("worker processors", () => {
   it("processExportJob returns a stub artifact result and writes status", async () => {
     const writes: unknown[] = [];
     const job = makeJob<ExportJobPayload>("export-jobs", {
-      requestId: "exp-123",
-      documentId: "doc-2",
-      format: "pdf",
-      requestedBy: "user-2"
+        requestId: "exp-123",
+        documentId: "doc-2",
+        format: "pdf",
+        requestedBy: "user-2",
+        title: "Export title",
+        content: "Sample content"
     });
 
     const result = await processExportJob(job, async (update) => {

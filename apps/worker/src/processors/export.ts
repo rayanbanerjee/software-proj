@@ -1,5 +1,6 @@
 import type { Job } from "bullmq";
 
+import { renderPlainText } from "../renderers/plain-text";
 import type {
   ExportJobPayload,
   ExportJobResult,
@@ -14,6 +15,13 @@ export async function processExportJob(
   job: Job<ExportJobPayload>,
   writeStatus: StatusWriter<ExportJobPayload, ExportJobResult> = noopStatusWriter
 ): Promise<ExportJobResult> {
+  if (job.data.format === "txt") {
+    renderPlainText({
+      title: job.data.title,
+      content: job.data.content ?? ""
+    });
+  }
+
   const extension = job.data.format;
   const result: ExportJobResult = {
     exportId: `export-${job.data.requestId}`,
