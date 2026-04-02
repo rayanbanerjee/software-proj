@@ -1,5 +1,14 @@
 import { randomUUID } from "node:crypto";
 
+import {
+  canComment,
+  canEdit,
+  canExport,
+  canRollback,
+  canShare,
+  canUseAi,
+  canView
+} from "@repo/authz";
 import type {
   ArchiveDocumentResponse,
   CreateDocumentResponse,
@@ -32,49 +41,16 @@ export type DocumentActor = {
   userId: string;
 };
 
-const rolePermissions: Record<DocumentRole, Omit<DocumentPermissionSummary, "role">> = {
-  owner: {
-    canView: true,
-    canComment: true,
-    canEdit: true,
-    canShare: true,
-    canExport: true,
-    canUseAi: true,
-    canRollback: true
-  },
-  editor: {
-    canView: true,
-    canComment: true,
-    canEdit: true,
-    canShare: false,
-    canExport: true,
-    canUseAi: true,
-    canRollback: false
-  },
-  commenter: {
-    canView: true,
-    canComment: true,
-    canEdit: false,
-    canShare: false,
-    canExport: true,
-    canUseAi: false,
-    canRollback: false
-  },
-  viewer: {
-    canView: true,
-    canComment: false,
-    canEdit: false,
-    canShare: false,
-    canExport: false,
-    canUseAi: false,
-    canRollback: false
-  }
-};
-
 function toPermissionSummary(role: DocumentRole): DocumentPermissionSummary {
   return {
     role,
-    ...rolePermissions[role]
+    canView: canView(role),
+    canComment: canComment(role),
+    canEdit: canEdit(role),
+    canShare: canShare(role),
+    canExport: canExport(role),
+    canUseAi: canUseAi(role),
+    canRollback: canRollback(role)
   };
 }
 
@@ -103,6 +79,16 @@ export class DocumentsService {
 
   private getMembership(document: StoredDocument, userId: string): StoredMembership | undefined {
     return document.memberships.find((entry) => entry.userId === userId);
+  }
+
+  private requireDocument(documentId: string): StoredDocument {
+    const document = this.documents.get(documentId);
+
+    if (!document) {
+      throw new AppError("DOCUMENT_NOT_FOUND", 404, "Document not found.");
+    }
+
+    return document;
   }
 
   createDocument(title: string, actor: DocumentActor): CreateDocumentResponse {
@@ -136,7 +122,7 @@ export class DocumentsService {
           actor.userId
         );
 
-        if (!membership || !rolePermissions[membership.role].canView) {
+        if (!membership || !canView(membership.role)) {
           return null;
         }
 
@@ -153,15 +139,11 @@ export class DocumentsService {
   }
 
   getDocumentMetadata(documentId: string, actor: DocumentActor): GetDocumentMetadataResponse {
-    const document = this.documents.get(documentId);
-
-    if (!document) {
-      throw new AppError("DOCUMENT_NOT_FOUND", 404, "Document not found.");
-    }
+    const document = this.requireDocument(documentId);
 
     const membership = this.getMembership(document, actor.userId);
 
-    if (!membership || !rolePermissions[membership.role].canView) {
+    if (!membership || !canView(membership.role)) {
       throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have access to this document.");
     }
 
@@ -175,15 +157,11 @@ export class DocumentsService {
     title: string,
     actor: DocumentActor
   ): RenameDocumentResponse {
-    const document = this.documents.get(documentId);
-
-    if (!document) {
-      throw new AppError("DOCUMENT_NOT_FOUND", 404, "Document not found.");
-    }
+    const document = this.requireDocument(documentId);
 
     const membership = this.getMembership(document, actor.userId);
 
-    if (!membership || !rolePermissions[membership.role].canEdit) {
+    if (!membership || !canEdit(membership.role)) {
       throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have permission to rename this document.");
     }
 
@@ -199,11 +177,7 @@ export class DocumentsService {
     documentId: string,
     actor: DocumentActor
   ): ArchiveDocumentResponse {
-    const document = this.documents.get(documentId);
-
-    if (!document) {
-      throw new AppError("DOCUMENT_NOT_FOUND", 404, "Document not found.");
-    }
+    const document = this.requireDocument(documentId);
 
     const membership = this.getMembership(document, actor.userId);
 
@@ -219,5 +193,44 @@ export class DocumentsService {
       documentId: document.id,
       archivedAt
     };
+  }
+
+  getDocumentRole(documentId: string, userId: string): DocumentRole | null {
+    const document = this.requireDocument(documentId);
+    const membership = this.getMembership(document, userId);
+    return membership?.role ?? null;
+  }
+
+  setMembership(documentId: string, userId: string, role: DocumentRole): StoredMembership {
+    const document = this.requireDocument(documentId);
+    const existingMembership = this.getMembership(document, userId);
+
+    if (existingMembership) {
+      existingMembership.role = role;
+      document.updatedAt = new Date().toISOString();
+      return existingMembership;
+    }
+
+    const membership = {
+      userId,
+      role
+    };
+
+    document.memberships.push(membership);
+    document.updatedAt = new Date().toISOString();
+
+    return membership;
+  }
+
+  removeMembership(documentId: string, userId: string): void {
+    const document = this.requireDocument(documentId);
+    const nextMemberships = document.memberships.filter((membership) => membership.userId !== userId);
+
+    if (nextMemberships.length === document.memberships.length) {
+      throw new AppError("MEMBERSHIP_NOT_FOUND", 404, "Document membership not found.");
+    }
+
+    document.memberships = nextMemberships;
+    document.updatedAt = new Date().toISOString();
   }
 }

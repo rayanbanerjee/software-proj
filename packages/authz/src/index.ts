@@ -52,3 +52,27 @@ export function canEdit(role: DocumentRole): boolean {
 export function canShare(role: DocumentRole): boolean {
   return hasPermission(role, documentPermissions.share);
 }
+
+export function canComment(role: DocumentRole): boolean {
+  return hasPermission(role, documentPermissions.comment);
+}
+
+export function canExport(role: DocumentRole): boolean {
+  return hasPermission(role, documentPermissions.export);
+}
+
+export function canUseAi(role: DocumentRole): boolean {
+  return hasPermission(role, documentPermissions.ai);
+}
+
+export function canRollback(role: DocumentRole): boolean {
+  return hasPermission(role, documentPermissions.rollback);
+}
+
+export function canManageRoleChange(actorRole: DocumentRole, targetRole: DocumentRole): boolean {
+  return actorRole === "owner" && targetRole !== "owner";
+}
+
+export function canRevokeAccess(actorRole: DocumentRole, targetRole: DocumentRole): boolean {
+  return actorRole === "owner" && targetRole !== "owner";
+}
