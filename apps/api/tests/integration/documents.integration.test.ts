@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { createApiTestApp, applyApiTestEnv } from "./harness.js";
+import {
+  applyApiTestEnv,
+  createApiTestApp,
+  createSessionHeaders
+} from "./harness.js";
 
 const originalEnv = { ...process.env };
 
@@ -15,13 +19,15 @@ afterEach(() => {
 describe("documents integration flow", () => {
   it("covers create, list, metadata, rename, and archive in one reusable harness", async () => {
     const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
 
     const createResponse = await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "user_owner"
-      },
+      headers: ownerHeaders,
       payload: {
         title: "Integration flow"
       }
@@ -32,25 +38,19 @@ describe("documents integration flow", () => {
     const listResponse = await app.inject({
       method: "GET",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "user_owner"
-      }
+      headers: ownerHeaders
     });
 
     const metadataResponse = await app.inject({
       method: "GET",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "user_owner"
-      }
+      headers: ownerHeaders
     });
 
     const renameResponse = await app.inject({
       method: "PATCH",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "user_owner"
-      },
+      headers: ownerHeaders,
       payload: {
         title: "Integration renamed"
       }
@@ -59,9 +59,7 @@ describe("documents integration flow", () => {
     const archiveResponse = await app.inject({
       method: "DELETE",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "user_owner"
-      }
+      headers: ownerHeaders
     });
 
     expect(createResponse.statusCode).toBe(201);

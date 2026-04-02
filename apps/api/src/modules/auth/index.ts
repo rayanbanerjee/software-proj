@@ -1,8 +1,10 @@
 import type { FastifyInstance } from "fastify";
+import type { GetCurrentUserResponse } from "@repo/shared-types";
 import { z } from "zod";
 
 import { AppError } from "../../common/errors.js";
 import { createGoogleTokenValidator } from "./google-token-validator.js";
+import { authenticateRequest, requireCurrentUser } from "./guard.js";
 import { AuthSessionService } from "./session.js";
 
 const authCallbackBodySchema = z.object({
@@ -43,4 +45,16 @@ export async function registerAuthModule(app: FastifyInstance) {
       throw new AppError("INVALID_GOOGLE_TOKEN", 401, message);
     }
   });
+
+  app.get(
+    "/v1/auth/me",
+    {
+      preHandler: authenticateRequest
+    },
+    async (request): Promise<GetCurrentUserResponse> => {
+      return {
+        user: requireCurrentUser(request)
+      };
+    }
+  );
 }

@@ -7,13 +7,20 @@ import { QUEUE_NAMES, WORKER_QUEUES, type QueueName } from "../jobs/names";
 import { processAiJob } from "../processors/ai";
 import { processExportJob } from "../processors/export";
 import { processRevisionSummaryJob } from "../processors/revision-summary";
+import type {
+  AiJobPayload,
+  ExportJobPayload,
+  RevisionSummaryJobPayload
+} from "../processors/types";
 
 export interface WorkerLogger {
   info: (message: string, meta?: Record<string, unknown>) => void;
   error: (message: string, meta?: Record<string, unknown>) => void;
 }
 
-export type WorkerProcessor = (job: Job<any>) => Promise<unknown>;
+type SupportedWorkerPayload = AiJobPayload | ExportJobPayload | RevisionSummaryJobPayload;
+
+export type WorkerProcessor = (job: Job<SupportedWorkerPayload>) => Promise<unknown>;
 
 export interface WorkerDefinition {
   queueName: QueueName;
@@ -47,15 +54,15 @@ export function buildWorkerDefinitions(): WorkerDefinition[] {
   return [
     {
       queueName: QUEUE_NAMES.ai,
-      processor: (job) => processAiJob(job as Job<any>)
+      processor: (job) => processAiJob(job as Job<AiJobPayload>)
     },
     {
       queueName: QUEUE_NAMES.export,
-      processor: (job) => processExportJob(job as Job<any>)
+      processor: (job) => processExportJob(job as Job<ExportJobPayload>)
     },
     {
       queueName: QUEUE_NAMES.revision,
-      processor: (job) => processRevisionSummaryJob(job as Job<any>)
+      processor: (job) => processRevisionSummaryJob(job as Job<RevisionSummaryJobPayload>)
     }
   ];
 }

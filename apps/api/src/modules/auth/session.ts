@@ -32,6 +32,10 @@ interface SessionTokenClaims {
   exp: number;
 }
 
+export interface VerifiedAuthSession extends AuthSessionPayload {
+  token: string;
+}
+
 export const SESSION_COOKIE_NAME = "collab_session";
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 
@@ -61,6 +65,71 @@ function serializeSessionCookie(
   }
 
   return parts.join("; ");
+}
+
+function verifyToken(token: string, secret: string): SessionTokenClaims {
+  const [encodedClaims, signature] = token.split(".");
+
+  if (!encodedClaims || !signature) {
+    throw new Error("Session token format is invalid.");
+  }
+
+  const expectedSignature = createHmac("sha256", secret)
+    .update(encodedClaims)
+    .digest("base64url");
+
+  if (signature !== expectedSignature) {
+    throw new Error("Session token signature is invalid.");
+  }
+
+  let parsedClaims: unknown;
+
+  try {
+    parsedClaims = JSON.parse(Buffer.from(encodedClaims, "base64url").toString("utf8"));
+  } catch {
+    throw new Error("Session token payload is invalid.");
+  }
+
+  if (
+    !parsedClaims ||
+    typeof parsedClaims !== "object" ||
+    (parsedClaims as SessionTokenClaims).v !== 1 ||
+    (parsedClaims as SessionTokenClaims).provider !== "google" ||
+    typeof (parsedClaims as SessionTokenClaims).sub !== "string" ||
+    typeof (parsedClaims as SessionTokenClaims).email !== "string" ||
+    typeof (parsedClaims as SessionTokenClaims).iat !== "number" ||
+    typeof (parsedClaims as SessionTokenClaims).exp !== "number"
+  ) {
+    throw new Error("Session token claims are invalid.");
+  }
+
+  const claims = parsedClaims as SessionTokenClaims;
+
+  if (claims.exp * 1000 <= Date.now()) {
+    throw new Error("Session token has expired.");
+  }
+
+  return claims;
+}
+
+function parseCookies(cookieHeader: string | undefined): Map<string, string> {
+  const cookies = new Map<string, string>();
+
+  if (!cookieHeader) {
+    return cookies;
+  }
+
+  for (const pair of cookieHeader.split(";")) {
+    const [rawName, ...rawValue] = pair.trim().split("=");
+
+    if (!rawName || rawValue.length === 0) {
+      continue;
+    }
+
+    cookies.set(rawName, rawValue.join("="));
+  }
+
+  return cookies;
 }
 
 export class AuthSessionService {
@@ -97,6 +166,44 @@ export class AuthSessionService {
         issuedAt: issuedAt.toISOString(),
         expiresAt: expiresAt.toISOString(),
         user
+      }
+    };
+  }
+
+  readTokenFromHeaders(
+    headers: Record<string, string | string[] | undefined>
+  ): string | null {
+    const authorizationHeader = headers.authorization;
+    const authorization = Array.isArray(authorizationHeader)
+      ? authorizationHeader[0]
+      : authorizationHeader;
+
+    if (authorization?.startsWith("Bearer ")) {
+      return authorization.slice("Bearer ".length).trim() || null;
+    }
+
+    const cookieHeader = headers.cookie;
+    const cookie = Array.isArray(cookieHeader) ? cookieHeader[0] : cookieHeader;
+    const cookies = parseCookies(cookie);
+
+    return cookies.get(SESSION_COOKIE_NAME) ?? null;
+  }
+
+  verifySessionToken(token: string): VerifiedAuthSession {
+    const claims = verifyToken(token, this.config.sessionSecret);
+    const issuedAt = new Date(claims.iat * 1000);
+    const expiresAt = new Date(claims.exp * 1000);
+
+    return {
+      token,
+      issuedAt: issuedAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      user: {
+        id: claims.sub,
+        email: claims.email,
+        name: claims.name,
+        imageUrl: claims.imageUrl,
+        googleSubject: claims.provider === "google" ? claims.sub.replace(/^google:/, "") : null
       }
     };
   }

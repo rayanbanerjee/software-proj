@@ -310,6 +310,10 @@ export interface UserProfile {
   googleSubject: string | null;
 }
 
+export interface GetCurrentUserResponse {
+  user: UserProfile;
+}
+
 export interface ApiErrorResponse {
   error: {
     code: string;

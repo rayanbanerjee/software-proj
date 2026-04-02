@@ -58,7 +58,7 @@ PKG-004,Expand shared-types for version and export DTOs,Packages,Backlog,High,,"
 PKG-005,Add permission enums and constants to authz,Packages,Backlog,High,,,Permission enums and constants are centralized,change note,/packages/authz
 PKG-006,Add canView canEdit and canShare helpers,Packages,Backlog,High,,PKG-005,Authz helper functions are exported,none,/packages/authz
 PKG-007,Add prompt template version model,Packages,Backlog,Medium,,AI-002,Prompt templates include explicit version model,change note,/packages/prompt-templates
-PKG-008,Add test fixtures for sample documents,Packages,Backlog,Medium,,TEST-006,Fixture documents are reusable across tests,none,/packages/test-fixtures
+PKG-008,Add test fixtures for sample documents,Packages,Done,Medium,,TEST-006,Fixture documents are reusable across tests,none,/packages/test-fixtures
 PKG-009,Add reusable UI primitives package structure,Packages,Backlog,Medium,,WEB-001,UI package has base structure for shared components,none,/packages/ui
 PKG-010,Make package build and typecheck scripts work,Packages,Backlog,High,,FOUND-008,All package scripts run without placeholder failures,none,/packages
 API-001,Initialize real API framework in apps/api,API,Done,High,,ADR-002,apps/api boots with chosen framework,task doc + change note,/apps/api
@@ -78,9 +78,9 @@ AUTH-001,Add Google auth config fields,Auth,Done,High,,API-003,Required Google a
 AUTH-002,Implement Google token validation service stub,Auth,Done,High,,"AUTH-001,API-006",Validation service exists behind an abstraction,spec + change note,/apps/api/src/modules/auth
 AUTH-003,Add user profile model,Auth,Done,High,,DB-002,User profile model exists and is wired into auth flow,none,"/apps/api,/packages/shared-types"
 AUTH-004,Add auth callback endpoint,Auth,Done,High,,AUTH-002,Callback endpoint accepts token and returns session payload,api doc,/apps/api/src/modules/auth
-AUTH-005,Add session issuance logic,Auth,Backlog,High,,"ADR-007,AUTH-002",Session issuance flow works with chosen token strategy,ADR or spec,/apps/api/src/modules/auth
-AUTH-006,Add auth guard middleware,Auth,Backlog,High,,AUTH-005,Protected endpoints require auth successfully,none,/apps/api
-AUTH-007,Add current-user endpoint,Auth,Backlog,Medium,,AUTH-006,Current user endpoint returns normalized profile,api doc,/apps/api/src/modules/auth
+AUTH-005,Add session issuance logic,Auth,Done,High,,"ADR-007,AUTH-002",Session issuance flow works with chosen token strategy,ADR or spec,/apps/api/src/modules/auth
+AUTH-006,Add auth guard middleware,Auth,Done,High,,AUTH-005,Protected endpoints require auth successfully,none,/apps/api
+AUTH-007,Add current-user endpoint,Auth,Done,Medium,,AUTH-006,Current user endpoint returns normalized profile,api doc,/apps/api/src/modules/auth
 AUTH-008,Add auth integration tests,Auth,Backlog,Medium,,"TEST-003,AUTH-004",Auth integration tests run in CI,none,/apps/api/tests/integration
 DB-001,Choose ORM and add initial config,Database,Done,High,,ADR-006,ORM is chosen and initial config compiles,ADR + task doc,"/apps/api,/docs/adr"
 DB-002,Create users table or model,Database,Done,High,,DB-001,Users schema exists and migrates,change note,/apps/api
@@ -166,11 +166,11 @@ INFRA-005,Add worker service container,Infrastructure,Backlog,Medium,,WORK-001,D
 INFRA-006,Add startup helper scripts,Infrastructure,Done,Medium,,INFRA-001,Helper scripts exist for common local startup flows,none,/infrastructure/scripts
 INFRA-007,Add local bootstrap README,Infrastructure,Done,Medium,,INFRA-001,Infrastructure README explains local setup,change note,/infrastructure
 TEST-001,Decide and set up Vitest or Jest,Testing,Done,High,,"ADR-002,ADR-003",Chosen test framework is configured and runs,task doc + change note,/
-TEST-002,Add shared test config,Testing,Backlog,High,,TEST-001,Shared test config is reused by apps and packages,none,/
+TEST-002,Add shared test config,Testing,Done,High,,TEST-001,Shared test config is reused by apps and packages,none,/
 TEST-003,Add API integration test harness,Testing,Backlog,High,,"TEST-001,API-001,DB-001",API integration tests can run against local test DB,none,/apps/api/tests
 TEST-004,Add collaboration test harness,Testing,Backlog,High,,"TEST-001,COLLAB-001",Collab tests can run service-level scenarios,none,/apps/collab/tests
 TEST-005,Add web E2E framework setup,Testing,Backlog,Medium,,"TEST-001,WEB-001",Web E2E tests are configured,none,/apps/web/tests
-TEST-006,Add fixture factories,Testing,Backlog,Medium,,TEST-001,Fixture factories exist for tests and demos,none,/packages/test-fixtures
+TEST-006,Add fixture factories,Testing,Done,Medium,,TEST-001,Fixture factories exist for tests and demos,none,/packages/test-fixtures
 TEST-007,Refine CI test matrix,Testing,Backlog,Low,,"TEST-003,TEST-004,TEST-005",CI splits or optimizes tests appropriately,change note,/.github/workflows
 OPS-001,Add structured logger abstraction,Ops,Backlog,Medium,,API-001,Shared logger abstraction exists and is used by services,change note,"/apps/api,/apps/collab,/apps/worker"
 OPS-002,Add request ID propagation,Ops,Backlog,Medium,,OPS-001,Request IDs flow through API request handling,none,/apps/api
