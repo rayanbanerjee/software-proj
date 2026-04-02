@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   applyApiTestEnv,
@@ -14,10 +14,17 @@ beforeEach(() => {
 
 afterEach(() => {
   process.env = { ...originalEnv };
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("sharing module", () => {
   it("creates and accepts an invitation, then allows the invited user to view the document", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      status: 202
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
     const app = await createApiTestApp();
     const ownerSessionHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
@@ -101,11 +108,22 @@ describe("sharing module", () => {
         }
       }
     });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4001/internal/events/document-permission-update",
+      expect.objectContaining({
+        method: "POST"
+      })
+    );
 
     await app.close();
   });
 
   it("enforces owner-only role updates and revocation", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      status: 202
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
     const app = await createApiTestApp();
     const ownerSessionHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
@@ -235,6 +253,7 @@ describe("sharing module", () => {
       "sharing.role.updated",
       "sharing.access.revoked"
     ]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
 
     await app.close();
   });

@@ -34,6 +34,7 @@ Define how document roles propagate into API authorization decisions for documen
 3. The invited user accepts with a matching email, which creates or updates their membership.
 4. Document routes derive permission summaries from the shared authz helpers.
 5. Owners may later update or revoke a member role, and those changes are audited.
+6. The API posts a `document.permission.updated` event into the collab service so active sessions can downgrade writer access or be removed from presence.
 
 ## Failure Cases
 

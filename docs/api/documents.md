@@ -191,7 +191,7 @@ Response:
       }
     ]
   },
-  "websocketUrl": "ws://localhost:4001?documentName=uuid&token=<signed-session-token>",
+  "websocketUrl": "ws://localhost:4001?documentName=uuid&token=<signed-session-token>&accessLevel=write",
   "token": "<signed-session-token>"
 }
 ```

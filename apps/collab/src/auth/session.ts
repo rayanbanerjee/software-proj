@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import type { URLSearchParams } from "node:url";
 
 import type { UserProfile } from "@repo/shared-types";
+import type { SessionAccessLevel } from "@repo/shared-types";
 
 import type { CollabEnv } from "../config/env.js";
 
@@ -17,6 +18,7 @@ interface SessionTokenClaims {
 }
 
 export interface CollabSessionContext {
+  accessLevel?: SessionAccessLevel;
   reconnectSessionId?: string | null;
   presenceSessionId?: string;
   session: {

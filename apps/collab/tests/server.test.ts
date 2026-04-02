@@ -153,4 +153,66 @@ describe("collab server", () => {
       statusCode: 202
     });
   });
+
+  it("accepts a permission update event and rebroadcasts it to an active document", async () => {
+    const response = createMockResponse();
+    const broadcasts: string[] = [];
+    const request = new EventEmitter() as EventEmitter & {
+      method: string;
+      url: string;
+    };
+    request.method = "POST";
+    request.url = "/internal/events/document-permission-update";
+
+    server.documents.set("doc-1", {
+      broadcastStateless(payload: string) {
+        broadcasts.push(payload);
+      }
+    });
+
+    const handledPromise = handleCollabRequest(request, response.response as never, {
+      activeConnections: 1,
+      activeDocuments: 1,
+      logger,
+      runtime: server
+    });
+
+    request.emit(
+      "data",
+      Buffer.from(
+        JSON.stringify({
+          type: "document.permission.updated",
+          documentId: "doc-1",
+          userId: "google:user_editor",
+          role: "commenter",
+          accessLevel: "read",
+          changedAt: "2026-04-02T18:00:00.000Z",
+          triggeredByUserId: "google:user_owner"
+        })
+      )
+    );
+    request.emit("end");
+
+    const handled = await handledPromise;
+
+    expect(handled).toBe(true);
+    expect(broadcasts[0]).toBe(
+      JSON.stringify({
+        type: "document.permission.updated",
+        documentId: "doc-1",
+        userId: "google:user_editor",
+        role: "commenter",
+        accessLevel: "read",
+        changedAt: "2026-04-02T18:00:00.000Z",
+        triggeredByUserId: "google:user_owner"
+      })
+    );
+    expect(response.readJson()).toEqual({
+      body: {
+        broadcasted: true,
+        status: "accepted"
+      },
+      statusCode: 202
+    });
+  });
 });

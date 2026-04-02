@@ -76,6 +76,7 @@ Notes:
 - requires `x-user-id`
 - only owners can change member roles
 - this endpoint cannot promote a user to `owner`
+- successful role changes also push a `document.permission.updated` event into the collab service
 
 ### `DELETE /v1/documents/:documentId/members/:userId`
 
@@ -86,3 +87,4 @@ Notes:
 - requires `x-user-id`
 - only owners can revoke access
 - revocation also closes any pending invitations for that document in the in-memory implementation
+- revocation pushes a `document.permission.updated` event with `accessLevel: none` into the collab service

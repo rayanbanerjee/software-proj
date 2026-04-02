@@ -12,6 +12,7 @@ Required query parameters:
 
 - `documentName`: the document/session identifier the client wants to join
 - `token`: the API-issued signed session token from the auth flow
+- `accessLevel`: `write` or `read` from the API session bootstrap
 
 Optional query parameters:
 
@@ -20,7 +21,7 @@ Optional query parameters:
 Example:
 
 ```text
-ws://localhost:4001?documentName=project-kickoff&token=<signed-session-token>&lastKnownSessionId=<prior-session-id>
+ws://localhost:4001?documentName=project-kickoff&token=<signed-session-token>&accessLevel=write&lastKnownSessionId=<prior-session-id>
 ```
 
 Authentication behavior:
@@ -97,6 +98,53 @@ Behavior:
 - the collab service rebroadcasts the stateless rollback payload to currently active document connections
 - if no active document runtime exists yet, the collab service accepts the event without broadcasting it
 
+## Stateless Writer Slot Payload
+
+The collab service now emits a deterministic writer-slot snapshot for active write-capable sessions.
+
+Event shape:
+
+```json
+{
+  "type": "writer.slot.snapshot",
+  "documentId": "uuid",
+  "generatedAt": "2026-04-02T18:05:00.000Z",
+  "maxActiveWriters": 2,
+  "activeWriterSessionIds": ["socket-1", "socket-2"],
+  "queuedWriterSessionIds": ["socket-3"]
+}
+```
+
+Behavior:
+
+- writer slots are allocated in connection order for `write` sessions
+- additional write-capable sessions are queued after the active writer limit is reached
+- queued writers are promoted automatically when an active writer disconnects or loses write access
+
+## Stateless Permission Update Payload
+
+The API now posts permission updates into the collab service after invitation acceptance, role changes, or access revocation.
+
+Event shape:
+
+```json
+{
+  "type": "document.permission.updated",
+  "documentId": "uuid",
+  "userId": "google:user_editor",
+  "role": "commenter",
+  "accessLevel": "read",
+  "changedAt": "2026-04-02T18:06:00.000Z",
+  "triggeredByUserId": "google:user_owner"
+}
+```
+
+Behavior:
+
+- permission updates are rebroadcast to active document sessions
+- write downgrades immediately remove affected sessions from the writer-slot snapshot
+- full revocation removes the user from active presence and writer slots
+
 ## Current Hooks
 
 - `onConnect`: verifies the `token` query parameter and attaches the authenticated user to collab context
@@ -105,6 +153,7 @@ Behavior:
 - `onDisconnect`: logs connection shutdown
 - periodic sweep: removes stale presence entries that have not refreshed within the timeout window
 - `POST /internal/events/document-rollback`: accepts rollback events from the API and rebroadcasts them to active clients
+- `POST /internal/events/document-permission-update`: accepts permission updates from the API and rebroadcasts them to active clients
 
 ## Operational Endpoints
 

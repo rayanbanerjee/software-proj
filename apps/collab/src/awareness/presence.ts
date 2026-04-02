@@ -123,6 +123,36 @@ export class PresenceManager {
     return updated;
   }
 
+  removeConnectionsForUser(documentId: string, userId: string): PresenceEntry[] {
+    const sessions = this.documents.get(documentId);
+
+    if (!sessions) {
+      return [];
+    }
+
+    const removed: PresenceEntry[] = [];
+
+    for (const [sessionId, entry] of sessions.entries()) {
+      if (entry.userId !== userId) {
+        continue;
+      }
+
+      removed.push({
+        ...entry,
+        isPresent: false,
+        lastSeenAt: new Date().toISOString(),
+        connectionStatus: "disconnected"
+      });
+      sessions.delete(sessionId);
+    }
+
+    if (sessions.size === 0) {
+      this.documents.delete(documentId);
+    }
+
+    return removed;
+  }
+
   pruneStaleConnections(
     now: number,
     staleAfterMs: number

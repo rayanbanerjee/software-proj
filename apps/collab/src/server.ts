@@ -2,7 +2,11 @@ import { Server } from "@hocuspocus/server";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { StringDecoder } from "node:string_decoder";
 
-import type { DocumentRollbackEvent } from "@repo/shared-types";
+import type {
+  DocumentPermissionUpdatedEvent,
+  DocumentRollbackEvent,
+  SessionAccessLevel
+} from "@repo/shared-types";
 
 import {
   PresenceManager,
@@ -11,6 +15,8 @@ import {
 } from "./awareness/presence.js";
 import { requireCollabSession, type CollabSessionContext } from "./auth/session.js";
 import { getCollabEnv, type CollabEnv } from "./config/env.js";
+import { isDocumentPermissionUpdatedEvent } from "./permissions/events.js";
+import { WriterSlotManager } from "./writer-slots/manager.js";
 
 export interface CollabLogger {
   info: (message: string, meta?: Record<string, unknown>) => void;
@@ -30,6 +36,11 @@ type JsonReadableRequest = Pick<IncomingMessage, "method" | "url"> & {
     event: "data" | "end" | "error",
     listener: ((chunk: Buffer | string) => void) | (() => void) | ((error: Error) => void)
   ) => JsonReadableRequest;
+};
+
+type InternalCollabRuntime = CollabDocumentsRuntime & {
+  presence?: PresenceManager;
+  writerSlots?: WriterSlotManager;
 };
 
 export function createCollabLogger(): CollabLogger {
@@ -112,6 +123,35 @@ export function emitRollbackEvent(
   return true;
 }
 
+export function emitPermissionUpdatedEvent(
+  runtime: InternalCollabRuntime,
+  event: DocumentPermissionUpdatedEvent
+): boolean {
+  const document = runtime.documents.get(event.documentId);
+
+  runtime.writerSlots?.updateUserAccess(event.documentId, event.userId, event.accessLevel);
+
+  if (event.accessLevel === "none") {
+    runtime.presence?.removeConnectionsForUser(event.documentId, event.userId);
+  }
+
+  if (!document) {
+    return false;
+  }
+
+  document.broadcastStateless(JSON.stringify(event));
+
+  if (runtime.writerSlots) {
+    document.broadcastStateless(JSON.stringify(runtime.writerSlots.buildSnapshotEvent(event.documentId)));
+  }
+
+  if (runtime.presence && event.accessLevel === "none") {
+    document.broadcastStateless(JSON.stringify(runtime.presence.buildSnapshotEvent(event.documentId)));
+  }
+
+  return true;
+}
+
 export function handleCollabRequest(
   request: JsonReadableRequest,
   response: ServerResponse,
@@ -119,7 +159,7 @@ export function handleCollabRequest(
     activeConnections: number;
     activeDocuments: number;
     logger: CollabLogger;
-    runtime: CollabDocumentsRuntime;
+    runtime: InternalCollabRuntime;
   }
 ) {
   if (request.url === "/health") {
@@ -174,6 +214,41 @@ export function handleCollabRequest(
       });
   }
 
+  if (request.url === "/internal/events/document-permission-update" && request.method === "POST") {
+    return readJsonBody(request)
+      .then((body) => {
+        if (!isDocumentPermissionUpdatedEvent(body)) {
+          writeJson(response, 400, {
+            error: "Invalid permission event payload."
+          });
+          return true;
+        }
+
+        const broadcasted = emitPermissionUpdatedEvent(options.runtime, body);
+
+        options.logger.info("collab.document.permission_updated", {
+          accessLevel: body.accessLevel,
+          broadcasted,
+          documentId: body.documentId,
+          role: body.role,
+          triggeredByUserId: body.triggeredByUserId,
+          userId: body.userId
+        });
+
+        writeJson(response, 202, {
+          broadcasted,
+          status: "accepted"
+        });
+        return true;
+      })
+      .catch(() => {
+        writeJson(response, 400, {
+          error: "Invalid permission event payload."
+        });
+        return true;
+      });
+  }
+
   return false;
 }
 
@@ -182,6 +257,7 @@ export function createCollabServer(
   logger: CollabLogger = createCollabLogger()
 ) {
   const presence = new PresenceManager();
+  const writerSlots = new WriterSlotManager();
   const server = new Server({
     address: env.host,
     debounce: 2000,
@@ -197,6 +273,7 @@ export function createCollabServer(
 
         data.context = {
           ...(data.context as Record<string, unknown> | undefined),
+          accessLevel: (data.requestParameters.get("accessLevel") === "read" ? "read" : "write") as SessionAccessLevel,
           reconnectSessionId: data.requestParameters.get("lastKnownSessionId"),
           presenceSessionId: data.socketId,
           session: sessionContext.session,
@@ -214,11 +291,18 @@ export function createCollabServer(
     },
     async connected(data) {
       const context = data.context as CollabSessionContext & {
+        accessLevel?: SessionAccessLevel;
         presenceSessionId?: string;
       };
       const document = data.connection.document;
 
       if (context.user && context.presenceSessionId) {
+        writerSlots.registerConnection(
+          document.name,
+          context.presenceSessionId,
+          context.user.id,
+          context.accessLevel ?? "write"
+        );
         const resumed = presence.resumeConnection(
           document.name,
           context.presenceSessionId,
@@ -228,6 +312,7 @@ export function createCollabServer(
           user: context.user
           }
         );
+        document.broadcastStateless(JSON.stringify(writerSlots.buildSnapshotEvent(document.name)));
         document.broadcastStateless(JSON.stringify(presence.buildSnapshotEvent(document.name)));
 
         if (resumed.resumedFromSessionId) {
@@ -272,7 +357,9 @@ export function createCollabServer(
       };
 
       if (context.presenceSessionId) {
+        writerSlots.removeConnection(data.documentName, context.presenceSessionId);
         presence.removeConnection(data.documentName, context.presenceSessionId);
+        data.document.broadcastStateless(JSON.stringify(writerSlots.buildSnapshotEvent(data.documentName)));
         data.document.broadcastStateless(JSON.stringify(presence.buildSnapshotEvent(data.documentName)));
       }
 
@@ -286,7 +373,11 @@ export function createCollabServer(
           activeConnections: instance.getConnectionsCount(),
           activeDocuments: instance.getDocumentsCount(),
           logger,
-          runtime: instance
+          runtime: {
+            documents: instance.documents,
+            presence,
+            writerSlots
+          }
         });
 
       if (handled) {
@@ -310,6 +401,7 @@ export function createCollabServer(
         continue;
       }
 
+      document.broadcastStateless(JSON.stringify(writerSlots.buildSnapshotEvent(documentId)));
       document.broadcastStateless(JSON.stringify(presence.buildSnapshotEvent(documentId)));
       logger.info("collab.presence.pruned", {
         documentId,

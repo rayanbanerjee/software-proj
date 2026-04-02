@@ -216,6 +216,7 @@ export class DocumentsService {
 
     websocketUrl.searchParams.set("documentName", document.id);
     websocketUrl.searchParams.set("token", options.sessionToken);
+    websocketUrl.searchParams.set("accessLevel", self.accessLevel);
 
     return {
       session,

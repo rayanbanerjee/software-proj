@@ -172,8 +172,9 @@ export interface DocumentSessionHeartbeat {
 }
 
 export type PresenceEventType = "presence.snapshot";
-export type DocumentEventType = "document.rollback";
-export type CollabStatelessEventType = PresenceEventType | DocumentEventType;
+export type DocumentEventType = "document.rollback" | "document.permission.updated";
+export type WriterSlotEventType = "writer.slot.snapshot";
+export type CollabStatelessEventType = PresenceEventType | DocumentEventType | WriterSlotEventType;
 
 export interface CollaboratorPresenceSummary {
   sessionId: string;
@@ -193,11 +194,30 @@ export interface PresenceSnapshotEvent {
 }
 
 export interface DocumentRollbackEvent {
-  type: DocumentEventType;
+  type: "document.rollback";
   documentId: string;
   revisionId: string;
   rolledBackAt: IsoDateString;
   triggeredByUserId: string;
+}
+
+export interface DocumentPermissionUpdatedEvent {
+  type: "document.permission.updated";
+  documentId: string;
+  userId: string;
+  role: DocumentRole | null;
+  accessLevel: SessionAccessLevel | "none";
+  changedAt: IsoDateString;
+  triggeredByUserId: string;
+}
+
+export interface WriterSlotSnapshotEvent {
+  type: WriterSlotEventType;
+  documentId: string;
+  generatedAt: IsoDateString;
+  maxActiveWriters: number;
+  activeWriterSessionIds: string[];
+  queuedWriterSessionIds: string[];
 }
 
 export type AiAction = "rewrite" | "summarize" | "translate" | "restructure";
