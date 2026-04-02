@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   applyApiTestEnv,
@@ -14,6 +14,8 @@ beforeEach(() => {
 
 afterEach(() => {
   process.env = { ...originalEnv };
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("versions module", () => {
@@ -98,6 +100,11 @@ describe("versions module", () => {
 
   it("creates a new head revision on rollback for owners", async () => {
     const app = await createApiTestApp();
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      status: 202
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
       subject: "user_owner"
@@ -147,6 +154,12 @@ describe("versions module", () => {
       documentId,
       label: "Rollback to Initial snapshot: Rollback doc"
     });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4001/internal/events/document-rollback",
+      expect.objectContaining({
+        method: "POST"
+      })
+    );
 
     await app.close();
   });

@@ -113,3 +113,4 @@ Response:
 - only document owners can perform rollback in the current permission model
 - rollback creates a new head revision and does not delete older history
 - diff responses currently validate the comparison target and return a placeholder summary
+- successful rollback requests now also notify the collab service, which rebroadcasts a `document.rollback` stateless event to active clients

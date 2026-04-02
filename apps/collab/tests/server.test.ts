@@ -1,3 +1,5 @@
+import { EventEmitter } from "node:events";
+
 import { describe, expect, it } from "vitest";
 
 import { handleCollabRequest } from "../src/server.js";
@@ -25,24 +27,51 @@ function createMockResponse() {
 }
 
 describe("collab server", () => {
-  it("serves health and readiness payloads through the shared request handler", () => {
+  const logger = {
+    info() {},
+    error() {}
+  };
+
+  const server = {
+    documents: new Map()
+  };
+
+  it("serves health and readiness payloads through the shared request handler", async () => {
     const health = createMockResponse();
     const ready = createMockResponse();
+    const healthRequest = {
+      method: "GET",
+      on() {
+        return this;
+      },
+      url: "/health"
+    };
+    const readyRequest = {
+      method: "GET",
+      on() {
+        return this;
+      },
+      url: "/ready"
+    };
 
-    const handledHealth = handleCollabRequest(
-      { url: "/health" },
+    const handledHealth = await handleCollabRequest(
+      healthRequest,
       health.response as never,
       {
         activeConnections: 0,
-        activeDocuments: 0
+        activeDocuments: 0,
+        logger,
+        runtime: server
       }
     );
-    const handledReady = handleCollabRequest(
-      { url: "/ready" },
+    const handledReady = await handleCollabRequest(
+      readyRequest,
       ready.response as never,
       {
         activeConnections: 2,
-        activeDocuments: 1
+        activeDocuments: 1,
+        logger,
+        runtime: server
       }
     );
 
@@ -64,6 +93,64 @@ describe("collab server", () => {
         status: "ready"
       },
       statusCode: 200
+    });
+  });
+
+  it("accepts a rollback event and rebroadcasts it to an active document", async () => {
+    const response = createMockResponse();
+    const broadcasts: string[] = [];
+    const request = new EventEmitter() as EventEmitter & {
+      method: string;
+      url: string;
+    };
+    request.method = "POST";
+    request.url = "/internal/events/document-rollback";
+
+    server.documents.set("doc-1", {
+      broadcastStateless(payload: string) {
+        broadcasts.push(payload);
+      }
+    });
+
+    const handledPromise = handleCollabRequest(request, response.response as never, {
+      activeConnections: 1,
+      activeDocuments: 1,
+      logger,
+      runtime: server
+    });
+
+    request.emit(
+      "data",
+      Buffer.from(
+        JSON.stringify({
+          type: "document.rollback",
+          documentId: "doc-1",
+          revisionId: "rev-2",
+          rolledBackAt: "2026-04-02T18:00:00.000Z",
+          triggeredByUserId: "google:user_owner"
+        })
+      )
+    );
+    request.emit("end");
+
+    const handled = await handledPromise;
+
+    expect(handled).toBe(true);
+    expect(broadcasts).toEqual([
+      JSON.stringify({
+        type: "document.rollback",
+        documentId: "doc-1",
+        revisionId: "rev-2",
+        rolledBackAt: "2026-04-02T18:00:00.000Z",
+        triggeredByUserId: "google:user_owner"
+      })
+    ]);
+    expect(response.readJson()).toEqual({
+      body: {
+        broadcasted: true,
+        status: "accepted"
+      },
+      statusCode: 202
     });
   });
 });

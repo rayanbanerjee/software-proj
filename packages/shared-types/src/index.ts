@@ -172,6 +172,8 @@ export interface DocumentSessionHeartbeat {
 }
 
 export type PresenceEventType = "presence.snapshot";
+export type DocumentEventType = "document.rollback";
+export type CollabStatelessEventType = PresenceEventType | DocumentEventType;
 
 export interface CollaboratorPresenceSummary {
   sessionId: string;
@@ -188,6 +190,14 @@ export interface PresenceSnapshotEvent {
   documentId: string;
   generatedAt: IsoDateString;
   collaborators: CollaboratorPresenceSummary[];
+}
+
+export interface DocumentRollbackEvent {
+  type: DocumentEventType;
+  documentId: string;
+  revisionId: string;
+  rolledBackAt: IsoDateString;
+  triggeredByUserId: string;
 }
 
 export type AiAction = "rewrite" | "summarize" | "translate" | "restructure";

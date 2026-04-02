@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
+import type { DocumentRollbackEvent } from "@repo/shared-types";
+
 import { VersionsService } from "./service.js";
 import { authenticateRequest, requireCurrentUser } from "../auth/guard.js";
 import type { DocumentActor } from "../documents/service.js";
@@ -18,6 +20,49 @@ function getActor(user: { id: string; name: string | null }): DocumentActor {
     userId: user.id,
     name: user.name
   };
+}
+
+function getCollabRollbackEventUrl(collabUrl: string) {
+  const url = new URL(collabUrl);
+
+  url.protocol = url.protocol === "wss:" ? "https:" : "http:";
+  url.pathname = "/internal/events/document-rollback";
+  url.search = "";
+
+  return url.toString();
+}
+
+async function notifyRollbackEvent(
+  app: FastifyInstance,
+  event: DocumentRollbackEvent
+) {
+  const endpoint = getCollabRollbackEventUrl(app.apiEnv.COLLAB_URL);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(event)
+    });
+
+    if (!response.ok) {
+      app.appLogger.warn("versions.rollback_event_failed", {
+        documentId: event.documentId,
+        endpoint,
+        revisionId: event.revisionId,
+        statusCode: response.status
+      });
+    }
+  } catch (error) {
+    app.appLogger.warn("versions.rollback_event_failed", {
+      documentId: event.documentId,
+      endpoint,
+      error: error instanceof Error ? error.message : "Unknown fetch failure.",
+      revisionId: event.revisionId
+    });
+  }
 }
 
 export async function registerVersionsModule(app: FastifyInstance) {
@@ -69,8 +114,17 @@ export async function registerVersionsModule(app: FastifyInstance) {
       const actor = getActor(requireCurrentUser(request));
       const params = request.params as { documentId: string };
       const body = rollbackRevisionBodySchema.parse(request.body);
+      const rollback = app.versionsService.rollbackRevision(params.documentId, body.revisionId, actor);
 
-      return app.versionsService.rollbackRevision(params.documentId, body.revisionId, actor);
+      await notifyRollbackEvent(app, {
+        type: "document.rollback",
+        documentId: params.documentId,
+        revisionId: rollback.revisionId,
+        rolledBackAt: rollback.rolledBackAt,
+        triggeredByUserId: actor.userId
+      });
+
+      return rollback;
     }
   );
 }

@@ -128,8 +128,8 @@ VER-002,Add revision list endpoint,Versioning,Done,High,,VER-001,Revision list e
 VER-003,Add revision detail endpoint,Versioning,Done,Medium,,VER-002,Revision detail endpoint returns requested revision,api doc,/apps/api/src/modules/versions
 VER-004,Add diff endpoint stub,Versioning,Done,Medium,,VER-002,Diff endpoint returns stub or initial comparison payload,api doc,/apps/api/src/modules/versions
 VER-005,Add rollback endpoint,Versioning,Done,High,,VER-002,Rollback endpoint creates a new head revision,api doc + change note,/apps/api/src/modules/versions
-VER-006,Add rollback event to collab service,Versioning,Backlog,High,,"VER-005,COLLAB-003",Rollback propagates to active clients,spec,/apps/collab
-VER-007,Add version history UI data hook,Versioning,Backlog,Medium,,"WEB-010,VER-002",UI can fetch and display revision list data,none,/apps/web
+VER-006,Add rollback event to collab service,Versioning,Done,High,,"VER-005,COLLAB-003",Rollback propagates to active clients,spec,/apps/collab
+VER-007,Add version history UI data hook,Versioning,Done,Medium,,"WEB-010,VER-002",UI can fetch and display revision list data,none,/apps/web
 VER-008,Add versioning tests,Versioning,Done,Medium,,"TEST-003,VER-005",Versioning tests cover revision and rollback flow,none,/apps/api/tests/integration
 AI-001,Add AI request model,AI,Backlog,High,,DB-007,AI request model exists and migrates,none,/apps/api/src/modules/ai
 AI-002,Add AI request submission endpoint,AI,Backlog,High,,"API-010,AI-001",AI request endpoint validates payload and persists request,api doc + spec,/apps/api/src/modules/ai

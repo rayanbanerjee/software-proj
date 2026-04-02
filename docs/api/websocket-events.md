@@ -75,6 +75,28 @@ Behavior:
 - silent or abandoned sessions are pruned after the collab timeout window and rebroadcast as removed
 - a reconnecting client may replace its prior disconnected session when `lastKnownSessionId` matches a recent session for the same user
 
+## Stateless Rollback Payload
+
+When the API accepts a document rollback, it also notifies the collab service so active clients can react to the new head revision.
+
+Event shape:
+
+```json
+{
+  "type": "document.rollback",
+  "documentId": "uuid",
+  "revisionId": "rev_uuid",
+  "rolledBackAt": "2026-04-02T18:05:00.000Z",
+  "triggeredByUserId": "google:user_owner"
+}
+```
+
+Behavior:
+
+- the API posts the rollback event to the collab service after `POST /v1/documents/:documentId/versions/rollback` succeeds
+- the collab service rebroadcasts the stateless rollback payload to currently active document connections
+- if no active document runtime exists yet, the collab service accepts the event without broadcasting it
+
 ## Current Hooks
 
 - `onConnect`: verifies the `token` query parameter and attaches the authenticated user to collab context
@@ -82,6 +104,7 @@ Behavior:
 - `onAwarenessUpdate`: refreshes presence state and rebroadcasts the stateless snapshot
 - `onDisconnect`: logs connection shutdown
 - periodic sweep: removes stale presence entries that have not refreshed within the timeout window
+- `POST /internal/events/document-rollback`: accepts rollback events from the API and rebroadcasts them to active clients
 
 ## Operational Endpoints
 

@@ -83,6 +83,7 @@ Define the baseline revision and rollback model for collaborative documents so A
 - active collab sessions continue to reference the current head
 - rollback is a forward-moving event that swaps the active content base
 - later collab work should broadcast a rollback event instead of silently changing state underneath clients
+- the current collab contract uses a stateless `document.rollback` payload so open clients can reconcile to the new head revision
 
 ## Worker Interaction
 

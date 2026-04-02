@@ -1,6 +1,10 @@
-import { versionHistory } from "../../lib/app-shell";
+import type { VersionHistoryEntry } from "../../lib/version-history";
 
-export function VersionHistoryShell() {
+interface VersionHistoryShellProps {
+  entries: readonly VersionHistoryEntry[];
+}
+
+export function VersionHistoryShell({ entries }: VersionHistoryShellProps) {
   return (
     <section className="panel-card">
       <div className="panel-heading">
@@ -8,8 +12,8 @@ export function VersionHistoryShell() {
         <h3>Version history</h3>
       </div>
       <div className="timeline-stack">
-        {versionHistory.map((entry) => (
-          <article className="timeline-entry" key={entry.label}>
+        {entries.map((entry) => (
+          <article className="timeline-entry" key={entry.key}>
             <strong>{entry.label}</strong>
             <p>{entry.summary}</p>
             <span>{entry.when}</span>

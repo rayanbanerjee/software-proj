@@ -1,5 +1,8 @@
 import { Server } from "@hocuspocus/server";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { StringDecoder } from "node:string_decoder";
+
+import type { DocumentRollbackEvent } from "@repo/shared-types";
 
 import {
   PresenceManager,
@@ -13,6 +16,21 @@ export interface CollabLogger {
   info: (message: string, meta?: Record<string, unknown>) => void;
   error: (message: string, meta?: Record<string, unknown>) => void;
 }
+
+type CollabDocumentRuntime = {
+  broadcastStateless: (payload: string) => void;
+};
+
+type CollabDocumentsRuntime = {
+  documents: Map<string, CollabDocumentRuntime>;
+};
+
+type JsonReadableRequest = Pick<IncomingMessage, "method" | "url"> & {
+  on: (
+    event: "data" | "end" | "error",
+    listener: ((chunk: Buffer | string) => void) | (() => void) | ((error: Error) => void)
+  ) => JsonReadableRequest;
+};
 
 export function createCollabLogger(): CollabLogger {
   return {
@@ -36,12 +54,72 @@ function writeJson(
   response.end(JSON.stringify(body));
 }
 
+function readJsonBody(request: JsonReadableRequest): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const decoder = new StringDecoder("utf8");
+    let body = "";
+
+    request.on("data", (chunk: Buffer | string) => {
+      body += decoder.write(chunk);
+    });
+
+    request.on("end", () => {
+      body += decoder.end();
+
+      if (!body.trim()) {
+        resolve({});
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(body));
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    request.on("error", reject);
+  });
+}
+
+function isDocumentRollbackEvent(value: unknown): value is DocumentRollbackEvent {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<DocumentRollbackEvent>;
+
+  return (
+    candidate.type === "document.rollback"
+    && typeof candidate.documentId === "string"
+    && typeof candidate.revisionId === "string"
+    && typeof candidate.rolledBackAt === "string"
+    && typeof candidate.triggeredByUserId === "string"
+  );
+}
+
+export function emitRollbackEvent(
+  runtime: CollabDocumentsRuntime,
+  event: DocumentRollbackEvent
+): boolean {
+  const document = runtime.documents.get(event.documentId);
+
+  if (!document) {
+    return false;
+  }
+
+  document.broadcastStateless(JSON.stringify(event));
+  return true;
+}
+
 export function handleCollabRequest(
-  request: Pick<IncomingMessage, "url">,
+  request: JsonReadableRequest,
   response: ServerResponse,
-  metrics: {
+  options: {
     activeConnections: number;
     activeDocuments: number;
+    logger: CollabLogger;
+    runtime: CollabDocumentsRuntime;
   }
 ) {
   if (request.url === "/health") {
@@ -54,12 +132,46 @@ export function handleCollabRequest(
 
   if (request.url === "/ready") {
     writeJson(response, 200, {
-      activeConnections: metrics.activeConnections,
-      activeDocuments: metrics.activeDocuments,
+      activeConnections: options.activeConnections,
+      activeDocuments: options.activeDocuments,
       service: "collab",
       status: "ready"
     });
     return true;
+  }
+
+  if (request.url === "/internal/events/document-rollback" && request.method === "POST") {
+    return readJsonBody(request)
+      .then((body) => {
+        if (!isDocumentRollbackEvent(body)) {
+          writeJson(response, 400, {
+            error: "Invalid rollback event payload."
+          });
+          return true;
+        }
+
+        const broadcasted = emitRollbackEvent(options.runtime, body);
+
+        options.logger.info("collab.document.rollback", {
+          documentId: body.documentId,
+          revisionId: body.revisionId,
+          rolledBackAt: body.rolledBackAt,
+          broadcasted,
+          triggeredByUserId: body.triggeredByUserId
+        });
+
+        writeJson(response, 202, {
+          broadcasted,
+          status: "accepted"
+        });
+        return true;
+      })
+      .catch(() => {
+        writeJson(response, 400, {
+          error: "Invalid rollback event payload."
+        });
+        return true;
+      });
   }
 
   return false;
@@ -170,12 +282,14 @@ export function createCollabServer(
       });
     },
     async onRequest({ instance, request, response }) {
-      if (
-        handleCollabRequest(request, response, {
+      const handled = await handleCollabRequest(request, response, {
           activeConnections: instance.getConnectionsCount(),
-          activeDocuments: instance.getDocumentsCount()
-        })
-      ) {
+          activeDocuments: instance.getDocumentsCount(),
+          logger,
+          runtime: instance
+        });
+
+      if (handled) {
         throw null;
       }
     },

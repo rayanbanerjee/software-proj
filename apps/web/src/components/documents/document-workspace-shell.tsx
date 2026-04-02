@@ -1,4 +1,5 @@
 import type { DocumentOverlay, DocumentRecord, DocumentScreenState } from "../../lib/app-shell";
+import type { VersionHistoryEntry } from "../../lib/version-history";
 import { BaseEditor } from "../../editor/base-editor";
 import { activeOverlayCopy } from "../../lib/app-shell";
 import { AiActionMenuShell } from "./ai-action-menu-shell";
@@ -14,6 +15,7 @@ interface DocumentWorkspaceShellProps {
   document: DocumentRecord;
   offline: boolean;
   overlay: DocumentOverlay;
+  versionHistoryEntries: readonly VersionHistoryEntry[];
   view: DocumentScreenState;
 }
 
@@ -21,6 +23,7 @@ export function DocumentWorkspaceShell({
   document,
   offline,
   overlay,
+  versionHistoryEntries,
   view
 }: DocumentWorkspaceShellProps) {
   return (
@@ -69,7 +72,7 @@ export function DocumentWorkspaceShell({
 
         <aside className="document-workspace-sidebar">
           <PresenceShell />
-          <VersionHistoryShell />
+          <VersionHistoryShell entries={versionHistoryEntries} />
         </aside>
       </div>
     </div>
