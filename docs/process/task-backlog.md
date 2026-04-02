@@ -35,12 +35,12 @@ Default status values:
 2. `DB-004` Create memberships table or model.
 3. `DOCSVC-001` Implement create document endpoint.
 4. `TEST-003` Add API integration test harness.
-5. `COLLAB-001` Initialize real collaboration server.
-6. `WORK-001` Initialize worker runtime.
-7. `INFRA-003` Add API service container.
-8. `COLLAB-002` Add session token verification.
-9. `OPS-005` Add health and readiness endpoints.
-10. `SHARE-005` Add permission matrix enforcement helpers.
+5. `WORK-001` Initialize worker runtime.
+6. `INFRA-003` Add API service container.
+7. `COLLAB-002` Add session token verification.
+8. `SHARE-005` Add permission matrix enforcement helpers.
+9. `INFRA-004` Add collab service container.
+10. `INFRA-005` Add worker service container.
 
 ## Recently completed
 
@@ -77,12 +77,14 @@ Default status values:
 - `AUTH-006` Add auth guard middleware
 - `AUTH-007` Add current-user endpoint
 - `DOC-003` Add authentication flow spec
+- `COLLAB-001` Initialize real collaboration server
 - `PKG-008` Add test fixtures for sample documents
 - `TEST-006` Add fixture factories
 - `INFRA-001` Add Docker Compose for Postgres and Redis
 - `INFRA-002` Add local object storage service to Compose
 - `INFRA-006` Add startup helper scripts
 - `INFRA-007` Add local bootstrap README
+- `OPS-005` Add health and readiness endpoints
 
 ## Micro Tasks
 

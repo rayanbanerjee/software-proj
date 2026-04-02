@@ -107,7 +107,7 @@ SHARE-004,Implement revoke access endpoint,Sharing,Backlog,High,,SHARE-003,Revok
 SHARE-005,Add permission matrix enforcement helpers,Sharing,Backlog,High,,PKG-006,Permission helpers are used consistently by API modules,spec + change note,"/apps/api,/packages/authz"
 SHARE-006,Add API tests for role restrictions,Sharing,Backlog,Medium,,"TEST-003,SHARE-005",Role restriction tests cover view edit share boundaries,none,/apps/api/tests/integration
 SHARE-007,Add audit log entries for sharing changes,Sharing,Backlog,Medium,,"API-013,SHARE-003",Sharing changes emit audit records,none,/apps/api/src/modules/sharing
-COLLAB-001,Initialize real collaboration server,Collaboration,Backlog,High,,ADR-004,apps/collab boots with chosen stack,task doc + change note,/apps/collab
+COLLAB-001,Initialize real collaboration server,Collaboration,Done,High,,ADR-004,apps/collab boots with chosen stack,task doc + change note,/apps/collab
 COLLAB-002,Add session token verification,Collaboration,Backlog,High,,"COLLAB-001,AUTH-005",Collab server verifies session token before join,none,/apps/collab
 COLLAB-003,Add document join flow,Collaboration,Backlog,High,,"COLLAB-002,PKG-002",Document join flow is implemented and documented,spec + api doc,/apps/collab
 COLLAB-004,Add presence awareness channel,Collaboration,Backlog,High,,COLLAB-003,Presence awareness events broadcast correctly,none,/apps/collab/src/awareness
@@ -176,5 +176,5 @@ OPS-001,Add structured logger abstraction,Ops,Backlog,Medium,,API-001,Shared log
 OPS-002,Add request ID propagation,Ops,Backlog,Medium,,OPS-001,Request IDs flow through API request handling,none,/apps/api
 OPS-003,Add audit event schema,Ops,Backlog,Medium,,"API-013,DB-009",Audit schema is documented and implemented,spec,"/apps/api,/packages/shared-types"
 OPS-004,Add basic metrics list doc,Ops,Backlog,Low,,TASK-0001,Metrics spec exists for service owners,spec,/docs/specs
-OPS-005,Add health and readiness endpoints,Ops,Backlog,Medium,,"API-002,COLLAB-001,WORK-001",All services expose health or readiness endpoints,api doc,/apps
+OPS-005,Add health and readiness endpoints,Ops,Done,Medium,,"API-002,COLLAB-001,WORK-001",All services expose health or readiness endpoints,api doc,/apps
 OPS-006,Add rate-limit config placeholders,Ops,Backlog,Low,,API-003,Rate-limit config keys exist in env and config parsing,none,/apps/api

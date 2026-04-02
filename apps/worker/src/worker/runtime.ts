@@ -104,6 +104,7 @@ export function startWorkerRuntime(
   });
 
   return {
+    logger,
     workers,
     async shutdown() {
       await Promise.all(workers.map((worker) => worker.close()));
