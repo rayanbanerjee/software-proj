@@ -1,12 +1,22 @@
 import { createHash, randomUUID } from "node:crypto";
 
+import type {
+  ExportJobSummary,
+  GetExportJobStatusResponse,
+  RequestExportJobResponse
+} from "@repo/shared-types";
+
+import { AppError } from "../../common/errors.js";
+import type { DocumentActor, DocumentsService } from "../documents/service.js";
 import type { CreateExportRequest } from "./schema.js";
 
 export interface ExportJobRecord {
-  exportId: string;
+  completedAt: string | null;
+  exportJobId: string;
   documentId: string;
   format: "txt" | "pdf" | "docx";
-  status: "pending" | "completed" | "failed";
+  requestedAt: string;
+  status: "queued" | "running" | "succeeded" | "failed";
 }
 
 export interface ExportDownloadLink {
@@ -19,69 +29,95 @@ export class ExportsService {
 
   private readonly jobs = new Map<string, ExportJobRecord>();
 
+  constructor(private readonly documentsService: DocumentsService) {}
+
+  private ensureAccessibleDocument(documentId: string, actor: DocumentActor) {
+    this.documentsService.getDocumentMetadata(documentId, actor);
+  }
+
+  private toSummary(job: ExportJobRecord): ExportJobSummary {
+    return {
+      exportJobId: job.exportJobId,
+      documentId: job.documentId,
+      format: job.format,
+      status: job.status,
+      requestedAt: job.requestedAt,
+      completedAt: job.completedAt,
+      downloadUrl: null
+    };
+  }
+
   async createExportJob(
     documentId: string,
-    input: CreateExportRequest
-  ): Promise<ExportJobRecord> {
-    const exportId = `exp_${randomUUID()}`;
+    input: CreateExportRequest,
+    actor: DocumentActor
+  ): Promise<RequestExportJobResponse> {
+    this.ensureAccessibleDocument(documentId, actor);
+    const exportJobId = `exp_${randomUUID()}`;
+    const requestedAt = new Date().toISOString();
 
     const job: ExportJobRecord = {
-      exportId,
+      exportJobId,
       documentId,
       format: input.format,
-      status: "completed"
+      status: "succeeded",
+      requestedAt,
+      completedAt: requestedAt
     };
 
-    this.jobs.set(exportId, job);
+    this.jobs.set(exportJobId, job);
 
     console.log("enqueue export job", {
-      exportId,
+      exportJobId,
       documentId,
       format: input.format
     });
 
-    return job;
+    return {
+      exportJobId,
+      status: job.status,
+      requestedAt
+    };
   }
 
   async getExportJob(
     documentId: string,
-    exportId: string
-  ): Promise<ExportJobRecord | null> {
-    const job = this.jobs.get(exportId);
+    exportJobId: string,
+    actor: DocumentActor
+  ): Promise<GetExportJobStatusResponse> {
+    this.ensureAccessibleDocument(documentId, actor);
+    const job = this.jobs.get(exportJobId);
 
-    if (!job) {
-      return null;
+    if (!job || job.documentId !== documentId) {
+      throw new AppError("EXPORT_NOT_FOUND", 404, "Export job was not found for this document.");
     }
 
-    if (job.documentId !== documentId) {
-      return null;
-    }
-
-    return job;
+    return {
+      job: this.toSummary(job)
+    };
   }
 
   async createDownloadLink(
     documentId: string,
-    exportId: string
+    exportJobId: string,
+    actor: DocumentActor
   ): Promise<ExportDownloadLink | null> {
-    const job = await this.getExportJob(documentId, exportId);
+    const {
+      job
+    } = await this.getExportJob(documentId, exportJobId, actor);
 
-    if (!job) {
-      return null;
-    }
-
-    if (job.status !== "completed") {
+    if (job.status !== "succeeded") {
       return null;
     }
 
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     const token = createHash("sha256")
-      .update(`${documentId}:${exportId}:${expiresAt}`)
+      .update(`${documentId}:${exportJobId}:${expiresAt}`)
       .digest("hex")
       .slice(0, 24);
 
     return {
-      downloadUrl: `/documents/${documentId}/exports/${exportId}/artifact?token=${token}`,
+      downloadUrl: `/documents/${documentId}/exports/${exportJobId}/artifact?token=${token}`,
       expiresAt
     };
   }

@@ -151,12 +151,12 @@ WORK-004,Add export job processor stub,Worker,Done,Medium,,"WORK-002,EXP-001",Ex
 WORK-005,Add revision summary job stub,Worker,Done,Medium,,"WORK-002,VER-001",Revision summary job stub exists,none,/apps/worker/src/revision-jobs
 WORK-006,Add retry and backoff defaults,Worker,Done,Medium,,WORK-002,Retry and backoff defaults are centralized,none,/apps/worker
 WORK-007,Add worker tests,Worker,Done,Medium,,"TEST-001,WORK-003",Worker tests run in CI,none,/apps/worker/tests
-EXP-001,Add export job request endpoint,Export,Backlog,High,,"API-011,DB-008",Export request endpoint creates export job records,api doc,/apps/api/src/modules/exports
-EXP-002,Add export job status endpoint,Export,Backlog,Medium,,EXP-001,Export status endpoint exposes job state,api doc,/apps/api/src/modules/exports
-EXP-003,Add plain-text renderer,Export,Backlog,High,,EXP-001,Plain-text export works end to end,none,/apps/worker/src/export-jobs
-EXP-004,Add PDF renderer stub,Export,Backlog,Medium,,EXP-001,PDF export stub exists behind job interface,none,/apps/worker/src/export-jobs
-EXP-005,Add DOCX renderer stub,Export,Backlog,Medium,,EXP-001,DOCX export stub exists behind job interface,none,/apps/worker/src/export-jobs
-EXP-006,Add secure download URL flow,Export,Backlog,Medium,,EXP-002,Completed exports return secure download references,spec,"/apps/api,/apps/worker"
+EXP-001,Add export job request endpoint,Export,Done,High,,"API-011,DB-008",Export request endpoint creates export job records,api doc,/apps/api/src/modules/exports
+EXP-002,Add export job status endpoint,Export,Done,Medium,,EXP-001,Export status endpoint exposes job state,api doc,/apps/api/src/modules/exports
+EXP-003,Add plain-text renderer,Export,Done,High,,EXP-001,Plain-text export works end to end,none,/apps/worker/src/export-jobs
+EXP-004,Add PDF renderer stub,Export,Done,Medium,,EXP-001,PDF export stub exists behind job interface,none,/apps/worker/src/export-jobs
+EXP-005,Add DOCX renderer stub,Export,Done,Medium,,EXP-001,DOCX export stub exists behind job interface,none,/apps/worker/src/export-jobs
+EXP-006,Add secure download URL flow,Export,Done,Medium,,EXP-002,Completed exports return secure download references,spec,"/apps/api,/apps/worker"
 EXP-007,Add export UI integration,Export,Backlog,Medium,,"WEB-013,EXP-002",UI can request export and show status,none,/apps/web
 INFRA-001,Add Docker Compose for Postgres and Redis,Infrastructure,Done,High,,DB-001,Compose file starts required local services,change note,/infrastructure/docker
 INFRA-002,Add local object storage service to Compose,Infrastructure,Done,Medium,,INFRA-001,Compose includes local object storage,none,/infrastructure/docker
