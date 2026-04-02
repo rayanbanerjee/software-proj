@@ -2,12 +2,19 @@
   "name": "@repo/worker",
   "private": true,
   "version": "0.1.0",
+  "type": "module",
   "scripts": {
-    "build": "echo \"worker build not wired yet\"",
-    "dev": "echo \"worker dev not wired yet\"",
-    "lint": "echo \"worker lint not wired yet\"",
-    "test": "echo \"worker tests not wired yet\"",
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/main.ts",
+    "lint": "eslint src tests --max-warnings=0",
+    "test": "vitest run --config ../../vitest.config.mjs tests",
     "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "bullmq": "^5.72.0",
+    "ioredis": "^5.10.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.3"
   }
 }
-
