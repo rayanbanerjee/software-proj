@@ -1,6 +1,7 @@
 import { Server } from "@hocuspocus/server";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import { PresenceManager } from "./awareness/presence.js";
 import { requireCollabSession, type CollabSessionContext } from "./auth/session.js";
 import { getCollabEnv, type CollabEnv } from "./config/env.js";
 
@@ -64,6 +65,8 @@ export function createCollabServer(
   env: CollabEnv = getCollabEnv(),
   logger: CollabLogger = createCollabLogger()
 ) {
+  const presence = new PresenceManager();
+
   return new Server({
     address: env.host,
     debounce: 2000,
@@ -79,6 +82,7 @@ export function createCollabServer(
 
         data.context = {
           ...(data.context as Record<string, unknown> | undefined),
+          presenceSessionId: data.socketId,
           session: sessionContext.session,
           user: sessionContext.user
         } satisfies CollabSessionContext;
@@ -93,6 +97,19 @@ export function createCollabServer(
       }
     },
     async connected(data) {
+      const context = data.context as CollabSessionContext & {
+        presenceSessionId?: string;
+      };
+      const document = data.connection.document;
+
+      if (context.user && context.presenceSessionId) {
+        presence.upsertConnection(document.name, context.presenceSessionId, {
+          displayName: context.user.name,
+          user: context.user
+        });
+        document.broadcastStateless(JSON.stringify(presence.buildSnapshotEvent(document.name)));
+      }
+
       logger.info("collab.connection.opened", {
         documentName: data.documentName,
         userId:
@@ -102,7 +119,33 @@ export function createCollabServer(
         socketId: data.socketId
       });
     },
+    async onAwarenessUpdate(data) {
+      const context = data.context as CollabSessionContext & {
+        presenceSessionId?: string;
+      };
+
+      if (!context.user || !context.presenceSessionId) {
+        return;
+      }
+
+      const updated = presence.markAwarenessActive(data.documentName, context.presenceSessionId);
+
+      if (!updated) {
+        return;
+      }
+
+      data.document.broadcastStateless(JSON.stringify(presence.buildSnapshotEvent(data.documentName)));
+    },
     async onDisconnect(data) {
+      const context = data.context as CollabSessionContext & {
+        presenceSessionId?: string;
+      };
+
+      if (context.presenceSessionId) {
+        presence.removeConnection(data.documentName, context.presenceSessionId);
+        data.document.broadcastStateless(JSON.stringify(presence.buildSnapshotEvent(data.documentName)));
+      }
+
       logger.info("collab.connection.closed", {
         documentName: data.documentName,
         socketId: data.socketId

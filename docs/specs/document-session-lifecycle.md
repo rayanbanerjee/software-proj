@@ -88,7 +88,8 @@ Define the expected lifecycle for opening a document, joining a collaboration se
 1. The client exchanges Yjs sync frames to reach a consistent document state.
 2. The client sends or responds to awareness updates to reflect presence.
 3. The server maintains `lastSeenAt` and `connectionStatus` for active collaborators.
-4. Presence summaries remain eventually consistent rather than strongly transactional.
+4. The collab service rebroadcasts a stateless `presence.snapshot` payload whenever the active presence view changes.
+5. Presence summaries remain eventually consistent rather than strongly transactional.
 
 ### 6. Disconnect
 

@@ -171,6 +171,25 @@ export interface DocumentSessionHeartbeat {
   sentAt: IsoDateString;
 }
 
+export type PresenceEventType = "presence.snapshot";
+
+export interface CollaboratorPresenceSummary {
+  sessionId: string;
+  documentId: string;
+  userId: string;
+  displayName: string | null;
+  isPresent: boolean;
+  lastSeenAt: IsoDateString;
+  connectionStatus: SessionConnectionStatus;
+}
+
+export interface PresenceSnapshotEvent {
+  type: PresenceEventType;
+  documentId: string;
+  generatedAt: IsoDateString;
+  collaborators: CollaboratorPresenceSummary[];
+}
+
 export type AiAction = "rewrite" | "summarize" | "translate" | "restructure";
 
 export type AiRequestStatus =

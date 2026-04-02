@@ -17,6 +17,7 @@ interface SessionTokenClaims {
 }
 
 export interface CollabSessionContext {
+  presenceSessionId?: string;
   session: {
     expiresAt: string;
     issuedAt: string;
