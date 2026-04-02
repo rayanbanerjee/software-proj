@@ -363,6 +363,34 @@ ul {
   gap: 18px;
 }
 
+.base-editor-toolbar,
+.base-editor-selection-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.base-editor-button,
+.base-editor-selection-stats div {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 250, 242, 0.78);
+}
+
+.base-editor-button {
+  padding: 10px 14px;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.base-editor-button-active,
+.base-editor-button:hover {
+  border-color: rgba(125, 74, 33, 0.34);
+  background: rgba(208, 109, 56, 0.12);
+}
+
 .base-editor-header {
   display: grid;
   gap: 8px;
@@ -407,6 +435,24 @@ ul {
 
 .base-editor-content p {
   margin: 0;
+}
+
+.base-editor-selection-stats div {
+  padding: 10px 14px;
+}
+
+.base-editor-selection-stats dt {
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.base-editor-selection-stats dd {
+  margin: 0;
+  font-weight: 700;
 }
 
 .auth-shell-points li {
