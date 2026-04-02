@@ -83,6 +83,7 @@ services:
       NODE_ENV: development
       PORT: 4001
       HOST: 0.0.0.0
+      SESSION_SECRET: replace-me
     ports:
       - "4001:4001"
     depends_on:

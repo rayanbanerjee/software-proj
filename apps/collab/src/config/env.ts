@@ -2,6 +2,7 @@ export interface CollabEnv {
   host: string;
   nodeEnv: "development" | "test" | "production";
   port: number;
+  sessionSecret: string;
 }
 
 function parseInteger(name: string, value: string | undefined, fallback: number): number {
@@ -26,10 +27,19 @@ function parseNodeEnv(value: string | undefined): CollabEnv["nodeEnv"] {
   return "development";
 }
 
+function requireValue(name: string, value: string | undefined): string {
+  if (value == null || value.trim() === "") {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+
+  return value.trim();
+}
+
 export function getCollabEnv(source: NodeJS.ProcessEnv = process.env): CollabEnv {
   return {
     host: source.HOST?.trim() || "0.0.0.0",
     nodeEnv: parseNodeEnv(source.NODE_ENV),
-    port: parseInteger("PORT", source.PORT, 4001)
+    port: parseInteger("PORT", source.PORT, 4001),
+    sessionSecret: requireValue("SESSION_SECRET", source.SESSION_SECRET)
   };
 }

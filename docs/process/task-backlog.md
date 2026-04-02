@@ -36,11 +36,11 @@ Default status values:
 3. `DOCSVC-001` Implement create document endpoint.
 4. `TEST-003` Add API integration test harness.
 5. `WORK-001` Initialize worker runtime.
-6. `COLLAB-002` Add session token verification.
-7. `SHARE-005` Add permission matrix enforcement helpers.
-8. `DOC-002` Add `docs/api/websocket-events.md`.
-9. `DOC-004` Add document session lifecycle spec.
-10. `DB-010` Add local migration workflow.
+6. `SHARE-005` Add permission matrix enforcement helpers.
+7. `DOC-004` Add document session lifecycle spec.
+8. `DB-010` Add local migration workflow.
+9. `COLLAB-003` Add document join flow.
+10. `PKG-002` Expand shared-types for session DTOs.
 
 ## Recently completed
 
@@ -77,7 +77,9 @@ Default status values:
 - `AUTH-006` Add auth guard middleware
 - `AUTH-007` Add current-user endpoint
 - `DOC-003` Add authentication flow spec
+- `DOC-002` Add `docs/api/websocket-events.md`
 - `COLLAB-001` Initialize real collaboration server
+- `COLLAB-002` Add session token verification
 - `PKG-008` Add test fixtures for sample documents
 - `TEST-006` Add fixture factories
 - `INFRA-001` Add Docker Compose for Postgres and Redis

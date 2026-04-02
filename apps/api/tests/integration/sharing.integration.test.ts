@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { applyApiTestEnv, createApiTestApp } from "./harness.js";
+import {
+  applyApiTestEnv,
+  createApiTestApp,
+  createSessionHeaders
+} from "./harness.js";
 
 const originalEnv = { ...process.env };
 
@@ -15,13 +19,23 @@ afterEach(() => {
 describe("sharing integration flow", () => {
   it("covers view, edit, and share boundaries through the reusable API harness", async () => {
     const app = await createApiTestApp();
+    const ownerSessionHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "owner_user"
+    });
+    const editorSessionHeaders = createSessionHeaders(app, {
+      email: "editor@example.com",
+      subject: "editor_user"
+    });
+    const viewerSessionHeaders = createSessionHeaders(app, {
+      email: "viewer@example.com",
+      subject: "viewer_user"
+    });
 
     const documentResponse = await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "owner_user"
-      },
+      headers: ownerSessionHeaders,
       payload: {
         title: "Sharing flow"
       }
@@ -33,7 +47,8 @@ describe("sharing integration flow", () => {
       method: "POST",
       url: `/v1/documents/${documentId}/invitations`,
       headers: {
-        "x-user-id": "owner_user"
+        ...ownerSessionHeaders,
+        "x-user-id": "google:owner_user"
       },
       payload: {
         email: "editor@example.com",
@@ -45,7 +60,8 @@ describe("sharing integration flow", () => {
       method: "POST",
       url: `/v1/documents/${documentId}/invitations`,
       headers: {
-        "x-user-id": "owner_user"
+        ...ownerSessionHeaders,
+        "x-user-id": "google:owner_user"
       },
       payload: {
         email: "viewer@example.com",
@@ -57,7 +73,8 @@ describe("sharing integration flow", () => {
       method: "POST",
       url: "/v1/invitations/accept",
       headers: {
-        "x-user-id": "editor_user",
+        ...editorSessionHeaders,
+        "x-user-id": "google:editor_user",
         "x-user-email": "editor@example.com"
       },
       payload: {
@@ -69,7 +86,8 @@ describe("sharing integration flow", () => {
       method: "POST",
       url: "/v1/invitations/accept",
       headers: {
-        "x-user-id": "viewer_user",
+        ...viewerSessionHeaders,
+        "x-user-id": "google:viewer_user",
         "x-user-email": "viewer@example.com"
       },
       payload: {
@@ -80,9 +98,7 @@ describe("sharing integration flow", () => {
     const editorRename = await app.inject({
       method: "PATCH",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "editor_user"
-      },
+      headers: editorSessionHeaders,
       payload: {
         title: "Editor updated title"
       }
@@ -91,9 +107,7 @@ describe("sharing integration flow", () => {
     const viewerRename = await app.inject({
       method: "PATCH",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "viewer_user"
-      },
+      headers: viewerSessionHeaders,
       payload: {
         title: "Viewer should fail"
       }
@@ -103,7 +117,8 @@ describe("sharing integration flow", () => {
       method: "POST",
       url: `/v1/documents/${documentId}/invitations`,
       headers: {
-        "x-user-id": "editor_user"
+        ...editorSessionHeaders,
+        "x-user-id": "google:editor_user"
       },
       payload: {
         email: "third@example.com",
@@ -114,9 +129,7 @@ describe("sharing integration flow", () => {
     const viewerMetadata = await app.inject({
       method: "GET",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "viewer_user"
-      }
+      headers: viewerSessionHeaders
     });
 
     expect(editorRename.statusCode).toBe(200);

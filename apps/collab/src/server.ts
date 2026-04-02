@@ -1,6 +1,7 @@
 import { Server } from "@hocuspocus/server";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import { requireCollabSession, type CollabSessionContext } from "./auth/session.js";
 import { getCollabEnv, type CollabEnv } from "./config/env.js";
 
 export interface CollabLogger {
@@ -73,8 +74,31 @@ export function createCollabServer(
     timeout: 30000,
     unloadImmediately: false,
     async onConnect(data) {
+      try {
+        const sessionContext = requireCollabSession(data.requestParameters, env);
+
+        data.context = {
+          ...(data.context as Record<string, unknown> | undefined),
+          session: sessionContext.session,
+          user: sessionContext.user
+        } satisfies CollabSessionContext;
+      } catch (error) {
+        logger.error("collab.connection.rejected", {
+          documentName: data.documentName,
+          reason: error instanceof Error ? error.message : "Invalid session token.",
+          socketId: data.socketId
+        });
+
+        throw error;
+      }
+    },
+    async connected(data) {
       logger.info("collab.connection.opened", {
         documentName: data.documentName,
+        userId:
+          typeof data.context === "object" && data.context && "user" in data.context
+            ? (data.context.user as { id?: string }).id ?? null
+            : null,
         socketId: data.socketId
       });
     },

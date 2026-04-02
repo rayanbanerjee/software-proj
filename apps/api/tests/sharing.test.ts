@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { applyApiTestEnv, createApiTestApp } from "./integration/harness.js";
+import {
+  applyApiTestEnv,
+  createApiTestApp,
+  createSessionHeaders
+} from "./integration/harness.js";
 
 const originalEnv = { ...process.env };
 
@@ -15,13 +19,19 @@ afterEach(() => {
 describe("sharing module", () => {
   it("creates and accepts an invitation, then allows the invited user to view the document", async () => {
     const app = await createApiTestApp();
+    const ownerSessionHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "owner_user"
+    });
+    const viewerSessionHeaders = createSessionHeaders(app, {
+      email: "viewer@example.com",
+      subject: "viewer_user"
+    });
 
     const createDocumentResponse = await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "owner_user"
-      },
+      headers: ownerSessionHeaders,
       payload: {
         title: "Shared spec"
       }
@@ -33,7 +43,8 @@ describe("sharing module", () => {
       method: "POST",
       url: `/v1/documents/${documentId}/invitations`,
       headers: {
-        "x-user-id": "owner_user"
+        ...ownerSessionHeaders,
+        "x-user-id": "google:owner_user"
       },
       payload: {
         email: "viewer@example.com",
@@ -56,7 +67,8 @@ describe("sharing module", () => {
       method: "POST",
       url: "/v1/invitations/accept",
       headers: {
-        "x-user-id": "viewer_user",
+        ...viewerSessionHeaders,
+        "x-user-id": "google:viewer_user",
         "x-user-email": "viewer@example.com"
       },
       payload: {
@@ -67,7 +79,7 @@ describe("sharing module", () => {
     expect(acceptResponse.statusCode).toBe(200);
     expect(acceptResponse.json()).toMatchObject({
       membership: {
-        userId: "viewer_user",
+        userId: "google:viewer_user",
         role: "viewer"
       }
     });
@@ -75,9 +87,7 @@ describe("sharing module", () => {
     const metadataResponse = await app.inject({
       method: "GET",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "viewer_user"
-      }
+      headers: viewerSessionHeaders
     });
 
     expect(metadataResponse.statusCode).toBe(200);
@@ -97,13 +107,19 @@ describe("sharing module", () => {
 
   it("enforces owner-only role updates and revocation", async () => {
     const app = await createApiTestApp();
+    const ownerSessionHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "owner_user"
+    });
+    const editorSessionHeaders = createSessionHeaders(app, {
+      email: "editor@example.com",
+      subject: "editor_user"
+    });
 
     const createDocumentResponse = await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "owner_user"
-      },
+      headers: ownerSessionHeaders,
       payload: {
         title: "Role changes"
       }
@@ -115,7 +131,8 @@ describe("sharing module", () => {
       method: "POST",
       url: `/v1/documents/${documentId}/invitations`,
       headers: {
-        "x-user-id": "owner_user"
+        ...ownerSessionHeaders,
+        "x-user-id": "google:owner_user"
       },
       payload: {
         email: "editor@example.com",
@@ -129,7 +146,8 @@ describe("sharing module", () => {
       method: "POST",
       url: "/v1/invitations/accept",
       headers: {
-        "x-user-id": "editor_user",
+        ...editorSessionHeaders,
+        "x-user-id": "google:editor_user",
         "x-user-email": "editor@example.com"
       },
       payload: {
@@ -139,9 +157,10 @@ describe("sharing module", () => {
 
     const forbiddenUpdate = await app.inject({
       method: "PATCH",
-      url: `/v1/documents/${documentId}/members/owner_user`,
+      url: `/v1/documents/${documentId}/members/google:owner_user`,
       headers: {
-        "x-user-id": "editor_user"
+        ...editorSessionHeaders,
+        "x-user-id": "google:editor_user"
       },
       payload: {
         role: "viewer"
@@ -159,9 +178,10 @@ describe("sharing module", () => {
 
     const updateResponse = await app.inject({
       method: "PATCH",
-      url: `/v1/documents/${documentId}/members/editor_user`,
+      url: `/v1/documents/${documentId}/members/google:editor_user`,
       headers: {
-        "x-user-id": "owner_user"
+        ...ownerSessionHeaders,
+        "x-user-id": "google:owner_user"
       },
       payload: {
         role: "commenter"
@@ -171,7 +191,7 @@ describe("sharing module", () => {
     expect(updateResponse.statusCode).toBe(200);
     expect(updateResponse.json()).toMatchObject({
       membership: {
-        userId: "editor_user",
+        userId: "google:editor_user",
         role: "commenter"
       }
     });
@@ -179,9 +199,7 @@ describe("sharing module", () => {
     const renameResponse = await app.inject({
       method: "PATCH",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "editor_user"
-      },
+      headers: editorSessionHeaders,
       payload: {
         title: "Should be blocked"
       }
@@ -191,24 +209,23 @@ describe("sharing module", () => {
 
     const revokeResponse = await app.inject({
       method: "DELETE",
-      url: `/v1/documents/${documentId}/members/editor_user`,
+      url: `/v1/documents/${documentId}/members/google:editor_user`,
       headers: {
-        "x-user-id": "owner_user"
+        ...ownerSessionHeaders,
+        "x-user-id": "google:owner_user"
       }
     });
 
     expect(revokeResponse.statusCode).toBe(200);
     expect(revokeResponse.json()).toMatchObject({
       documentId,
-      userId: "editor_user"
+      userId: "google:editor_user"
     });
 
     const metadataResponse = await app.inject({
       method: "GET",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "editor_user"
-      }
+      headers: editorSessionHeaders
     });
 
     expect(metadataResponse.statusCode).toBe(403);

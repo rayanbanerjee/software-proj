@@ -10,7 +10,7 @@ FOUND-008,Make root typecheck pass cleanly,Foundation,Done,High,,,Root typecheck
 FOUND-009,Add root test placeholders that pass,Foundation,Done,Medium,,,Root test command succeeds without failing placeholders,none,/
 FOUND-010,Add commit and branch naming conventions doc,Foundation,Done,Medium,,TASK-0001,Conventions doc exists in docs/process,change note,/docs/process
 DOC-001,Commit current documentation pipeline changes,Docs,Done,High,,TASK-0001,Pipeline changes are committed and pushed,handoff + change note,/docs
-DOC-002,Add docs/api/websocket-events.md,Docs,Backlog,High,,COLLAB-001,WebSocket events are documented with payloads,api doc + change note,/docs/api
+DOC-002,Add docs/api/websocket-events.md,Docs,Done,High,,COLLAB-001,WebSocket events are documented with payloads,api doc + change note,/docs/api
 DOC-003,Add authentication flow spec,Docs,Done,High,,AUTH-002,Authentication flow spec exists and is linked from task docs,spec,/docs/specs
 DOC-004,Add document session lifecycle spec,Docs,Backlog,High,,COLLAB-003,Session lifecycle spec covers join leave reconnect,spec,/docs/specs
 DOC-005,Add permission propagation spec,Docs,Backlog,High,,"SHARE-005,COLLAB-008",Permission propagation behavior is documented,spec,/docs/specs
@@ -108,7 +108,7 @@ SHARE-005,Add permission matrix enforcement helpers,Sharing,Backlog,High,,PKG-00
 SHARE-006,Add API tests for role restrictions,Sharing,Backlog,Medium,,"TEST-003,SHARE-005",Role restriction tests cover view edit share boundaries,none,/apps/api/tests/integration
 SHARE-007,Add audit log entries for sharing changes,Sharing,Backlog,Medium,,"API-013,SHARE-003",Sharing changes emit audit records,none,/apps/api/src/modules/sharing
 COLLAB-001,Initialize real collaboration server,Collaboration,Done,High,,ADR-004,apps/collab boots with chosen stack,task doc + change note,/apps/collab
-COLLAB-002,Add session token verification,Collaboration,Backlog,High,,"COLLAB-001,AUTH-005",Collab server verifies session token before join,none,/apps/collab
+COLLAB-002,Add session token verification,Collaboration,Done,High,,"COLLAB-001,AUTH-005",Collab server verifies session token before join,none,/apps/collab
 COLLAB-003,Add document join flow,Collaboration,Backlog,High,,"COLLAB-002,PKG-002",Document join flow is implemented and documented,spec + api doc,/apps/collab
 COLLAB-004,Add presence awareness channel,Collaboration,Backlog,High,,COLLAB-003,Presence awareness events broadcast correctly,none,/apps/collab/src/awareness
 COLLAB-005,Add heartbeat timeout cleanup,Collaboration,Backlog,Medium,,COLLAB-004,Stale sessions are cleaned up on timeout,none,/apps/collab/src/awareness
