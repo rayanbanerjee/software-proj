@@ -27,4 +27,24 @@ export async function registerExportsModule(app: FastifyInstance) {
       status: job.status
     });
   });
+
+  app.get("/documents/:id/exports/:exportId", async (request, reply) => {
+    const params = request.params as { id: string; exportId: string };
+
+    const job = await exportsService.getExportJob(params.id, params.exportId);
+
+    if (!job) {
+      return reply.status(404).send({
+        error: "export_not_found",
+        message: "Export job was not found for this document"
+      });
+    }
+
+    return reply.send({
+      exportId: job.exportId,
+      documentId: job.documentId,
+      format: job.format,
+      status: job.status
+    });
+  });
 }
