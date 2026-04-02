@@ -81,13 +81,13 @@ AUTH-004,Add auth callback endpoint,Auth,Done,High,,AUTH-002,Callback endpoint a
 AUTH-005,Add session issuance logic,Auth,Done,High,,"ADR-007,AUTH-002",Session issuance flow works with chosen token strategy,ADR or spec,/apps/api/src/modules/auth
 AUTH-006,Add auth guard middleware,Auth,Done,High,,AUTH-005,Protected endpoints require auth successfully,none,/apps/api
 AUTH-007,Add current-user endpoint,Auth,Done,Medium,,AUTH-006,Current user endpoint returns normalized profile,api doc,/apps/api/src/modules/auth
-AUTH-008,Add auth integration tests,Auth,Backlog,Medium,,"TEST-003,AUTH-004",Auth integration tests run in CI,none,/apps/api/tests/integration
+AUTH-008,Add auth integration tests,Auth,Done,Medium,,"TEST-003,AUTH-004",Auth integration tests run in CI,none,/apps/api/tests/integration
 DB-001,Choose ORM and add initial config,Database,Done,High,,ADR-006,ORM is chosen and initial config compiles,ADR + task doc,"/apps/api,/docs/adr"
 DB-002,Create users table or model,Database,Done,High,,DB-001,Users schema exists and migrates,change note,/apps/api
 DB-003,Create documents table or model,Database,Done,High,,DB-001,Documents schema exists and migrates,change note,/apps/api
 DB-004,Create memberships table or model,Database,Done,High,,DB-001,Memberships schema exists and migrates,change note,/apps/api
-DB-005,Create invitations table or model,Database,Backlog,Medium,,DB-001,Invitations schema exists and migrates,none,/apps/api
-DB-006,Create revisions table or model,Database,Backlog,High,,DB-001,Revisions schema exists and migrates,none,/apps/api
+DB-005,Create invitations table or model,Database,Done,Medium,,DB-001,Invitations schema exists and migrates,none,/apps/api
+DB-006,Create revisions table or model,Database,Done,High,,DB-001,Revisions schema exists and migrates,none,/apps/api
 DB-007,Create AI requests table or model,Database,Done,High,,DB-001,AI requests schema exists and migrates,none,/apps/api
 DB-008,Create export jobs table or model,Database,Done,Medium,,DB-001,Export jobs schema exists and migrates,none,/apps/api
 DB-009,Create audit events table or model,Database,Done,Medium,,DB-001,Audit events schema exists and migrates,none,/apps/api
