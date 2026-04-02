@@ -31,6 +31,8 @@ export interface ExportJobPayload {
   documentId: string;
   format: "txt" | "pdf" | "docx";
   requestedBy: string;
+  title?: string;
+  content?: string;
 }
 
 export interface ExportJobResult {
