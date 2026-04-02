@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   activeOverlayCopy,
   authShellStates,
+  createDraftDocumentRecord,
   documentListSections,
   getDocumentRecord,
   parseDocumentOverlay,
@@ -62,6 +63,15 @@ describe("document shell data", () => {
       id: "planning-memo",
       title: "Planning Memo",
       role: "owner"
+    });
+  });
+
+  it("builds predictable local draft records for the create-document stub", () => {
+    expect(createDraftDocumentRecord(2)).toMatchObject({
+      id: "draft-02",
+      title: "Untitled Draft 02",
+      role: "owner",
+      collaborators: 1
     });
   });
 });

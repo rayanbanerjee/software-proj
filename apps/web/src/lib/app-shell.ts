@@ -43,7 +43,7 @@ export const workspaceHighlights = [
   },
   {
     title: "Incremental follow-up room",
-    detail: "The new document flow remains intentionally blocked until DOCSVC-001 is complete."
+    detail: "The list route now includes a stubbed create-document flow while deeper API wiring continues."
   }
 ] as const;
 
@@ -267,6 +267,23 @@ export function getDocumentRecord(documentId: string): DocumentRecord {
     paragraphs: [
       "This fallback route shell keeps the editor view stable even when the URL does not match a seeded document card.",
       "Later data fetching tasks will replace this logic with document metadata from the API."
+    ]
+  };
+}
+
+export function createDraftDocumentRecord(sequence: number): DocumentRecord {
+  const label = String(sequence).padStart(2, "0");
+
+  return {
+    id: `draft-${label}`,
+    title: `Untitled Draft ${label}`,
+    role: "owner",
+    updatedLabel: "Created just now",
+    collaborators: 1,
+    summary: "Local shell draft created from the document list before live persistence is wired.",
+    paragraphs: [
+      "This placeholder draft card lets the web shell exercise a concrete create flow instead of leaving the entry point blocked.",
+      "A later API-backed slice will replace this optimistic shell record with a real document create request and redirect."
     ]
   };
 }
