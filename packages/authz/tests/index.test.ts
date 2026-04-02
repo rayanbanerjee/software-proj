@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canManageRoleChange,
+  canRevokeAccess,
   canEdit,
   canShare,
   canView,
@@ -40,5 +42,13 @@ describe("authz permission model", () => {
     expect(canEdit("commenter")).toBe(false);
     expect(canShare("owner")).toBe(true);
     expect(canShare("editor")).toBe(false);
+  });
+
+  it("enforces owner-only role changes and access revocation", () => {
+    expect(canManageRoleChange("owner", "editor")).toBe(true);
+    expect(canManageRoleChange("editor", "viewer")).toBe(false);
+    expect(canManageRoleChange("owner", "owner")).toBe(false);
+    expect(canRevokeAccess("owner", "commenter")).toBe(true);
+    expect(canRevokeAccess("commenter", "viewer")).toBe(false);
   });
 });

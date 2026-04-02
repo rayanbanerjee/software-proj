@@ -24,6 +24,14 @@ export const workspaceNavigation: readonly WorkspaceNavigationItem[] = [
   }
 ] as const;
 
+export const webAppModules = [
+  "documents",
+  "auth",
+  "sharing",
+  "ai",
+  "exports"
+] as const;
+
 export const workspaceHighlights = [
   {
     title: "Route-first structure",
