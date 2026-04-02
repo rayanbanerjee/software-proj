@@ -58,6 +58,70 @@ export interface ArchiveDocumentResponse {
   archivedAt: IsoDateString;
 }
 
+export interface SharedMembership {
+  userId: string;
+  role: DocumentRole;
+}
+
+export interface InvitationSummary {
+  id: string;
+  documentId: string;
+  inviteeEmail: string;
+  role: DocumentRole;
+  invitedByUserId: string;
+  createdAt: IsoDateString;
+  expiresAt: IsoDateString;
+  acceptedAt: IsoDateString | null;
+  revokedAt: IsoDateString | null;
+}
+
+export interface CreateInvitationRequest {
+  email: string;
+  role: DocumentRole;
+}
+
+export interface CreateInvitationResponse {
+  invitation: InvitationSummary;
+  acceptToken: string;
+  acceptUrl: string;
+}
+
+export interface AcceptInvitationRequest {
+  token: string;
+}
+
+export interface AcceptInvitationResponse {
+  invitation: InvitationSummary;
+  membership: SharedMembership;
+  acceptedAt: IsoDateString;
+}
+
+export interface UpdateDocumentRoleRequest {
+  role: DocumentRole;
+}
+
+export interface UpdateDocumentRoleResponse {
+  documentId: string;
+  membership: SharedMembership;
+  updatedAt: IsoDateString;
+}
+
+export interface RevokeDocumentAccessResponse {
+  documentId: string;
+  userId: string;
+  revokedAt: IsoDateString;
+}
+
+export interface AuditEventRecord {
+  id: string;
+  action: string;
+  actorUserId: string;
+  documentId: string | null;
+  targetUserId: string | null;
+  occurredAt: IsoDateString;
+  metadata: Record<string, string | null>;
+}
+
 export type SessionConnectionStatus = "active" | "stale" | "disconnected";
 
 export type SessionAccessLevel = "read" | "write";
@@ -244,6 +308,10 @@ export interface UserProfile {
   name: string | null;
   imageUrl: string | null;
   googleSubject: string | null;
+}
+
+export interface GetCurrentUserResponse {
+  user: UserProfile;
 }
 
 export interface ApiErrorResponse {

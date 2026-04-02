@@ -1,22 +1,12 @@
 import type { FastifyInstance } from "fastify";
 
 import { createApp } from "../../src/app.js";
-
-const baseEnv = {
-  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/collab_editor",
-  GOOGLE_CLIENT_ID: "client-id",
-  GOOGLE_CLIENT_SECRET: "client-secret",
-  NODE_ENV: "test",
-  OBJECT_STORAGE_BUCKET: "collab-editor",
-  OBJECT_STORAGE_ENDPOINT: "http://localhost:9000",
-  PORT: "4000",
-  REDIS_URL: "redis://localhost:6379",
-  SESSION_SECRET: "secret"
-} as const;
+import type { GoogleTokenClaims } from "../../src/modules/auth/google-token-validator.js";
+import { defaultApiTestEnv } from "../../../../tests/config/env.js";
 
 export function applyApiTestEnv(overrides: Partial<NodeJS.ProcessEnv> = {}) {
   return {
-    ...baseEnv,
+    ...defaultApiTestEnv,
     ...overrides
   };
 }
@@ -24,4 +14,30 @@ export function applyApiTestEnv(overrides: Partial<NodeJS.ProcessEnv> = {}) {
 export async function createApiTestApp(): Promise<FastifyInstance> {
   const { app } = await createApp();
   return app;
+}
+
+export function issueTestSessionCookie(
+  app: FastifyInstance,
+  overrides: Partial<GoogleTokenClaims> = {}
+) {
+  const claims: GoogleTokenClaims = {
+    audience: app.apiEnv.GOOGLE_CLIENT_ID,
+    email: "stub-user@example.com",
+    emailVerified: true,
+    name: "Stub User",
+    picture: "https://example.com/avatar.png",
+    subject: "google-oauth-subject",
+    ...overrides
+  };
+
+  return app.authSessionService.issueGoogleSession(claims).cookie;
+}
+
+export function createSessionHeaders(
+  app: FastifyInstance,
+  overrides: Partial<GoogleTokenClaims> = {}
+) {
+  return {
+    cookie: issueTestSessionCookie(app, overrides)
+  };
 }

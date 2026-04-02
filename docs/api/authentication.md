@@ -50,8 +50,37 @@ Failure cases:
 - `400 BAD_REQUEST` when `idToken` is missing or blank
 - `401 INVALID_GOOGLE_TOKEN` when validation fails
 
+## `GET /v1/auth/me`
+
+Returns the normalized current-user profile for a valid API session.
+
+Authentication:
+
+- `collab_session` cookie by default
+- `Authorization: Bearer <token>` also accepted for non-browser clients
+
+Response:
+
+```json
+{
+  "user": {
+    "id": "google:google-oauth-subject",
+    "email": "stub-user@example.com",
+    "name": "Stub User",
+    "imageUrl": "https://example.com/avatar.png",
+    "googleSubject": "google-oauth-subject"
+  }
+}
+```
+
+Failure cases:
+
+- `401 UNAUTHORIZED` when session credentials are missing
+- `401 UNAUTHORIZED` when the session token is invalid or expired
+
 ## Notes
 
 - `GOOGLE_CLIENT_ID` controls Google token audience validation
 - `SESSION_SECRET` signs the API-issued session token
 - the current implementation uses the repo's stub validator path, so `stub-valid-token` remains the local test credential until real Google verification replaces it
+- protected API routes now read the same signed session token from the cookie or bearer header instead of the earlier test-only identity headers

@@ -2,12 +2,19 @@
   "name": "@repo/collab",
   "private": true,
   "version": "0.1.0",
+  "type": "module",
   "scripts": {
-    "build": "echo \"collab build not wired yet\"",
-    "dev": "echo \"collab dev not wired yet\"",
-    "lint": "echo \"collab lint not wired yet\"",
-    "test": "echo \"collab tests not wired yet\"",
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/main.ts",
+    "lint": "eslint src tests --max-warnings=0",
+    "test": "vitest run --config ../../vitest.config.mjs tests",
     "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^3.4.4",
+    "yjs": "^13.6.30"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.3"
   }
 }
-

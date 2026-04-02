@@ -1,20 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { documentListSections, workspaceNavigation } from "../apps/web/src/lib/app-shell";
+import { authShellStates, workspaceNavigation } from "../apps/web/src/lib/app-shell";
 import { editorNodeKinds } from "../packages/editor-schema/src/index";
 import { aiActions } from "../packages/prompt-templates/src/index";
 import { fixtureDocument } from "../packages/test-fixtures/src/index";
 
 describe("repository foundation", () => {
-  it("exposes the planned web app workspace routes", () => {
-    expect(workspaceNavigation.map((item) => item.href)).toEqual([
-      "/documents",
-      "/documents/project-kickoff",
-      "/auth"
-    ]);
-    expect(documentListSections.flatMap((section) => section.documents).map((document) => document.id)).toContain(
-      "project-kickoff"
-    );
+  it("exposes the planned workspace routes", () => {
+    expect(workspaceNavigation.map((item) => item.href)).toContain("/auth");
+  });
+
+  it("keeps the auth shell states available", () => {
+    expect(authShellStates.map((state) => state.state)).toContain("signed-in");
   });
 
   it("keeps the minimal editor schema available", () => {

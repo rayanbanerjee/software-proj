@@ -5,5 +5,9 @@ export async function registerHealthRoutes(app: FastifyInstance) {
     status: "ok",
     service: "api"
   }));
-}
 
+  app.get("/ready", async () => ({
+    status: "ready",
+    service: "api"
+  }));
+}

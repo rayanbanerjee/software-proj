@@ -31,16 +31,16 @@ Default status values:
 
 ## Prioritized first slice
 
-1. `WEB-001` Turn `apps/web` into a real Next.js app.
-2. `DOCSVC-001` Implement create document endpoint.
-3. `COLLAB-001` Initialize real collaboration server.
-4. `WORK-001` Initialize worker runtime.
-5. `TEST-002` Add shared test config.
-6. `AUTH-004` Add auth callback endpoint.
-7. `AUTH-005` Add session issuance logic.
-8. `AUTH-007` Add current-user endpoint.
-9. `DB-003` Create documents table or model.
-10. `INFRA-003` Add API service container.
+1. `DB-003` Create documents table or model.
+2. `DB-004` Create memberships table or model.
+3. `DOCSVC-001` Implement create document endpoint.
+4. `TEST-003` Add API integration test harness.
+5. `WORK-001` Initialize worker runtime.
+6. `INFRA-003` Add API service container.
+7. `COLLAB-002` Add session token verification.
+8. `SHARE-005` Add permission matrix enforcement helpers.
+9. `INFRA-004` Add collab service container.
+10. `INFRA-005` Add worker service container.
 
 ## Recently completed
 
@@ -61,6 +61,7 @@ Default status values:
 - `ADR-005` Decide queue and job framework for worker
 - `ADR-006` Decide database ORM or query layer
 - `TEST-001` Decide and set up Vitest or Jest
+- `TEST-002` Add shared test config
 - `API-001` Initialize a real API framework in `apps/api`
 - `API-002` Add health check endpoint
 - `API-003` Add config loader and env validation
@@ -72,11 +73,18 @@ Default status values:
 - `AUTH-001` Add Google auth config fields
 - `AUTH-002` Implement Google token validation service stub
 - `AUTH-003` Add user profile model
+- `AUTH-005` Add session issuance logic
+- `AUTH-006` Add auth guard middleware
+- `AUTH-007` Add current-user endpoint
 - `DOC-003` Add authentication flow spec
+- `COLLAB-001` Initialize real collaboration server
+- `PKG-008` Add test fixtures for sample documents
+- `TEST-006` Add fixture factories
 - `INFRA-001` Add Docker Compose for Postgres and Redis
 - `INFRA-002` Add local object storage service to Compose
 - `INFRA-006` Add startup helper scripts
 - `INFRA-007` Add local bootstrap README
+- `OPS-005` Add health and readiness endpoints
 
 ## Micro Tasks
 
