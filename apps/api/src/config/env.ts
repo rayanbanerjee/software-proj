@@ -11,6 +11,11 @@ const envSchema = z.object({
   COLLAB_URL: z.string().url(),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(120),
+  OPENROUTER_API_KEY: z.string().trim().min(1).optional(),
+  OPENROUTER_MODEL: z.string().trim().min(1).default("openai/gpt-5.2-mini"),
+  OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api/v1"),
+  OPENROUTER_APP_NAME: z.string().trim().min(1).optional(),
+  OPENROUTER_APP_URL: z.string().url().optional(),
   OBJECT_STORAGE_ENDPOINT: z.string().min(1),
   OBJECT_STORAGE_BUCKET: z.string().min(1)
 });

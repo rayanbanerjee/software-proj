@@ -1,15 +1,6 @@
 import type { AiAction } from "@repo/shared-types";
 
-export interface MockProviderInput {
-  action: AiAction;
-  prompt: string | null;
-  sourceText: string;
-}
-
-export interface MockProviderOutput {
-  proposedText: string;
-  summary: string;
-}
+import type { AiProviderClient, AiProviderGenerateInput, AiProviderGenerateOutput } from "./provider.js";
 
 const actionLabels: Record<AiAction, string> = {
   rewrite: "[REWRITE]",
@@ -18,10 +9,10 @@ const actionLabels: Record<AiAction, string> = {
   restructure: "[RESTRUCTURED]"
 };
 
-export class MockProviderClient {
+export class MockProviderClient implements AiProviderClient {
   readonly name = "mock-provider";
 
-  async generate(input: MockProviderInput): Promise<MockProviderOutput> {
+  async generate(input: AiProviderGenerateInput): Promise<AiProviderGenerateOutput> {
     const tag = actionLabels[input.action];
     const promptSuffix = input.prompt ? ` Prompt: ${input.prompt}` : "";
 

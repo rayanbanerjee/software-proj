@@ -11,7 +11,7 @@ import type {
 
 import { AppError } from "../../common/errors.js";
 import type { DocumentActor, DocumentsService } from "../documents/service.js";
-import type { MockProviderClient } from "./mock-provider-client.js";
+import type { AiProviderClient } from "./provider.js";
 import type { SubmitAiRequestInput } from "./schema.js";
 import {
   buildProposalRevisionFingerprint,
@@ -54,7 +54,7 @@ export class AiService {
 
   constructor(
     private readonly documentsService: DocumentsService,
-    private readonly mockProvider: MockProviderClient
+    private readonly provider: AiProviderClient
   ) {}
 
   private ensureAccessibleDocument(documentId: string, actor: DocumentActor) {
@@ -90,40 +90,50 @@ export class AiService {
       scope: input.context.scope,
       sourceText
     });
-    const providerResult = await this.mockProvider.generate({
+    const request: AiRequestRecord = {
       action: input.action,
-      prompt: input.prompt,
-      sourceText: input.maskPersonalData ? maskText(sourceText) ?? "" : sourceText
-    });
-    const proposal: AiProposal = {
-      proposalId: `proposal_${randomUUID()}`,
-      requestId,
-      documentId,
-      action: input.action,
-      originalText: sourceText,
-      proposedText: providerResult.proposedText,
-      summary: providerResult.summary,
-      createdAt: queuedAt,
-      isStale: false
-    };
-
-    this.requests.set(requestId, {
-      action: input.action,
-      completedAt: queuedAt,
+      completedAt: null,
       context: input.context,
       currentFingerprint: sourceFingerprint,
       documentId,
       errorMessage: null,
-      proposal,
+      proposal: null,
       requestId,
       sourceFingerprint,
       startedAt,
-      status: "succeeded"
-    });
+      status: "running"
+    };
+    this.requests.set(requestId, request);
+
+    try {
+      const providerResult = await this.provider.generate({
+        action: input.action,
+        prompt: input.prompt,
+        sourceText: input.maskPersonalData ? maskText(sourceText) ?? "" : sourceText
+      });
+
+      request.proposal = {
+        proposalId: `proposal_${randomUUID()}`,
+        requestId,
+        documentId,
+        action: input.action,
+        originalText: sourceText,
+        proposedText: providerResult.proposedText,
+        summary: providerResult.summary,
+        createdAt: queuedAt,
+        isStale: false
+      };
+      request.status = "succeeded";
+      request.completedAt = new Date().toISOString();
+    } catch (error) {
+      request.status = "failed";
+      request.completedAt = new Date().toISOString();
+      request.errorMessage = error instanceof Error ? error.message : "AI provider request failed.";
+    }
 
     return {
       requestId,
-      status: "succeeded",
+      status: request.status,
       queuedAt
     };
   }

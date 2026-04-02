@@ -54,7 +54,7 @@ Response:
     "action": "summarize",
     "originalText": "This document needs a concise summary.",
     "proposedText": "[SUMMARY] xxxx xxxxxxxx xxxxx x xxxxxxx xxxxxxx.",
-    "summary": "Mock summarize proposal generated locally for development.",
+    "summary": "Summarize the selected passage into one concise sentence.",
     "createdAt": "2026-04-02T18:30:00.000Z",
     "isStale": false
   }
@@ -105,7 +105,9 @@ Response:
 
 ## Notes
 
-- the current implementation uses a local mock provider path for development
+- if `OPENROUTER_API_KEY` is configured, the API uses OpenRouter's `POST /api/v1/chat/completions` endpoint for proposal generation
+- if `OPENROUTER_API_KEY` is absent, the API falls back to the local mock provider path for development and tests
+- optional `OPENROUTER_APP_URL` and `OPENROUTER_APP_NAME` values are forwarded as `HTTP-Referer` and `X-Title`
 - request state is stored in memory
 - accepted proposals do not yet mutate document content
 - stale proposals are rejected with `AI_PROPOSAL_STALE` when their stored revision fingerprint no longer matches the latest known document fingerprint

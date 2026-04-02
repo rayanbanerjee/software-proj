@@ -5,6 +5,7 @@ import { AppError } from "../../common/errors.js";
 import { authenticateRequest, requireCurrentUser } from "../auth/guard.js";
 import type { DocumentActor } from "../documents/service.js";
 import { MockProviderClient } from "./mock-provider-client.js";
+import { OpenRouterProviderClient } from "./openrouter-provider.js";
 import { submitAiRequestSchema } from "./schema.js";
 import { AiService } from "./service.js";
 
@@ -21,7 +22,17 @@ function getActor(user: { id: string; name: string | null }): DocumentActor {
 }
 
 export async function registerAiModule(app: FastifyInstance) {
-  app.decorate("aiService", new AiService(app.documentsService, new MockProviderClient()));
+  const provider = app.apiEnv.OPENROUTER_API_KEY
+    ? new OpenRouterProviderClient({
+        apiKey: app.apiEnv.OPENROUTER_API_KEY,
+        appName: app.apiEnv.OPENROUTER_APP_NAME,
+        appUrl: app.apiEnv.OPENROUTER_APP_URL,
+        baseUrl: app.apiEnv.OPENROUTER_BASE_URL,
+        model: app.apiEnv.OPENROUTER_MODEL
+      })
+    : new MockProviderClient();
+
+  app.decorate("aiService", new AiService(app.documentsService, provider));
 
   app.post("/v1/documents/:documentId/ai/requests", { preHandler: authenticateRequest }, async (request, reply) => {
     const actor = getActor(requireCurrentUser(request));

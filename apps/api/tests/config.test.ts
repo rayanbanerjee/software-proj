@@ -14,5 +14,7 @@ describe("api env parsing", () => {
     expect(env.GOOGLE_CLIENT_ID).toBe("client-id");
     expect(env.RATE_LIMIT_WINDOW_MS).toBe(60_000);
     expect(env.RATE_LIMIT_MAX_REQUESTS).toBe(120);
+    expect(env.OPENROUTER_MODEL).toBe("openai/gpt-5.2-mini");
+    expect(env.OPENROUTER_BASE_URL).toBe("https://openrouter.ai/api/v1");
   });
 });

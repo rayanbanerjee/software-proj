@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   applyApiTestEnv,
@@ -14,6 +14,7 @@ beforeEach(() => {
 
 afterEach(() => {
   process.env = { ...originalEnv };
+  vi.restoreAllMocks();
 });
 
 describe("ai module", () => {
@@ -285,6 +286,171 @@ describe("ai module", () => {
         message: "AI request was not found for this document.",
         statusCode: 404
       }
+    });
+
+    await app.close();
+  });
+
+  it("uses OpenRouter when configured and parses the provider response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                proposedText: "OpenRouter proposal text.",
+                summary: "OpenRouter summary."
+              })
+            }
+          }
+        ]
+      })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    process.env = applyApiTestEnv({
+      OPENROUTER_API_KEY: "openrouter-test-key",
+      OPENROUTER_APP_NAME: "software-proj",
+      OPENROUTER_APP_URL: "http://localhost:3000"
+    });
+
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "OpenRouter doc"
+      }
+    });
+    const documentId = createResponse.json().document.id as string;
+
+    const submitResponse = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/ai/requests`,
+      headers: ownerHeaders,
+      payload: {
+        action: "rewrite",
+        prompt: "Make it more concise",
+        context: {
+          scope: "selection",
+          selectedText: "This paragraph should be rewritten.",
+          surroundingText: null
+        },
+        maskPersonalData: false
+      }
+    });
+
+    expect(submitResponse.statusCode).toBe(202);
+    expect(submitResponse.json()).toMatchObject({
+      status: "succeeded"
+    });
+
+    const requestId = submitResponse.json().requestId as string;
+    const statusResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/ai/requests/${requestId}`,
+      headers: ownerHeaders
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://openrouter.ai/api/v1/chat/completions",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer openrouter-test-key",
+          "Content-Type": "application/json",
+          "HTTP-Referer": "http://localhost:3000",
+          "X-Title": "software-proj"
+        })
+      })
+    );
+    expect(statusResponse.statusCode).toBe(200);
+    expect(statusResponse.json()).toMatchObject({
+      status: "succeeded",
+      errorMessage: null,
+      proposal: {
+        proposedText: "OpenRouter proposal text.",
+        summary: "OpenRouter summary."
+      }
+    });
+
+    await app.close();
+  });
+
+  it("stores failed request status when the OpenRouter call fails", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({
+        error: {
+          message: "Invalid OpenRouter key."
+        }
+      })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    process.env = applyApiTestEnv({
+      OPENROUTER_API_KEY: "bad-key"
+    });
+
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Failed OpenRouter doc"
+      }
+    });
+    const documentId = createResponse.json().document.id as string;
+
+    const submitResponse = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/ai/requests`,
+      headers: ownerHeaders,
+      payload: {
+        action: "summarize",
+        prompt: null,
+        context: {
+          scope: "document",
+          selectedText: null,
+          surroundingText: "This request should fail."
+        },
+        maskPersonalData: false
+      }
+    });
+
+    expect(submitResponse.statusCode).toBe(202);
+    expect(submitResponse.json()).toMatchObject({
+      status: "failed"
+    });
+
+    const requestId = submitResponse.json().requestId as string;
+    const statusResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/ai/requests/${requestId}`,
+      headers: ownerHeaders
+    });
+
+    expect(statusResponse.statusCode).toBe(200);
+    expect(statusResponse.json()).toMatchObject({
+      requestId,
+      status: "failed",
+      errorMessage: "Invalid OpenRouter key.",
+      proposal: null
     });
 
     await app.close();

@@ -10,7 +10,9 @@ export const defaultApiTestEnv = {
   SESSION_SECRET: "secret",
   COLLAB_URL: "ws://localhost:4001",
   RATE_LIMIT_WINDOW_MS: "60000",
-  RATE_LIMIT_MAX_REQUESTS: "120"
+  RATE_LIMIT_MAX_REQUESTS: "120",
+  OPENROUTER_MODEL: "openai/gpt-5.2-mini",
+  OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1"
 } as const;
 
 export function applyTestEnv(
