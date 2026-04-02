@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { createApiTestApp, applyApiTestEnv } from "./integration/harness.js";
+import {
+  applyApiTestEnv,
+  createApiTestApp,
+  createSessionHeaders
+} from "./integration/harness.js";
 
 const originalEnv = { ...process.env };
 
@@ -19,10 +23,11 @@ describe("documents module", () => {
     const response = await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "user_owner",
-        "x-user-name": "Owner Demo"
-      },
+      headers: createSessionHeaders(app, {
+        email: "owner@example.com",
+        name: "Owner Demo",
+        subject: "user_owner"
+      }),
       payload: {
         title: "Project kickoff"
       }
@@ -46,13 +51,19 @@ describe("documents module", () => {
 
   it("lists only documents the current user can view", async () => {
     const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+    const viewerHeaders = createSessionHeaders(app, {
+      email: "viewer@example.com",
+      subject: "user_viewer"
+    });
 
     await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "user_owner"
-      },
+      headers: ownerHeaders,
       payload: {
         title: "Visible to owner"
       }
@@ -61,9 +72,7 @@ describe("documents module", () => {
     const response = await app.inject({
       method: "GET",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "user_owner"
-      }
+      headers: ownerHeaders
     });
 
     expect(response.statusCode).toBe(200);
@@ -79,9 +88,7 @@ describe("documents module", () => {
     const otherUserResponse = await app.inject({
       method: "GET",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "user_viewer"
-      }
+      headers: viewerHeaders
     });
 
     expect(otherUserResponse.statusCode).toBe(200);
@@ -94,13 +101,15 @@ describe("documents module", () => {
 
   it("returns document metadata for an authorized user", async () => {
     const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
 
     const createResponse = await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "user_owner"
-      },
+      headers: ownerHeaders,
       payload: {
         title: "Metadata document"
       }
@@ -111,9 +120,7 @@ describe("documents module", () => {
     const response = await app.inject({
       method: "GET",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "user_owner"
-      }
+      headers: ownerHeaders
     });
 
     expect(response.statusCode).toBe(200);
@@ -132,13 +139,15 @@ describe("documents module", () => {
 
   it("renames a document for a user with edit access", async () => {
     const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
 
     const createResponse = await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "user_owner"
-      },
+      headers: ownerHeaders,
       payload: {
         title: "Original title"
       }
@@ -149,9 +158,7 @@ describe("documents module", () => {
     const response = await app.inject({
       method: "PATCH",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "user_owner"
-      },
+      headers: ownerHeaders,
       payload: {
         title: "Renamed title"
       }
@@ -168,9 +175,7 @@ describe("documents module", () => {
     const metadataResponse = await app.inject({
       method: "GET",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "user_owner"
-      }
+      headers: ownerHeaders
     });
 
     expect(metadataResponse.json()).toMatchObject({
@@ -184,13 +189,19 @@ describe("documents module", () => {
 
   it("rejects metadata and rename access for other users", async () => {
     const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+    const otherHeaders = createSessionHeaders(app, {
+      email: "other@example.com",
+      subject: "user_other"
+    });
 
     const createResponse = await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "user_owner"
-      },
+      headers: ownerHeaders,
       payload: {
         title: "Private doc"
       }
@@ -201,9 +212,7 @@ describe("documents module", () => {
     const metadataResponse = await app.inject({
       method: "GET",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "user_other"
-      }
+      headers: otherHeaders
     });
 
     expect(metadataResponse.statusCode).toBe(403);
@@ -218,9 +227,7 @@ describe("documents module", () => {
     const renameResponse = await app.inject({
       method: "PATCH",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "user_other"
-      },
+      headers: otherHeaders,
       payload: {
         title: "Should fail"
       }
@@ -240,13 +247,15 @@ describe("documents module", () => {
 
   it("archives a document for an owner and removes it from listings", async () => {
     const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
 
     const createResponse = await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "user_owner"
-      },
+      headers: ownerHeaders,
       payload: {
         title: "Archive me"
       }
@@ -257,9 +266,7 @@ describe("documents module", () => {
     const archiveResponse = await app.inject({
       method: "DELETE",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "user_owner"
-      }
+      headers: ownerHeaders
     });
 
     expect(archiveResponse.statusCode).toBe(200);
@@ -270,9 +277,7 @@ describe("documents module", () => {
     const listResponse = await app.inject({
       method: "GET",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "user_owner"
-      }
+      headers: ownerHeaders
     });
 
     expect(listResponse.statusCode).toBe(200);
@@ -283,9 +288,7 @@ describe("documents module", () => {
     const metadataResponse = await app.inject({
       method: "GET",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "user_owner"
-      }
+      headers: ownerHeaders
     });
 
     expect(metadataResponse.statusCode).toBe(200);
@@ -300,13 +303,19 @@ describe("documents module", () => {
 
   it("rejects archive requests from non-owners", async () => {
     const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+    const otherHeaders = createSessionHeaders(app, {
+      email: "other@example.com",
+      subject: "user_other"
+    });
 
     const createResponse = await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "user_owner"
-      },
+      headers: ownerHeaders,
       payload: {
         title: "Owner only archive"
       }
@@ -317,9 +326,7 @@ describe("documents module", () => {
     const archiveResponse = await app.inject({
       method: "DELETE",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "user_other"
-      }
+      headers: otherHeaders
     });
 
     expect(archiveResponse.statusCode).toBe(403);
@@ -334,15 +341,37 @@ describe("documents module", () => {
     await app.close();
   });
 
+  it("rejects document routes without an authenticated session", async () => {
+    const app = await createApiTestApp();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/documents"
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Authentication required.",
+        statusCode: 401
+      }
+    });
+
+    await app.close();
+  });
+
   it("covers the create read update archive flow end to end", async () => {
     const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
 
     const createResponse = await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "user_owner"
-      },
+      headers: ownerHeaders,
       payload: {
         title: "CRUD flow"
       }
@@ -353,17 +382,13 @@ describe("documents module", () => {
     const readResponse = await app.inject({
       method: "GET",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "user_owner"
-      }
+      headers: ownerHeaders
     });
 
     const renameResponse = await app.inject({
       method: "PATCH",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "user_owner"
-      },
+      headers: ownerHeaders,
       payload: {
         title: "CRUD flow renamed"
       }
@@ -372,14 +397,14 @@ describe("documents module", () => {
     const archiveResponse = await app.inject({
       method: "DELETE",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "user_owner"
-      }
+      headers: ownerHeaders
     });
 
     expect(createResponse.statusCode).toBe(201);
     expect(readResponse.statusCode).toBe(200);
     expect(renameResponse.statusCode).toBe(200);
     expect(archiveResponse.statusCode).toBe(200);
+
+    await app.close();
   });
 });

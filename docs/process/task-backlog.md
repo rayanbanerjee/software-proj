@@ -31,16 +31,16 @@ Default status values:
 
 ## Prioritized first slice
 
-1. `AUTH-005` Add session issuance logic.
-2. `AUTH-006` Add auth guard middleware.
-3. `AUTH-007` Add current-user endpoint.
-4. `DB-003` Create documents table or model.
-5. `DB-004` Create memberships table or model.
-6. `DOCSVC-001` Implement create document endpoint.
-7. `TEST-003` Add API integration test harness.
-8. `COLLAB-001` Initialize real collaboration server.
-9. `WORK-001` Initialize worker runtime.
-10. `INFRA-003` Add API service container.
+1. `DB-003` Create documents table or model.
+2. `DB-004` Create memberships table or model.
+3. `DOCSVC-001` Implement create document endpoint.
+4. `TEST-003` Add API integration test harness.
+5. `COLLAB-001` Initialize real collaboration server.
+6. `WORK-001` Initialize worker runtime.
+7. `INFRA-003` Add API service container.
+8. `COLLAB-002` Add session token verification.
+9. `OPS-005` Add health and readiness endpoints.
+10. `SHARE-005` Add permission matrix enforcement helpers.
 
 ## Recently completed
 
@@ -73,6 +73,9 @@ Default status values:
 - `AUTH-001` Add Google auth config fields
 - `AUTH-002` Implement Google token validation service stub
 - `AUTH-003` Add user profile model
+- `AUTH-005` Add session issuance logic
+- `AUTH-006` Add auth guard middleware
+- `AUTH-007` Add current-user endpoint
 - `DOC-003` Add authentication flow spec
 - `PKG-008` Add test fixtures for sample documents
 - `TEST-006` Add fixture factories

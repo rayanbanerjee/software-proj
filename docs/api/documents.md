@@ -4,10 +4,10 @@
 
 Creates a new document and records the requesting user as the owner.
 
-Required headers:
+Authentication:
 
-- `x-user-id`
-- `x-user-name` optional
+- `collab_session` cookie
+- or `Authorization: Bearer <token>`
 
 Request body:
 
@@ -45,9 +45,10 @@ Response:
 
 Lists the documents visible to the current user.
 
-Required headers:
+Authentication:
 
-- `x-user-id`
+- `collab_session` cookie
+- or `Authorization: Bearer <token>`
 
 Response:
 
@@ -68,9 +69,10 @@ Response:
 
 Returns document metadata and permission summary for an authorized user.
 
-Required headers:
+Authentication:
 
-- `x-user-id`
+- `collab_session` cookie
+- or `Authorization: Bearer <token>`
 
 Response:
 
@@ -100,9 +102,10 @@ Response:
 
 Renames a document when the current user has edit access.
 
-Required headers:
+Authentication:
 
-- `x-user-id`
+- `collab_session` cookie
+- or `Authorization: Bearer <token>`
 
 Request body:
 
@@ -140,9 +143,10 @@ Response:
 
 Archives a document when the current user is the owner.
 
-Required headers:
+Authentication:
 
-- `x-user-id`
+- `collab_session` cookie
+- or `Authorization: Bearer <token>`
 
 Response:
 
@@ -158,3 +162,4 @@ Response:
 - the current implementation uses an app-scoped in-memory repository while the API is still being wired to Prisma-backed persistence
 - owner membership is created together with the document creation flow
 - archived documents are removed from list responses but can still be retrieved directly by id
+- document routes now require the signed auth session established by `POST /v1/auth/callback`
