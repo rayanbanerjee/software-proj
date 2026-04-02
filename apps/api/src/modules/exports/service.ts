@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import type { CreateExportRequest } from "./schema.js";
 
@@ -7,6 +7,11 @@ export interface ExportJobRecord {
   documentId: string;
   format: "txt" | "pdf" | "docx";
   status: "pending" | "completed" | "failed";
+}
+
+export interface ExportDownloadLink {
+  downloadUrl: string;
+  expiresAt: string;
 }
 
 export class ExportsService {
@@ -24,7 +29,7 @@ export class ExportsService {
       exportId,
       documentId,
       format: input.format,
-      status: "pending"
+      status: "completed"
     };
 
     this.jobs.set(exportId, job);
@@ -53,5 +58,31 @@ export class ExportsService {
     }
 
     return job;
+  }
+
+  async createDownloadLink(
+    documentId: string,
+    exportId: string
+  ): Promise<ExportDownloadLink | null> {
+    const job = await this.getExportJob(documentId, exportId);
+
+    if (!job) {
+      return null;
+    }
+
+    if (job.status !== "completed") {
+      return null;
+    }
+
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const token = createHash("sha256")
+      .update(`${documentId}:${exportId}:${expiresAt}`)
+      .digest("hex")
+      .slice(0, 24);
+
+    return {
+      downloadUrl: `/documents/${documentId}/exports/${exportId}/artifact?token=${token}`,
+      expiresAt
+    };
   }
 }
