@@ -47,4 +47,35 @@ export async function registerExportsModule(app: FastifyInstance) {
       status: job.status
     });
   });
+
+  app.get("/documents/:id/exports/:exportId/download", async (request, reply) => {
+    const params = request.params as { id: string; exportId: string };
+
+    const job = await exportsService.getExportJob(params.id, params.exportId);
+
+    if (!job) {
+      return reply.status(404).send({
+        error: "export_not_found",
+        message: "Export job was not found for this document"
+      });
+    }
+
+    if (job.status !== "completed") {
+      return reply.status(409).send({
+        error: "export_not_ready",
+        message: "Export artifact is not ready for download"
+      });
+    }
+
+    const download = await exportsService.createDownloadLink(params.id, params.exportId);
+
+    if (!download) {
+      return reply.status(404).send({
+        error: "export_not_found",
+        message: "Export job was not found for this document"
+      });
+    }
+
+    return reply.send(download);
+  });
 }
