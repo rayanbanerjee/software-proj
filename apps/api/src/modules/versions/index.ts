@@ -9,6 +9,10 @@ const rollbackRevisionBodySchema = z.object({
   revisionId: z.string().trim().min(1)
 });
 
+const revisionDiffQuerySchema = z.object({
+  compareToRevisionId: z.string().trim().min(1).optional()
+});
+
 function getActor(user: { id: string; name: string | null }): DocumentActor {
   return {
     userId: user.id,
@@ -38,6 +42,23 @@ export async function registerVersionsModule(app: FastifyInstance) {
       const params = request.params as { documentId: string; revisionId: string };
 
       return app.versionsService.getRevisionDetail(params.documentId, params.revisionId, actor);
+    }
+  );
+
+  app.get(
+    "/v1/documents/:documentId/versions/:revisionId/diff",
+    { preHandler: authenticateRequest },
+    async (request) => {
+      const actor = getActor(requireCurrentUser(request));
+      const params = request.params as { documentId: string; revisionId: string };
+      const query = revisionDiffQuerySchema.parse(request.query ?? {});
+
+      return app.versionsService.getRevisionDiff(
+        params.documentId,
+        params.revisionId,
+        query.compareToRevisionId ?? null,
+        actor
+      );
     }
   );
 

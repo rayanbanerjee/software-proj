@@ -4,6 +4,7 @@ import { canRollback, canView } from "@repo/authz";
 import type {
   GetRevisionDetailResponse,
   ListRevisionsResponse,
+  RevisionDiffResponse,
   RevisionDetail,
   RevisionSummary,
   RollbackRevisionResponse
@@ -102,6 +103,39 @@ export class VersionsService {
 
     return {
       revision: this.requireRevision(documentId, revisionId)
+    };
+  }
+
+  getRevisionDiff(
+    documentId: string,
+    revisionId: string,
+    compareToRevisionId: string | null,
+    actor: DocumentActor
+  ): RevisionDiffResponse {
+    this.ensureAccessibleDocument(documentId, actor);
+    this.ensureRevisionHistory(documentId, actor);
+
+    const revision = this.requireRevision(documentId, revisionId);
+    const compareToRevision = compareToRevisionId
+      ? this.requireRevision(documentId, compareToRevisionId)
+      : null;
+
+    return {
+      documentId,
+      revisionId: revision.revisionId,
+      compareToRevisionId: compareToRevision?.revisionId ?? null,
+      summary: compareToRevision
+        ? `Stub diff between ${revision.label} and ${compareToRevision.label}.`
+        : `Stub diff for ${revision.label} against the current head.`,
+      changes: [
+        {
+          field: "content",
+          kind: "stub",
+          description: compareToRevision
+            ? "Detailed diff generation is not wired yet, but the comparison target is validated."
+            : "Detailed diff generation is not wired yet."
+        }
+      ]
     };
   }
 

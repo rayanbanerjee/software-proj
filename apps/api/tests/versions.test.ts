@@ -151,6 +151,54 @@ describe("versions module", () => {
     await app.close();
   });
 
+  it("returns a validated diff stub for a revision", async () => {
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Diff doc"
+      }
+    });
+    const documentId = createResponse.json().document.id as string;
+
+    const listResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/versions`,
+      headers: ownerHeaders
+    });
+    const revisionId = listResponse.json().revisions[0].revisionId as string;
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/versions/${revisionId}/diff`,
+      headers: ownerHeaders
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      documentId,
+      revisionId,
+      compareToRevisionId: null,
+      summary: "Stub diff for Initial snapshot: Diff doc against the current head.",
+      changes: [
+        {
+          field: "content",
+          kind: "stub",
+          description: "Detailed diff generation is not wired yet."
+        }
+      ]
+    });
+
+    await app.close();
+  });
+
   it("rejects rollback for users without rollback permission", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {

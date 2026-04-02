@@ -283,6 +283,18 @@ export interface GetRevisionDetailResponse {
   revision: RevisionDetail;
 }
 
+export interface RevisionDiffResponse {
+  documentId: string;
+  revisionId: string;
+  compareToRevisionId: string | null;
+  summary: string;
+  changes: Array<{
+    field: "content";
+    kind: "stub";
+    description: string;
+  }>;
+}
+
 export interface RollbackRevisionRequest {
   revisionId: string;
 }

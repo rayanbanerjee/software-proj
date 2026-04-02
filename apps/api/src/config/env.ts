@@ -9,6 +9,8 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   SESSION_SECRET: z.string().min(1),
   COLLAB_URL: z.string().url(),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(120),
   OBJECT_STORAGE_ENDPOINT: z.string().min(1),
   OBJECT_STORAGE_BUCKET: z.string().min(1)
 });

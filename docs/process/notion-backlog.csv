@@ -126,7 +126,7 @@ SYNC-006,Add reconnect integration test,Sync,Backlog,Medium,,"TEST-004,SYNC-003"
 VER-001,Add revision creation policy service,Versioning,Done,High,,"DB-006,ADR-008",Revision service creates checkpoints by policy,spec + change note,/apps/api/src/modules/versions
 VER-002,Add revision list endpoint,Versioning,Done,High,,VER-001,Revision list endpoint returns revision metadata,api doc,/apps/api/src/modules/versions
 VER-003,Add revision detail endpoint,Versioning,Done,Medium,,VER-002,Revision detail endpoint returns requested revision,api doc,/apps/api/src/modules/versions
-VER-004,Add diff endpoint stub,Versioning,Backlog,Medium,,VER-002,Diff endpoint returns stub or initial comparison payload,api doc,/apps/api/src/modules/versions
+VER-004,Add diff endpoint stub,Versioning,Done,Medium,,VER-002,Diff endpoint returns stub or initial comparison payload,api doc,/apps/api/src/modules/versions
 VER-005,Add rollback endpoint,Versioning,Done,High,,VER-002,Rollback endpoint creates a new head revision,api doc + change note,/apps/api/src/modules/versions
 VER-006,Add rollback event to collab service,Versioning,Backlog,High,,"VER-005,COLLAB-003",Rollback propagates to active clients,spec,/apps/collab
 VER-007,Add version history UI data hook,Versioning,Backlog,Medium,,"WEB-010,VER-002",UI can fetch and display revision list data,none,/apps/web
@@ -177,4 +177,4 @@ OPS-002,Add request ID propagation,Ops,Backlog,Medium,,OPS-001,Request IDs flow 
 OPS-003,Add audit event schema,Ops,Backlog,Medium,,"API-013,DB-009",Audit schema is documented and implemented,spec,"/apps/api,/packages/shared-types"
 OPS-004,Add basic metrics list doc,Ops,Done,Low,,TASK-0001,Metrics spec exists for service owners,spec,/docs/specs
 OPS-005,Add health and readiness endpoints,Ops,Done,Medium,,"API-002,COLLAB-001,WORK-001",All services expose health or readiness endpoints,api doc,/apps
-OPS-006,Add rate-limit config placeholders,Ops,Backlog,Low,,API-003,Rate-limit config keys exist in env and config parsing,none,/apps/api
+OPS-006,Add rate-limit config placeholders,Ops,Done,Low,,API-003,Rate-limit config keys exist in env and config parsing,none,/apps/api

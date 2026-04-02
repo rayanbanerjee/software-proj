@@ -8,7 +8,9 @@ export const defaultApiTestEnv = {
   PORT: "4000",
   REDIS_URL: "redis://localhost:6379",
   SESSION_SECRET: "secret",
-  COLLAB_URL: "ws://localhost:4001"
+  COLLAB_URL: "ws://localhost:4001",
+  RATE_LIMIT_WINDOW_MS: "60000",
+  RATE_LIMIT_MAX_REQUESTS: "120"
 } as const;
 
 export function applyTestEnv(

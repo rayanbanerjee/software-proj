@@ -76,8 +76,40 @@ Response:
 }
 ```
 
+## `GET /v1/documents/:documentId/versions/:revisionId/diff`
+
+Returns a stub diff payload for a revision.
+
+Authentication:
+
+- `collab_session` cookie
+- or `Authorization: Bearer <token>`
+
+Optional query parameters:
+
+- `compareToRevisionId`
+
+Response:
+
+```json
+{
+  "documentId": "doc_uuid",
+  "revisionId": "rev_uuid",
+  "compareToRevisionId": null,
+  "summary": "Stub diff for Initial snapshot: Project kickoff against the current head.",
+  "changes": [
+    {
+      "field": "content",
+      "kind": "stub",
+      "description": "Detailed diff generation is not wired yet."
+    }
+  ]
+}
+```
+
 ## Notes
 
 - the current implementation keeps revisions in-memory and seeds a baseline revision on first access
 - only document owners can perform rollback in the current permission model
 - rollback creates a new head revision and does not delete older history
+- diff responses currently validate the comparison target and return a placeholder summary
