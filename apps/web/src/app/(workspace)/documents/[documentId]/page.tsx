@@ -6,7 +6,7 @@ import {
   parseExportJobId,
   parseDocumentOverlay,
   parseDocumentScreenState,
-  parseOfflineFlag
+  parseSyncConnectionState
 } from "../../../../lib/app-shell";
 import { getExportPanelState } from "../../../../lib/export-panel-state";
 import { getVersionHistoryEntries } from "../../../../lib/version-history";
@@ -34,8 +34,8 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
       <DocumentWorkspaceShell
         document={document}
         exportPanelState={exportPanelState}
-        offline={parseOfflineFlag(currentSearchParams.offline)}
         overlay={parseDocumentOverlay(currentSearchParams.overlay)}
+        syncState={parseSyncConnectionState(currentSearchParams.sync)}
         versionHistoryEntries={versionHistoryEntries}
         view={parseDocumentScreenState(currentSearchParams.view)}
       />

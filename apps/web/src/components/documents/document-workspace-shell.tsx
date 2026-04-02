@@ -1,4 +1,9 @@
-import type { DocumentOverlay, DocumentRecord, DocumentScreenState } from "../../lib/app-shell";
+import type {
+  DocumentOverlay,
+  DocumentRecord,
+  DocumentScreenState,
+  SyncConnectionState
+} from "../../lib/app-shell";
 import { createAiPanelState } from "../../lib/ai-panel-state";
 import type { ExportPanelState } from "../../lib/export-panel-state";
 import type { VersionHistoryEntry } from "../../lib/version-history";
@@ -16,8 +21,8 @@ import { VersionHistoryShell } from "./version-history-shell";
 interface DocumentWorkspaceShellProps {
   document: DocumentRecord;
   exportPanelState: ExportPanelState;
-  offline: boolean;
   overlay: DocumentOverlay;
+  syncState: SyncConnectionState;
   versionHistoryEntries: readonly VersionHistoryEntry[];
   view: DocumentScreenState;
 }
@@ -25,8 +30,8 @@ interface DocumentWorkspaceShellProps {
 export function DocumentWorkspaceShell({
   document,
   exportPanelState,
-  offline,
   overlay,
+  syncState,
   versionHistoryEntries,
   view
 }: DocumentWorkspaceShellProps) {
@@ -45,12 +50,12 @@ export function DocumentWorkspaceShell({
 
       <EditorToolbarShell
         documentId={document.id}
-        offline={offline}
         overlay={overlay}
+        syncState={syncState}
         view={view}
       />
 
-      {offline ? <OfflineStatusBanner /> : null}
+      {syncState !== "online" ? <OfflineStatusBanner state={syncState} /> : null}
 
       <div className="document-workspace-grid">
         <div className="document-workspace-main">

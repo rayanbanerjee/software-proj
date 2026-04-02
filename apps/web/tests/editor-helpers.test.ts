@@ -5,9 +5,13 @@ import {
   isEditorReadOnly
 } from "../src/editor/access";
 import {
+  LOCAL_EDITOR_DRAFT_DATABASE,
   LOCAL_EDITOR_DRAFT_KEY_PREFIX,
+  LOCAL_EDITOR_DRAFT_STORE,
   createLocalDraftKey,
-  readStoredDraft
+  readStoredDraft,
+  readStoredDraftFromIndexedDb,
+  writeStoredDraftToIndexedDb
 } from "../src/editor/local-persistence";
 import {
   getCurrentBlock,
@@ -16,6 +20,122 @@ import {
 } from "../src/editor/selection";
 
 describe("editor local persistence", () => {
+  class FakeRequest<T> {
+    error: Error | null = null;
+    result: T;
+    private readonly listeners = new Map<string, Array<() => void>>();
+
+    constructor(result: T) {
+      this.result = result;
+    }
+
+    addEventListener(event: string, listener: () => void) {
+      const current = this.listeners.get(event) ?? [];
+      current.push(listener);
+      this.listeners.set(event, current);
+    }
+
+    dispatch(event: string) {
+      for (const listener of this.listeners.get(event) ?? []) {
+        listener();
+      }
+    }
+  }
+
+  class FakeTransaction {
+    error: Error | null = null;
+    private readonly listeners = new Map<string, Array<() => void>>();
+
+    constructor(private readonly records: Map<string, unknown>) {}
+
+    addEventListener(event: string, listener: () => void) {
+      const current = this.listeners.get(event) ?? [];
+      current.push(listener);
+      this.listeners.set(event, current);
+    }
+
+    complete() {
+      setTimeout(() => {
+        for (const listener of this.listeners.get("complete") ?? []) {
+          listener();
+        }
+      }, 0);
+    }
+
+    objectStore(name: string) {
+      expect(name).toBe(LOCAL_EDITOR_DRAFT_STORE);
+
+      return {
+        get: (key: string) => {
+          const request = new FakeRequest<{ content: unknown; key: string; updatedAt: string } | undefined>(
+            this.records.has(key)
+              ? {
+                  content: this.records.get(key),
+                  key,
+                  updatedAt: "2026-04-02T19:00:00.000Z"
+                }
+              : undefined
+          );
+
+          queueMicrotask(() => {
+            request.dispatch("success");
+            this.complete();
+          });
+
+          return request;
+        },
+        put: (value: { content: unknown; key: string }) => {
+          this.records.set(value.key, value.content);
+          const request = new FakeRequest(value);
+
+          queueMicrotask(() => {
+            request.dispatch("success");
+            this.complete();
+          });
+
+          return request;
+        }
+      };
+    }
+  }
+
+  class FakeDatabase {
+    objectStoreNames = {
+      contains: (name: string) => name === LOCAL_EDITOR_DRAFT_STORE
+    };
+
+    constructor(private readonly records: Map<string, unknown>) {}
+
+    close() {
+      return;
+    }
+
+    createObjectStore() {
+      return;
+    }
+
+    transaction(name: string) {
+      expect(name).toBe(LOCAL_EDITOR_DRAFT_STORE);
+      return new FakeTransaction(this.records);
+    }
+  }
+
+  class FakeIndexedDb {
+    private readonly records = new Map<string, unknown>();
+
+    open(name: string) {
+      expect(name).toBe(LOCAL_EDITOR_DRAFT_DATABASE);
+      const request = new FakeRequest(new FakeDatabase(this.records));
+
+      queueMicrotask(() => {
+        request.dispatch("upgradeneeded");
+        request.dispatch("success");
+      });
+
+      return request as unknown as IDBOpenDBRequest;
+    }
+  }
+
   it("builds a stable local draft key per document", () => {
     expect(createLocalDraftKey("project-kickoff")).toBe(
       `${LOCAL_EDITOR_DRAFT_KEY_PREFIX}:project-kickoff`
@@ -40,6 +160,18 @@ describe("editor local persistence", () => {
         "draft"
       )
     ).toBeNull();
+  });
+
+  it("stores and reads drafts through the IndexedDB helper", async () => {
+    const indexedDb = new FakeIndexedDb();
+    const key = createLocalDraftKey("project-kickoff");
+
+    await writeStoredDraftToIndexedDb(indexedDb as never, key, { type: "doc", version: 1 });
+
+    await expect(readStoredDraftFromIndexedDb(indexedDb as never, key)).resolves.toEqual({
+      type: "doc",
+      version: 1
+    });
   });
 });
 

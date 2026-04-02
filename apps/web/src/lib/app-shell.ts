@@ -158,6 +158,7 @@ export const documentListSections: readonly DocumentSection[] = [
 
 export type DocumentScreenState = "ready" | "empty" | "error";
 export type DocumentOverlay = "sharing" | "ai" | "export" | null;
+export type SyncConnectionState = "online" | "offline" | "reconnecting" | "recovered";
 
 export const collaboratorPresence = [
   {
@@ -321,4 +322,16 @@ export function parseDocumentOverlay(value: string | string[] | undefined): Docu
 
 export function parseOfflineFlag(value: string | string[] | undefined): boolean {
   return getStringValue(value) === "1";
+}
+
+export function parseSyncConnectionState(
+  value: string | string[] | undefined
+): SyncConnectionState {
+  const normalized = getStringValue(value);
+
+  if (normalized === "offline" || normalized === "reconnecting" || normalized === "recovered") {
+    return normalized;
+  }
+
+  return "online";
 }

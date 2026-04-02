@@ -9,7 +9,9 @@ import { getEditorModeLabel, isEditorReadOnly } from "./access";
 import {
   createLocalDraftKey,
   readStoredDraft,
-  writeStoredDraft
+  readStoredDraftFromIndexedDb,
+  writeStoredDraft,
+  writeStoredDraftToIndexedDb
 } from "./local-persistence";
 import {
   getEditorHistoryState,
@@ -59,11 +61,15 @@ export function BaseEditor({
         return;
       }
 
+      const key = createLocalDraftKey(documentId);
+      const content = currentEditor.getJSON();
+
       writeStoredDraft(
         window.localStorage,
-        createLocalDraftKey(documentId),
-        currentEditor.getJSON()
+        key,
+        content
       );
+      void writeStoredDraftToIndexedDb(window.indexedDB, key, content);
     }
   });
 
@@ -76,16 +82,18 @@ export function BaseEditor({
       return;
     }
 
-    const storedDraft = readStoredDraft(
-      window.localStorage,
-      createLocalDraftKey(documentId)
-    );
+    const key = createLocalDraftKey(documentId);
 
-    if (storedDraft) {
-      editor.commands.setContent(storedDraft);
-    }
+    void (async () => {
+      const indexedDbDraft = await readStoredDraftFromIndexedDb(window.indexedDB, key);
+      const storedDraft = indexedDbDraft ?? readStoredDraft(window.localStorage, key);
 
-    setHasHydratedDraft(true);
+      if (storedDraft) {
+        editor.commands.setContent(storedDraft);
+      }
+
+      setHasHydratedDraft(true);
+    })();
   }, [documentId, editor, hasHydratedDraft]);
 
   const selection = getSelectionSummary(editor);

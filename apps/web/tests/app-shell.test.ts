@@ -8,7 +8,7 @@ import {
   getDocumentRecord,
   parseDocumentOverlay,
   parseDocumentScreenState,
-  parseOfflineFlag,
+  parseSyncConnectionState,
   workspaceNavigation
 } from "../src/lib/app-shell";
 
@@ -77,15 +77,16 @@ describe("document shell data", () => {
 });
 
 describe("editor route query parsing", () => {
-  it("normalizes the supported view, overlay, and offline values", () => {
+  it("normalizes the supported view, overlay, and sync values", () => {
     expect(parseDocumentScreenState("empty")).toBe("empty");
     expect(parseDocumentScreenState(["error"])).toBe("error");
     expect(parseDocumentScreenState(undefined)).toBe("ready");
     expect(parseDocumentOverlay("sharing")).toBe("sharing");
     expect(parseDocumentOverlay(["ai"])).toBe("ai");
     expect(parseDocumentOverlay("unknown")).toBeNull();
-    expect(parseOfflineFlag("1")).toBe(true);
-    expect(parseOfflineFlag(["0"])).toBe(false);
+    expect(parseSyncConnectionState("offline")).toBe("offline");
+    expect(parseSyncConnectionState(["reconnecting"])).toBe("reconnecting");
+    expect(parseSyncConnectionState("unknown")).toBe("online");
     expect(activeOverlayCopy.export).toBe("export options preview");
   });
 });

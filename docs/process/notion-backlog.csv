@@ -41,16 +41,16 @@ WEB-012,Add AI action menu shell,Web,Done,Medium,,WEB-007,AI action menu placeho
 WEB-013,Add export modal shell,Web,Done,Medium,,WEB-007,Export modal placeholder exists,none,/apps/web
 WEB-014,Add offline status banner component,Web,Done,Medium,,WEB-007,Offline banner component exists,none,/apps/web
 WEB-015,Add empty error and loading states for document screen,Web,Done,Medium,,WEB-007,Document screen has basic state variants,none,/apps/web
-EDIT-001,Install TipTap and ProseMirror dependencies,Editor,Backlog,High,,"WEB-001,ADR-004",Editor dependencies are added and install succeeds,change note,"/apps/web,/packages/editor-schema"
-EDIT-002,Create base editor component,Editor,Backlog,High,,EDIT-001,Base editor renders and mounts,task doc,/apps/web/src/editor
-EDIT-003,Define minimal editor schema package contents,Editor,Backlog,High,,EDIT-001,Shared schema package exposes minimal editor nodes,change note,/packages/editor-schema
-EDIT-004,Add paragraph text and heading support,Editor,Backlog,Medium,,"EDIT-002,EDIT-003",Editor supports minimal block types,none,/apps/web/src/editor
-EDIT-005,Add local editor state persistence stub,Editor,Backlog,Medium,,EDIT-002,Local persistence stub exists,none,/apps/web/src/editor
-EDIT-006,Add editor selection state helpers,Editor,Backlog,Medium,,EDIT-002,Selection helpers exist and are tested if needed,none,/apps/web/src/editor
-EDIT-007,Add document title editing UI,Editor,Backlog,Medium,,WEB-007,Title field can be edited in UI shell,none,/apps/web
-EDIT-008,Add undo and redo hooks,Editor,Backlog,Medium,,EDIT-002,Undo redo hooks exist,none,/apps/web/src/editor
-EDIT-009,Add read-only editor mode,Editor,Backlog,High,,"EDIT-002,SHARE-005",Editor supports read-only rendering,none,/apps/web/src/editor
-EDIT-010,Add basic editor tests,Editor,Backlog,Medium,,"TEST-001,EDIT-002",Editor tests run in CI,none,/apps/web/tests
+EDIT-001,Install TipTap and ProseMirror dependencies,Editor,Done,High,,"WEB-001,ADR-004",Editor dependencies are added and install succeeds,change note,"/apps/web,/packages/editor-schema"
+EDIT-002,Create base editor component,Editor,Done,High,,EDIT-001,Base editor renders and mounts,task doc,/apps/web/src/editor
+EDIT-003,Define minimal editor schema package contents,Editor,Done,High,,EDIT-001,Shared schema package exposes minimal editor nodes,change note,/packages/editor-schema
+EDIT-004,Add paragraph text and heading support,Editor,Done,Medium,,"EDIT-002,EDIT-003",Editor supports minimal block types,none,/apps/web/src/editor
+EDIT-005,Add local editor state persistence stub,Editor,Done,Medium,,EDIT-002,Local persistence stub exists,none,/apps/web/src/editor
+EDIT-006,Add editor selection state helpers,Editor,Done,Medium,,EDIT-002,Selection helpers exist and are tested if needed,none,/apps/web/src/editor
+EDIT-007,Add document title editing UI,Editor,Done,Medium,,WEB-007,Title field can be edited in UI shell,none,/apps/web
+EDIT-008,Add undo and redo hooks,Editor,Done,Medium,,EDIT-002,Undo redo hooks exist,none,/apps/web/src/editor
+EDIT-009,Add read-only editor mode,Editor,Done,High,,"EDIT-002,SHARE-005",Editor supports read-only rendering,none,/apps/web/src/editor
+EDIT-010,Add basic editor tests,Editor,Done,Medium,,"TEST-001,EDIT-002",Editor tests run in CI,none,/apps/web/tests
 PKG-001,Expand shared-types for document DTOs,Packages,Done,High,,ADR-002,Document DTOs exist for API contracts,change note,/packages/shared-types
 PKG-002,Expand shared-types for session DTOs,Packages,Done,High,,ADR-004,Session DTOs exist for collab and API,change note,/packages/shared-types
 PKG-003,Expand shared-types for AI DTOs,Packages,Done,High,,AI-001,AI DTOs exist for requests and proposals,change note,/packages/shared-types
@@ -117,8 +117,8 @@ COLLAB-007,Add writer-slot queue logic,Collaboration,Backlog,Medium,,COLLAB-006,
 COLLAB-008,Add permission update push event,Collaboration,Backlog,High,,"SHARE-003,COLLAB-003",Permission updates propagate to active sessions,spec + api doc,/apps/collab/src/permissions
 COLLAB-009,Add disconnect and reconnect handling,Collaboration,Done,High,,COLLAB-003,Reconnect flow restores session state safely,spec,/apps/collab/src/sessions
 COLLAB-010,Add collaboration service tests,Collaboration,Done,Medium,,"TEST-004,COLLAB-009",Core collaboration flows are covered by tests,none,/apps/collab/tests
-SYNC-001,Add IndexedDB persistence for local edits,Sync,Backlog,High,,"EDIT-002,COLLAB-003",Offline local edits persist in browser storage,spec,/apps/web/src/editor
-SYNC-002,Add reconnect banner UX,Sync,Backlog,Medium,,WEB-014,Reconnect status is visible in the UI,none,/apps/web
+SYNC-001,Add IndexedDB persistence for local edits,Sync,Done,High,,"EDIT-002,COLLAB-003",Offline local edits persist in browser storage,spec,/apps/web/src/editor
+SYNC-002,Add reconnect banner UX,Sync,Done,Medium,,WEB-014,Reconnect status is visible in the UI,none,/apps/web
 SYNC-003,Add state-vector reconnect flow,Sync,Backlog,High,,"SYNC-001,COLLAB-009",Client and server merge state on reconnect,spec,"/apps/web,/apps/collab"
 SYNC-004,Add unsynced local recovery buffer,Sync,Backlog,High,,SYNC-003,Unsynced local edits are preserved for recovery,spec,/apps/web/src/editor
 SYNC-005,Add permission-changed-while-offline handling,Sync,Backlog,High,,"SYNC-004,SHARE-005",Offline edits are handled safely after permission downgrade,spec,"/apps/web,/apps/collab"

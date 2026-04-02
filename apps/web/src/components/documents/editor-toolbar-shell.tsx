@@ -1,12 +1,16 @@
 import Link from "next/link";
 
-import type { DocumentOverlay, DocumentScreenState } from "../../lib/app-shell";
+import type {
+  DocumentOverlay,
+  DocumentScreenState,
+  SyncConnectionState
+} from "../../lib/app-shell";
 
 function buildDocumentHref(
   documentId: string,
   options: {
-    offline: boolean;
     overlay: DocumentOverlay;
+    syncState: SyncConnectionState;
     view: DocumentScreenState;
   }
 ) {
@@ -20,8 +24,8 @@ function buildDocumentHref(
     params.set("view", options.view);
   }
 
-  if (options.offline) {
-    params.set("offline", "1");
+  if (options.syncState !== "online") {
+    params.set("sync", options.syncState);
   }
 
   const query = params.toString();
@@ -30,15 +34,15 @@ function buildDocumentHref(
 
 interface EditorToolbarShellProps {
   documentId: string;
-  offline: boolean;
   overlay: DocumentOverlay;
+  syncState: SyncConnectionState;
   view: DocumentScreenState;
 }
 
 export function EditorToolbarShell({
   documentId,
-  offline,
   overlay,
+  syncState,
   view
 }: EditorToolbarShellProps) {
   const overlayLinks: { key: Exclude<DocumentOverlay, null>; label: string }[] = [
@@ -60,8 +64,8 @@ export function EditorToolbarShell({
               <Link
                 className={`toolbar-link${overlay === item.key ? " toolbar-link-active" : ""}`}
                 href={buildDocumentHref(documentId, {
-                  offline,
                   overlay: nextOverlay,
+                  syncState,
                   view
                 })}
                 key={item.key}
@@ -80,8 +84,8 @@ export function EditorToolbarShell({
             <Link
               className={`toolbar-link${view === item ? " toolbar-link-active" : ""}`}
               href={buildDocumentHref(documentId, {
-                offline,
                 overlay,
+                syncState,
                 view: item
               })}
               key={item}
@@ -89,16 +93,23 @@ export function EditorToolbarShell({
               {item}
             </Link>
           ))}
-          <Link
-            className={`toolbar-link${offline ? " toolbar-link-active" : ""}`}
-            href={buildDocumentHref(documentId, {
-              offline: !offline,
-              overlay,
-              view
-            })}
-          >
-            {offline ? "Disable offline banner" : "Enable offline banner"}
-          </Link>
+          {(["offline", "reconnecting", "recovered"] as const).map((state) => (
+            <Link
+              className={`toolbar-link${syncState === state ? " toolbar-link-active" : ""}`}
+              href={buildDocumentHref(documentId, {
+                overlay,
+                syncState: syncState === state ? "online" : state,
+                view
+              })}
+              key={state}
+            >
+              {state === "offline"
+                ? "Offline"
+                : state === "reconnecting"
+                  ? "Reconnecting"
+                  : "Recovered"}
+            </Link>
+          ))}
         </div>
       </div>
     </section>
