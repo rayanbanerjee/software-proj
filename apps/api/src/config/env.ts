@@ -8,6 +8,7 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   SESSION_SECRET: z.string().min(1),
+  COLLAB_URL: z.string().url(),
   OBJECT_STORAGE_ENDPOINT: z.string().min(1),
   OBJECT_STORAGE_BUCKET: z.string().min(1)
 });
@@ -17,4 +18,3 @@ export type ApiEnv = z.infer<typeof envSchema>;
 export function parseApiEnv(source: NodeJS.ProcessEnv): ApiEnv {
   return envSchema.parse(source);
 }
-

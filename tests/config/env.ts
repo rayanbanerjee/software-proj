@@ -7,7 +7,8 @@ export const defaultApiTestEnv = {
   OBJECT_STORAGE_ENDPOINT: "http://localhost:9000",
   PORT: "4000",
   REDIS_URL: "redis://localhost:6379",
-  SESSION_SECRET: "secret"
+  SESSION_SECRET: "secret",
+  COLLAB_URL: "ws://localhost:4001"
 } as const;
 
 export function applyTestEnv(
@@ -26,4 +27,3 @@ export function restoreTestEnv(originalEnv: NodeJS.ProcessEnv) {
     ...originalEnv
   };
 }
-

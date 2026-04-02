@@ -12,6 +12,10 @@ const renameDocumentBodySchema = z.object({
   title: z.string().trim().min(1)
 });
 
+const createDocumentSessionBodySchema = z.object({
+  lastKnownSessionId: z.string().trim().min(1).optional()
+});
+
 function getActor(user: { id: string; name: string | null }): DocumentActor {
   return {
     userId: user.id,
@@ -41,6 +45,26 @@ export async function registerDocumentsModule(app: FastifyInstance) {
 
     return app.documentsService.getDocumentMetadata(params.documentId, actor);
   });
+
+  app.post(
+    "/v1/documents/:documentId/sessions",
+    { preHandler: authenticateRequest },
+    async (request) => {
+      const actor = getActor(requireCurrentUser(request));
+      const params = request.params as { documentId: string };
+      const body = createDocumentSessionBodySchema.parse(request.body ?? {});
+
+      if (!request.authSession) {
+        throw new Error("Authenticated request is missing auth session context.");
+      }
+
+      return app.documentsService.createDocumentSession(params.documentId, actor, {
+        collabBaseUrl: app.apiEnv.COLLAB_URL,
+        lastKnownSessionId: body.lastKnownSessionId,
+        sessionToken: request.authSession.token
+      });
+    }
+  );
 
   app.patch("/v1/documents/:documentId", { preHandler: authenticateRequest }, async (request) => {
     const actor = getActor(requireCurrentUser(request));

@@ -137,6 +137,69 @@ describe("documents module", () => {
     await app.close();
   });
 
+  it("creates a session bootstrap payload for an authorized collaborator", async () => {
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      name: "Owner Demo",
+      subject: "user_owner"
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Realtime document"
+      }
+    });
+    const documentId = createResponse.json().document.id as string;
+    const cookieHeader = ownerHeaders.cookie;
+    const token = cookieHeader.slice("collab_session=".length).split(";")[0];
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/sessions`,
+      headers: ownerHeaders,
+      payload: {
+        lastKnownSessionId: "session-prev-123"
+      }
+    });
+    const payload = response.json();
+    const websocketUrl = new URL(payload.websocketUrl as string);
+
+    expect(response.statusCode).toBe(200);
+    expect(websocketUrl.origin).toBe("ws://localhost:4001");
+    expect(websocketUrl.searchParams.get("documentName")).toBe(documentId);
+    expect(websocketUrl.searchParams.get("token")).toBe(token);
+    expect(payload).toMatchObject({
+      token,
+      session: {
+        documentId,
+        resumedFromSessionId: "session-prev-123",
+        collaborators: [
+          {
+            documentId,
+            userId: "google:user_owner",
+            displayName: "Owner Demo",
+            role: "owner",
+            accessLevel: "write",
+            isPresent: true,
+            connectionStatus: "active"
+          }
+        ],
+        self: {
+          documentId,
+          userId: "google:user_owner",
+          role: "owner",
+          accessLevel: "write"
+        }
+      }
+    });
+
+    await app.close();
+  });
+
   it("renames a document for a user with edit access", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
@@ -238,6 +301,46 @@ describe("documents module", () => {
       error: {
         code: "DOCUMENT_FORBIDDEN",
         message: "You do not have permission to rename this document.",
+        statusCode: 403
+      }
+    });
+
+    await app.close();
+  });
+
+  it("rejects session bootstrap for a user without document access", async () => {
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+    const otherHeaders = createSessionHeaders(app, {
+      email: "other@example.com",
+      subject: "user_other"
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Private doc"
+      }
+    });
+    const documentId = createResponse.json().document.id as string;
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/sessions`,
+      headers: otherHeaders,
+      payload: {}
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "DOCUMENT_FORBIDDEN",
+        message: "You do not have access to this document.",
         statusCode: 403
       }
     });

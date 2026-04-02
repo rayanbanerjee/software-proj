@@ -11,7 +11,10 @@ import {
 } from "@repo/authz";
 import type {
   ArchiveDocumentResponse,
+  CollaboratorSessionSummary,
   CreateDocumentResponse,
+  DocumentSessionState,
+  JoinDocumentSessionResponse,
   GetDocumentMetadataResponse,
   DocumentMetadata,
   DocumentPermissionSummary,
@@ -71,6 +74,30 @@ function toDocumentSummary(document: StoredDocument, role: DocumentRole): Docume
     title: document.title,
     role,
     updatedAt: document.updatedAt
+  };
+}
+
+function toSessionAccessLevel(role: DocumentRole): "read" | "write" {
+  return canEdit(role) ? "write" : "read";
+}
+
+function toCollaboratorSessionSummary(
+  document: StoredDocument,
+  actor: DocumentActor,
+  role: DocumentRole,
+  sessionId: string,
+  joinedAt: string
+): CollaboratorSessionSummary {
+  return {
+    sessionId,
+    documentId: document.id,
+    userId: actor.userId,
+    displayName: actor.name,
+    role,
+    accessLevel: toSessionAccessLevel(role),
+    isPresent: true,
+    lastSeenAt: joinedAt,
+    connectionStatus: "active"
   };
 }
 
@@ -149,6 +176,51 @@ export class DocumentsService {
 
     return {
       document: toDocumentMetadata(document, membership.role)
+    };
+  }
+
+  createDocumentSession(
+    documentId: string,
+    actor: DocumentActor,
+    options: {
+      collabBaseUrl: string;
+      lastKnownSessionId?: string;
+      sessionToken: string;
+    }
+  ): JoinDocumentSessionResponse {
+    const document = this.requireDocument(documentId);
+    const membership = this.getMembership(document, actor.userId);
+
+    if (!membership || !canView(membership.role)) {
+      throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have access to this document.");
+    }
+
+    const joinedAt = new Date().toISOString();
+    const sessionId = randomUUID();
+    const resumedFromSessionId = options.lastKnownSessionId?.trim() || null;
+    const self = toCollaboratorSessionSummary(
+      document,
+      actor,
+      membership.role,
+      sessionId,
+      joinedAt
+    );
+    const session: DocumentSessionState = {
+      documentId: document.id,
+      joinedAt,
+      resumedFromSessionId,
+      self,
+      collaborators: [self]
+    };
+    const websocketUrl = new URL(options.collabBaseUrl);
+
+    websocketUrl.searchParams.set("documentName", document.id);
+    websocketUrl.searchParams.set("token", options.sessionToken);
+
+    return {
+      session,
+      websocketUrl: websocketUrl.toString(),
+      token: options.sessionToken
     };
   }
 

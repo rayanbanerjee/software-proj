@@ -54,4 +54,5 @@ The collab service also exposes:
 ## Notes
 
 - the current implementation bootstraps the authenticated handshake and base Hocuspocus runtime only
+- the web app can now preflight the join through `POST /v1/documents/:documentId/sessions` before opening the socket
 - document load, persistence, join-state DTOs, and permission update pushes will expand this contract in later collaboration tasks
