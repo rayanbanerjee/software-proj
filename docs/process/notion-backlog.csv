@@ -123,14 +123,14 @@ SYNC-003,Add state-vector reconnect flow,Sync,Backlog,High,,"SYNC-001,COLLAB-009
 SYNC-004,Add unsynced local recovery buffer,Sync,Backlog,High,,SYNC-003,Unsynced local edits are preserved for recovery,spec,/apps/web/src/editor
 SYNC-005,Add permission-changed-while-offline handling,Sync,Backlog,High,,"SYNC-004,SHARE-005",Offline edits are handled safely after permission downgrade,spec,"/apps/web,/apps/collab"
 SYNC-006,Add reconnect integration test,Sync,Backlog,Medium,,"TEST-004,SYNC-003",Reconnect scenario is covered by integration tests,none,/apps/collab/tests
-VER-001,Add revision creation policy service,Versioning,Backlog,High,,"DB-006,ADR-008",Revision service creates checkpoints by policy,spec + change note,/apps/api/src/modules/versions
-VER-002,Add revision list endpoint,Versioning,Backlog,High,,VER-001,Revision list endpoint returns revision metadata,api doc,/apps/api/src/modules/versions
-VER-003,Add revision detail endpoint,Versioning,Backlog,Medium,,VER-002,Revision detail endpoint returns requested revision,api doc,/apps/api/src/modules/versions
+VER-001,Add revision creation policy service,Versioning,Done,High,,"DB-006,ADR-008",Revision service creates checkpoints by policy,spec + change note,/apps/api/src/modules/versions
+VER-002,Add revision list endpoint,Versioning,Done,High,,VER-001,Revision list endpoint returns revision metadata,api doc,/apps/api/src/modules/versions
+VER-003,Add revision detail endpoint,Versioning,Done,Medium,,VER-002,Revision detail endpoint returns requested revision,api doc,/apps/api/src/modules/versions
 VER-004,Add diff endpoint stub,Versioning,Backlog,Medium,,VER-002,Diff endpoint returns stub or initial comparison payload,api doc,/apps/api/src/modules/versions
-VER-005,Add rollback endpoint,Versioning,Backlog,High,,VER-002,Rollback endpoint creates a new head revision,api doc + change note,/apps/api/src/modules/versions
+VER-005,Add rollback endpoint,Versioning,Done,High,,VER-002,Rollback endpoint creates a new head revision,api doc + change note,/apps/api/src/modules/versions
 VER-006,Add rollback event to collab service,Versioning,Backlog,High,,"VER-005,COLLAB-003",Rollback propagates to active clients,spec,/apps/collab
 VER-007,Add version history UI data hook,Versioning,Backlog,Medium,,"WEB-010,VER-002",UI can fetch and display revision list data,none,/apps/web
-VER-008,Add versioning tests,Versioning,Backlog,Medium,,"TEST-003,VER-005",Versioning tests cover revision and rollback flow,none,/apps/api/tests/integration
+VER-008,Add versioning tests,Versioning,Done,Medium,,"TEST-003,VER-005",Versioning tests cover revision and rollback flow,none,/apps/api/tests/integration
 AI-001,Add AI request model,AI,Backlog,High,,DB-007,AI request model exists and migrates,none,/apps/api/src/modules/ai
 AI-002,Add AI request submission endpoint,AI,Backlog,High,,"API-010,AI-001",AI request endpoint validates payload and persists request,api doc + spec,/apps/api/src/modules/ai
 AI-003,Add allowed action enum validation,AI,Backlog,Medium,,AI-002,AI actions are strictly validated,none,/apps/api/src/modules/ai

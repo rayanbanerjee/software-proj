@@ -24,3 +24,4 @@ Current docs:
 - `docs/api/authentication.md`
 - `docs/api/documents.md`
 - `docs/api/sharing.md`
+- `docs/api/versions.md`
