@@ -45,7 +45,15 @@ export function DocumentWorkspaceShell({
 
       <div className="document-workspace-grid">
         <div className="document-workspace-main">
-          {view === "ready" ? <BaseEditor documentId={document.id} /> : <DocumentStateShell document={document} view={view} />}
+          {view === "ready" ? (
+            <BaseEditor
+              documentId={document.id}
+              initialTitle={document.title}
+              role={document.role}
+            />
+          ) : (
+            <DocumentStateShell document={document} view={view} />
+          )}
 
           {overlay ? (
             <div className="overlay-stack">

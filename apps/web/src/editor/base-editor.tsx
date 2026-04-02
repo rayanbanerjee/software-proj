@@ -3,7 +3,9 @@
 import { EditorContent, useEditor } from "@tiptap/react";
 import { useEffect, useState } from "react";
 import { minimalEditorExtensions } from "@repo/editor-schema";
+import type { DocumentRecord } from "../lib/app-shell";
 
+import { getEditorModeLabel, isEditorReadOnly } from "./access";
 import {
   createLocalDraftKey,
   readStoredDraft,
@@ -29,16 +31,25 @@ const starterContent = `
 
 interface BaseEditorProps {
   documentId?: string;
+  initialTitle?: string;
+  role?: DocumentRecord["role"];
 }
 
-export function BaseEditor({ documentId = "route-shell-document" }: BaseEditorProps) {
+export function BaseEditor({
+  documentId = "route-shell-document",
+  initialTitle = "Untitled document",
+  role = "owner"
+}: BaseEditorProps) {
   const [hasHydratedDraft, setHasHydratedDraft] = useState(false);
+  const [title, setTitle] = useState(initialTitle);
+  const readOnly = isEditorReadOnly(role);
 
   const editor = useEditor({
     immediatelyRender: false,
+    editable: !readOnly,
     editorProps: {
       attributes: {
-        class: "base-editor-content"
+        class: `base-editor-content${readOnly ? " base-editor-content-readonly" : ""}`
       }
     },
     content: starterContent,
@@ -55,6 +66,10 @@ export function BaseEditor({ documentId = "route-shell-document" }: BaseEditorPr
       );
     }
   });
+
+  useEffect(() => {
+    editor?.setEditable(!readOnly);
+  }, [editor, readOnly]);
 
   useEffect(() => {
     if (!editor || typeof window === "undefined" || hasHydratedDraft) {
@@ -92,9 +107,24 @@ export function BaseEditor({ documentId = "route-shell-document" }: BaseEditorPr
         <p>TipTap is mounted and ready for richer editor behavior in follow-up tasks.</p>
       </div>
 
+      <label className="base-editor-title">
+        <span className="section-chip">EDIT-007</span>
+        <input
+          aria-label="Document title"
+          className="base-editor-title-input"
+          disabled={readOnly}
+          onChange={(event) => setTitle(event.target.value)}
+          readOnly={readOnly}
+          type="text"
+          value={title}
+        />
+        <small>{getEditorModeLabel(role)}</small>
+      </label>
+
       <div className="base-editor-toolbar" aria-label="Editor block controls">
         <button
           className={`base-editor-button${selection.currentBlock === "paragraph" ? " base-editor-button-active" : ""}`}
+          disabled={readOnly}
           onClick={setParagraph}
           type="button"
         >
@@ -102,6 +132,7 @@ export function BaseEditor({ documentId = "route-shell-document" }: BaseEditorPr
         </button>
         <button
           className={`base-editor-button${selection.currentBlock === "heading-1" ? " base-editor-button-active" : ""}`}
+          disabled={readOnly}
           onClick={() => setHeading(1)}
           type="button"
         >
@@ -109,6 +140,7 @@ export function BaseEditor({ documentId = "route-shell-document" }: BaseEditorPr
         </button>
         <button
           className={`base-editor-button${selection.currentBlock === "heading-2" ? " base-editor-button-active" : ""}`}
+          disabled={readOnly}
           onClick={() => setHeading(2)}
           type="button"
         >
@@ -116,6 +148,7 @@ export function BaseEditor({ documentId = "route-shell-document" }: BaseEditorPr
         </button>
         <button
           className={`base-editor-button${selection.currentBlock === "heading-3" ? " base-editor-button-active" : ""}`}
+          disabled={readOnly}
           onClick={() => setHeading(3)}
           type="button"
         >
@@ -123,7 +156,7 @@ export function BaseEditor({ documentId = "route-shell-document" }: BaseEditorPr
         </button>
         <button
           className="base-editor-button"
-          disabled={!history.canUndo}
+          disabled={readOnly || !history.canUndo}
           onClick={() => runUndo(editor)}
           type="button"
         >
@@ -131,7 +164,7 @@ export function BaseEditor({ documentId = "route-shell-document" }: BaseEditorPr
         </button>
         <button
           className="base-editor-button"
-          disabled={!history.canRedo}
+          disabled={readOnly || !history.canRedo}
           onClick={() => runRedo(editor)}
           type="button"
         >
@@ -155,6 +188,10 @@ export function BaseEditor({ documentId = "route-shell-document" }: BaseEditorPr
         <div>
           <dt>History</dt>
           <dd>{`${history.canUndo ? "undo" : "no-undo"} / ${history.canRedo ? "redo" : "no-redo"}`}</dd>
+        </div>
+        <div>
+          <dt>Mode</dt>
+          <dd>{getEditorModeLabel(role)}</dd>
         </div>
       </dl>
 

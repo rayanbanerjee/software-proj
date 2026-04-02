@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getEditorModeLabel,
+  isEditorReadOnly
+} from "../src/editor/access";
+import {
   LOCAL_EDITOR_DRAFT_KEY_PREFIX,
   createLocalDraftKey,
   readStoredDraft
@@ -36,6 +40,15 @@ describe("editor local persistence", () => {
         "draft"
       )
     ).toBeNull();
+  });
+});
+
+describe("editor access helpers", () => {
+  it("marks commenter mode as read-only and owner mode as editable", () => {
+    expect(isEditorReadOnly("commenter")).toBe(true);
+    expect(isEditorReadOnly("owner")).toBe(false);
+    expect(getEditorModeLabel("editor")).toBe("editable");
+    expect(getEditorModeLabel("commenter")).toBe("read-only");
   });
 });
 
