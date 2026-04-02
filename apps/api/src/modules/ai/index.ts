@@ -1,52 +1,63 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 
-import { createAiRequestSchema } from "./schema.js";
+import { AppError } from "../../common/errors.js";
+import { authenticateRequest, requireCurrentUser } from "../auth/guard.js";
+import type { DocumentActor } from "../documents/service.js";
+import { MockProviderClient } from "./mock-provider-client.js";
+import { submitAiRequestSchema } from "./schema.js";
 import { AiService } from "./service.js";
 
+const proposalDecisionSchema = z.object({
+  proposalId: z.string().trim().min(1),
+  reason: z.string().trim().min(1).optional()
+});
+
+function getActor(user: { id: string; name: string | null }): DocumentActor {
+  return {
+    userId: user.id,
+    name: user.name
+  };
+}
+
 export async function registerAiModule(app: FastifyInstance) {
-  const aiService = new AiService();
+  app.decorate("aiService", new AiService(app.documentsService, new MockProviderClient()));
 
-  app.decorate("aiService", aiService);
+  app.post("/v1/documents/:documentId/ai/requests", { preHandler: authenticateRequest }, async (request, reply) => {
+    const actor = getActor(requireCurrentUser(request));
+    const params = request.params as { documentId: string };
+    const parsed = submitAiRequestSchema.safeParse(request.body);
 
-  app.post("/documents/:id/ai-requests", async (request, reply) => {
-    const params = request.params as { id: string };
-
-    const parseResult = createAiRequestSchema.safeParse(request.body);
-
-    if (!parseResult.success) {
-      return reply.status(400).send({
-        error: "invalid_request",
-        details: parseResult.error.flatten()
-      });
+    if (!parsed.success) {
+      throw new AppError("AI_REQUEST_INVALID", 400, "AI request payload is invalid.");
     }
 
-    const aiRequest = await aiService.createAiRequest(params.id, parseResult.data);
+    const body = parsed.data;
+    const response = await app.aiService.submitRequest(params.documentId, body, actor);
 
-    return reply.status(201).send({
-      requestId: aiRequest.requestId,
-      status: aiRequest.status
-    });
+    return reply.status(202).send(response);
   });
 
-  app.get("/documents/:id/ai-requests/:requestId", async (request, reply) => {
-    const params = request.params as { id: string; requestId: string };
+  app.get("/v1/documents/:documentId/ai/requests/:requestId", { preHandler: authenticateRequest }, async (request) => {
+    const actor = getActor(requireCurrentUser(request));
+    const params = request.params as { documentId: string; requestId: string };
 
-    const aiRequest = await aiService.getAiRequest(params.id, params.requestId);
+    return app.aiService.getRequestStatus(params.documentId, params.requestId, actor);
+  });
 
-    if (!aiRequest) {
-      return reply.status(404).send({
-        error: "ai_request_not_found",
-        message: "AI request was not found for this document"
-      });
-    }
+  app.post("/v1/documents/:documentId/ai/proposals/accept", { preHandler: authenticateRequest }, async (request) => {
+    const actor = getActor(requireCurrentUser(request));
+    const params = request.params as { documentId: string };
+    const body = proposalDecisionSchema.parse(request.body);
 
-    return reply.send({
-      requestId: aiRequest.requestId,
-      documentId: aiRequest.documentId,
-      operation: aiRequest.operation,
-      selection: aiRequest.selection,
-      parameters: aiRequest.parameters,
-      status: aiRequest.status
-    });
+    return app.aiService.acceptProposal(params.documentId, body.proposalId, actor);
+  });
+
+  app.post("/v1/documents/:documentId/ai/proposals/reject", { preHandler: authenticateRequest }, async (request) => {
+    const actor = getActor(requireCurrentUser(request));
+    const params = request.params as { documentId: string };
+    const body = proposalDecisionSchema.parse(request.body);
+
+    return app.aiService.rejectProposal(params.documentId, body.proposalId, actor);
   });
 }

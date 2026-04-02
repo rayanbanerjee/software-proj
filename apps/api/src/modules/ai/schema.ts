@@ -1,12 +1,14 @@
 import { z } from "zod";
 
-export const createAiRequestSchema = z.object({
-  operation: z.enum(["rewrite", "summarize", "translate", "restructure"]),
-  selection: z.object({
-    start: z.number().int().nonnegative(),
-    end: z.number().int().nonnegative()
+export const submitAiRequestSchema = z.object({
+  action: z.enum(["rewrite", "summarize", "translate", "restructure"]),
+  prompt: z.string().trim().min(1).nullable(),
+  context: z.object({
+    scope: z.enum(["document", "selection"]),
+    selectedText: z.string().nullable(),
+    surroundingText: z.string().nullable()
   }),
-  parameters: z.record(z.string(), z.string()).optional()
+  maskPersonalData: z.boolean().default(false)
 });
 
-export type CreateAiRequest = z.infer<typeof createAiRequestSchema>;
+export type SubmitAiRequestInput = z.infer<typeof submitAiRequestSchema>;

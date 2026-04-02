@@ -1,6 +1,11 @@
+import type { AiPanelState } from "../../lib/ai-panel-state";
 import { aiActionMenu } from "../../lib/app-shell";
 
-export function AiActionMenuShell() {
+interface AiActionMenuShellProps {
+  panelState: AiPanelState;
+}
+
+export function AiActionMenuShell({ panelState }: AiActionMenuShellProps) {
   return (
     <section className="overlay-shell">
       <div className="overlay-shell-header">
@@ -8,9 +13,11 @@ export function AiActionMenuShell() {
         <h3>AI action menu shell</h3>
       </div>
       <p>
-        Action slots are scaffolded here so later request flows can attach to a stable menu
-        surface.
+        {panelState.summary}
       </p>
+      <div className="overlay-caption">
+        <strong>Status:</strong> {panelState.status} · {panelState.ctaLabel}
+      </div>
       <div className="overlay-list">
         {aiActionMenu.map((item) => (
           <article className="overlay-option-card" key={item.title}>

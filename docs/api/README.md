@@ -25,4 +25,5 @@ Current docs:
 - `docs/api/documents.md`
 - `docs/api/sharing.md`
 - `docs/api/versions.md`
+- `docs/api/ai.md`
 - `docs/api/exports.md`

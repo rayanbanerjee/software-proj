@@ -14,7 +14,7 @@ DOC-002,Add docs/api/websocket-events.md,Docs,Done,High,,COLLAB-001,WebSocket ev
 DOC-003,Add authentication flow spec,Docs,Done,High,,AUTH-002,Authentication flow spec exists and is linked from task docs,spec,/docs/specs
 DOC-004,Add document session lifecycle spec,Docs,Done,High,,COLLAB-003,Session lifecycle spec covers join leave reconnect,spec,/docs/specs
 DOC-005,Add permission propagation spec,Docs,Done,High,,"SHARE-005,COLLAB-008",Permission propagation behavior is documented,spec,/docs/specs
-DOC-006,Add AI proposal lifecycle spec,Docs,Backlog,High,,"AI-002,AI-007",AI proposal lifecycle is documented from request through apply,spec,/docs/specs
+DOC-006,Add AI proposal lifecycle spec,Docs,Done,High,,"AI-002,AI-007",AI proposal lifecycle is documented from request through apply,spec,/docs/specs
 DOC-007,Add versioning model spec,Docs,Done,High,,VER-001,Versioning model spec exists,spec,/docs/specs
 DOC-008,Add export pipeline spec,Docs,Done,Medium,,EXP-001,Export flow and job lifecycle are documented,spec,/docs/specs
 DOC-009,Add initial container diagram source file,Docs,Done,Medium,,"ADR-002,ADR-004,ADR-005",Container diagram source is committed,diagram,/docs/diagrams
@@ -88,9 +88,9 @@ DB-003,Create documents table or model,Database,Done,High,,DB-001,Documents sche
 DB-004,Create memberships table or model,Database,Done,High,,DB-001,Memberships schema exists and migrates,change note,/apps/api
 DB-005,Create invitations table or model,Database,Backlog,Medium,,DB-001,Invitations schema exists and migrates,none,/apps/api
 DB-006,Create revisions table or model,Database,Backlog,High,,DB-001,Revisions schema exists and migrates,none,/apps/api
-DB-007,Create AI requests table or model,Database,Backlog,High,,DB-001,AI requests schema exists and migrates,none,/apps/api
-DB-008,Create export jobs table or model,Database,Backlog,Medium,,DB-001,Export jobs schema exists and migrates,none,/apps/api
-DB-009,Create audit events table or model,Database,Backlog,Medium,,DB-001,Audit events schema exists and migrates,none,/apps/api
+DB-007,Create AI requests table or model,Database,Done,High,,DB-001,AI requests schema exists and migrates,none,/apps/api
+DB-008,Create export jobs table or model,Database,Done,Medium,,DB-001,Export jobs schema exists and migrates,none,/apps/api
+DB-009,Create audit events table or model,Database,Done,Medium,,DB-001,Audit events schema exists and migrates,none,/apps/api
 DB-010,Add local migration workflow,Database,Done,High,,DB-001,Local migration commands are documented and usable,change note,"/apps/api,/infrastructure"
 DB-011,Add seed script with demo data,Database,Done,Medium,,"DB-002,DB-003,DB-004",Seed script populates demo users docs and memberships,none,/apps/api
 DOCSVC-001,Implement create document endpoint,Document Service,Done,High,,"API-007,DB-003,DB-004",Create document endpoint works and persists owner membership,api doc + change note,/apps/api/src/modules/documents
@@ -131,18 +131,18 @@ VER-005,Add rollback endpoint,Versioning,Done,High,,VER-002,Rollback endpoint cr
 VER-006,Add rollback event to collab service,Versioning,Done,High,,"VER-005,COLLAB-003",Rollback propagates to active clients,spec,/apps/collab
 VER-007,Add version history UI data hook,Versioning,Done,Medium,,"WEB-010,VER-002",UI can fetch and display revision list data,none,/apps/web
 VER-008,Add versioning tests,Versioning,Done,Medium,,"TEST-003,VER-005",Versioning tests cover revision and rollback flow,none,/apps/api/tests/integration
-AI-001,Add AI request model,AI,Backlog,High,,DB-007,AI request model exists and migrates,none,/apps/api/src/modules/ai
-AI-002,Add AI request submission endpoint,AI,Backlog,High,,"API-010,AI-001",AI request endpoint validates payload and persists request,api doc + spec,/apps/api/src/modules/ai
-AI-003,Add allowed action enum validation,AI,Backlog,Medium,,AI-002,AI actions are strictly validated,none,/apps/api/src/modules/ai
-AI-004,Add context-scope validation,AI,Backlog,Medium,,AI-002,Context scope values are validated,none,/apps/api/src/modules/ai
-AI-005,Add optional masking flag handling,AI,Backlog,Medium,,AI-002,Masking option is stored and passed through correctly,spec,/apps/api/src/modules/ai
-AI-006,Add proposal result model,AI,Backlog,High,,AI-001,Proposal result model exists for worker and API use,none,"/apps/api/src/modules/ai,/packages/shared-types"
+AI-001,Add AI request model,AI,Done,High,,DB-007,AI request model exists and migrates,none,/apps/api/src/modules/ai
+AI-002,Add AI request submission endpoint,AI,Done,High,,"API-010,AI-001",AI request endpoint validates payload and persists request,api doc + spec,/apps/api/src/modules/ai
+AI-003,Add allowed action enum validation,AI,Done,Medium,,AI-002,AI actions are strictly validated,none,/apps/api/src/modules/ai
+AI-004,Add context-scope validation,AI,Done,Medium,,AI-002,Context scope values are validated,none,/apps/api/src/modules/ai
+AI-005,Add optional masking flag handling,AI,Done,Medium,,AI-002,Masking option is stored and passed through correctly,spec,/apps/api/src/modules/ai
+AI-006,Add proposal result model,AI,Done,High,,AI-001,Proposal result model exists for worker and API use,none,"/apps/api/src/modules/ai,/packages/shared-types"
 AI-007,Add stale proposal detection helper,AI,Backlog,High,,AI-006,Staleness helper compares revision and text hash correctly,spec + change note,/apps/api/src/modules/ai
-AI-008,Add proposal accept endpoint,AI,Backlog,Medium,,AI-007,Accept endpoint applies AI proposal through normal change flow,api doc,/apps/api/src/modules/ai
-AI-009,Add proposal reject endpoint,AI,Backlog,Medium,,AI-006,Reject endpoint updates request outcome cleanly,api doc,/apps/api/src/modules/ai
-AI-010,Add AI request status endpoint,AI,Backlog,Medium,,AI-002,Status endpoint exposes lifecycle state,api doc,/apps/api/src/modules/ai
-AI-011,Add AI panel UI state model,AI,Backlog,Medium,,"WEB-012,AI-010",AI UI can represent request and proposal states,none,/apps/web
-AI-012,Add mock provider client,AI,Backlog,High,,"ADR-005,AI-002",Mock provider supports local testing without real provider calls,none,"/apps/worker,/apps/api"
+AI-008,Add proposal accept endpoint,AI,Done,Medium,,AI-007,Accept endpoint applies AI proposal through normal change flow,api doc,/apps/api/src/modules/ai
+AI-009,Add proposal reject endpoint,AI,Done,Medium,,AI-006,Reject endpoint updates request outcome cleanly,api doc,/apps/api/src/modules/ai
+AI-010,Add AI request status endpoint,AI,Done,Medium,,AI-002,Status endpoint exposes lifecycle state,api doc,/apps/api/src/modules/ai
+AI-011,Add AI panel UI state model,AI,Done,Medium,,"WEB-012,AI-010",AI UI can represent request and proposal states,none,/apps/web
+AI-012,Add mock provider client,AI,Done,High,,"ADR-005,AI-002",Mock provider supports local testing without real provider calls,none,"/apps/worker,/apps/api"
 AI-013,Add AI integration tests with fixtures,AI,Backlog,Medium,,"TEST-003,AI-012",AI integration tests run with mock provider and fixtures,none,/apps/api/tests/integration
 WORK-001,Initialize worker runtime,Worker,Done,High,,ADR-005,apps/worker boots with chosen runtime,task doc + change note,/apps/worker
 WORK-002,Add queue connection config,Worker,Done,High,,WORK-001,Worker connects to configured queue backend,none,/apps/worker

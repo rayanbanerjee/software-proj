@@ -1,4 +1,5 @@
 import type { DocumentOverlay, DocumentRecord, DocumentScreenState } from "../../lib/app-shell";
+import { createAiPanelState } from "../../lib/ai-panel-state";
 import type { VersionHistoryEntry } from "../../lib/version-history";
 import { BaseEditor } from "../../editor/base-editor";
 import { activeOverlayCopy } from "../../lib/app-shell";
@@ -26,6 +27,8 @@ export function DocumentWorkspaceShell({
   versionHistoryEntries,
   view
 }: DocumentWorkspaceShellProps) {
+  const aiPanelState = createAiPanelState();
+
   return (
     <div className="document-workspace-shell">
       <section className="page-intro-card">
@@ -64,7 +67,7 @@ export function DocumentWorkspaceShell({
                 <strong>Overlay preview active:</strong> {activeOverlayCopy[overlay]}
               </div>
               {overlay === "sharing" ? <SharingModalShell /> : null}
-              {overlay === "ai" ? <AiActionMenuShell /> : null}
+              {overlay === "ai" ? <AiActionMenuShell panelState={aiPanelState} /> : null}
               {overlay === "export" ? <ExportModalShell /> : null}
             </div>
           ) : null}

@@ -32,11 +32,11 @@ export async function createApp(options: CreateAppOptions = {}) {
 
   registerErrorHandling(app);
   registerRequestLogging(app);
-  await registerAiModule(app);
   await registerAuditModule(app);
   await registerAuthModule(app);
   await registerCommentsModule(app);
   await registerDocumentsModule(app);
+  await registerAiModule(app);
   await registerExportsModule(app);
   await registerHealthRoutes(app);
   await registerSharingModule(app);
