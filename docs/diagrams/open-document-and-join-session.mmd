@@ -1,0 +1,22 @@
+sequenceDiagram
+    autonumber
+    actor User
+    participant Web as Web App
+    participant API as API Service
+    participant Collab as Collab Service
+
+    User->>Web: Open document route
+    Web->>API: GET /v1/documents/:documentId
+    API-->>Web: Document metadata + permissions
+    Note over Web: Reuse signed API session token from auth flow
+    Web->>Collab: WebSocket connect ?documentName=<id>&token=<session>
+    Collab->>Collab: Verify signed session token
+    alt Token valid
+        Collab-->>Web: Connection accepted
+        Collab-->>Web: Session state + active collaborators
+        Web->>Collab: Yjs sync / awareness messages
+        Collab-->>Web: Sync updates / presence updates
+    else Token invalid
+        Collab-->>Web: Reject connection
+        Web->>User: Show reconnect or auth error state
+    end

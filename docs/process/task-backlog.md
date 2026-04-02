@@ -34,13 +34,13 @@ Default status values:
 1. `DB-003` Create documents table or model.
 2. `DB-004` Create memberships table or model.
 3. `DOCSVC-001` Implement create document endpoint.
-4. `TEST-003` Add API integration test harness.
-5. `WORK-001` Initialize worker runtime.
-6. `SHARE-005` Add permission matrix enforcement helpers.
-7. `DOC-004` Add document session lifecycle spec.
-8. `DB-010` Add local migration workflow.
-9. `COLLAB-003` Add document join flow.
-10. `PKG-002` Expand shared-types for session DTOs.
+4. `WORK-001` Initialize worker runtime.
+5. `SHARE-005` Add permission matrix enforcement helpers.
+6. `COLLAB-003` Add document join flow.
+7. `PKG-005` Add permission enums and constants to authz.
+8. `PKG-006` Add `canView`, `canEdit`, and `canShare` helpers.
+9. `AUTH-008` Add auth integration tests.
+10. `DOC-005` Add permission propagation spec.
 
 ## Recently completed
 
@@ -78,10 +78,18 @@ Default status values:
 - `AUTH-007` Add current-user endpoint
 - `DOC-003` Add authentication flow spec
 - `DOC-002` Add `docs/api/websocket-events.md`
+- `DOC-004` Add document session lifecycle spec
+- `DOC-010` Add sequence diagram for open document and join session
 - `COLLAB-001` Initialize real collaboration server
 - `COLLAB-002` Add session token verification
+- `PKG-002` Expand shared-types for session DTOs
+- `PKG-003` Expand shared-types for AI DTOs
+- `PKG-004` Expand shared-types for version and export DTOs
 - `PKG-008` Add test fixtures for sample documents
+- `DB-010` Add local migration workflow
+- `DB-011` Add seed script with demo data
 - `TEST-006` Add fixture factories
+- `TEST-003` Add API integration test harness
 - `INFRA-001` Add Docker Compose for Postgres and Redis
 - `INFRA-002` Add local object storage service to Compose
 - `INFRA-003` Add API service container
