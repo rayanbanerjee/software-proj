@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   fixtureDocumentMetadata,
+  makeAiProposalFixture,
+  makeAiRequestFixture,
   makeDocumentMetadata,
   makeDocumentSummary,
   sampleDocumentSummaries
@@ -37,6 +39,22 @@ describe("document fixtures", () => {
         canShare: false,
         role: "editor"
       }
+    });
+  });
+});
+
+describe("ai fixtures", () => {
+  it("ships reusable AI request and proposal fixtures", () => {
+    expect(makeAiRequestFixture()).toMatchObject({
+      action: "summarize",
+      maskPersonalData: false,
+      context: {
+        scope: "selection"
+      }
+    });
+    expect(makeAiProposalFixture({ isStale: true })).toMatchObject({
+      proposalId: "proposal_fixture",
+      isStale: true
     });
   });
 });

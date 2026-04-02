@@ -292,6 +292,11 @@ function getStringValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+export function parseExportJobId(value: string | string[] | undefined): string | null {
+  const normalized = getStringValue(value)?.trim();
+  return normalized ? normalized : null;
+}
+
 export function parseDocumentScreenState(
   value: string | string[] | undefined
 ): DocumentScreenState {

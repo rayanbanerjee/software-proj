@@ -156,6 +156,80 @@ describe("ai module", () => {
     await app.close();
   });
 
+  it("marks proposals stale when the source fingerprint changes", async () => {
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Stale AI doc"
+      }
+    });
+    const documentId = createResponse.json().document.id as string;
+
+    const submitResponse = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/ai/requests`,
+      headers: ownerHeaders,
+      payload: {
+        action: "summarize",
+        prompt: null,
+        context: {
+          scope: "selection",
+          selectedText: "Initial AI text.",
+          surroundingText: "Original context."
+        },
+        maskPersonalData: false
+      }
+    });
+    const requestId = submitResponse.json().requestId as string;
+
+    app.aiService.markRequestStaleForTest(requestId, {
+      sourceText: "Revised document text after edits."
+    });
+
+    const statusResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/ai/requests/${requestId}`,
+      headers: ownerHeaders
+    });
+
+    expect(statusResponse.statusCode).toBe(200);
+    expect(statusResponse.json()).toMatchObject({
+      requestId,
+      status: "stale",
+      proposal: {
+        isStale: true
+      }
+    });
+
+    const acceptResponse = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/ai/proposals/accept`,
+      headers: ownerHeaders,
+      payload: {
+        proposalId: statusResponse.json().proposal.proposalId
+      }
+    });
+
+    expect(acceptResponse.statusCode).toBe(409);
+    expect(acceptResponse.json()).toEqual({
+      error: {
+        code: "AI_PROPOSAL_STALE",
+        message: "AI proposal is stale and cannot be applied.",
+        statusCode: 409
+      }
+    });
+
+    await app.close();
+  });
+
   it("validates AI request payload shape and returns not found for missing requests", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {

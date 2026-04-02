@@ -137,13 +137,13 @@ AI-003,Add allowed action enum validation,AI,Done,Medium,,AI-002,AI actions are 
 AI-004,Add context-scope validation,AI,Done,Medium,,AI-002,Context scope values are validated,none,/apps/api/src/modules/ai
 AI-005,Add optional masking flag handling,AI,Done,Medium,,AI-002,Masking option is stored and passed through correctly,spec,/apps/api/src/modules/ai
 AI-006,Add proposal result model,AI,Done,High,,AI-001,Proposal result model exists for worker and API use,none,"/apps/api/src/modules/ai,/packages/shared-types"
-AI-007,Add stale proposal detection helper,AI,Backlog,High,,AI-006,Staleness helper compares revision and text hash correctly,spec + change note,/apps/api/src/modules/ai
+AI-007,Add stale proposal detection helper,AI,Done,High,,AI-006,Staleness helper compares revision and text hash correctly,spec + change note,/apps/api/src/modules/ai
 AI-008,Add proposal accept endpoint,AI,Done,Medium,,AI-007,Accept endpoint applies AI proposal through normal change flow,api doc,/apps/api/src/modules/ai
 AI-009,Add proposal reject endpoint,AI,Done,Medium,,AI-006,Reject endpoint updates request outcome cleanly,api doc,/apps/api/src/modules/ai
 AI-010,Add AI request status endpoint,AI,Done,Medium,,AI-002,Status endpoint exposes lifecycle state,api doc,/apps/api/src/modules/ai
 AI-011,Add AI panel UI state model,AI,Done,Medium,,"WEB-012,AI-010",AI UI can represent request and proposal states,none,/apps/web
 AI-012,Add mock provider client,AI,Done,High,,"ADR-005,AI-002",Mock provider supports local testing without real provider calls,none,"/apps/worker,/apps/api"
-AI-013,Add AI integration tests with fixtures,AI,Backlog,Medium,,"TEST-003,AI-012",AI integration tests run with mock provider and fixtures,none,/apps/api/tests/integration
+AI-013,Add AI integration tests with fixtures,AI,Done,Medium,,"TEST-003,AI-012",AI integration tests run with mock provider and fixtures,none,/apps/api/tests/integration
 WORK-001,Initialize worker runtime,Worker,Done,High,,ADR-005,apps/worker boots with chosen runtime,task doc + change note,/apps/worker
 WORK-002,Add queue connection config,Worker,Done,High,,WORK-001,Worker connects to configured queue backend,none,/apps/worker
 WORK-003,Add AI job processor stub,Worker,Done,High,,"WORK-002,AI-002",AI job processor consumes requests and writes status updates,none,/apps/worker/src/ai-jobs
@@ -157,7 +157,7 @@ EXP-003,Add plain-text renderer,Export,Done,High,,EXP-001,Plain-text export work
 EXP-004,Add PDF renderer stub,Export,Done,Medium,,EXP-001,PDF export stub exists behind job interface,none,/apps/worker/src/export-jobs
 EXP-005,Add DOCX renderer stub,Export,Done,Medium,,EXP-001,DOCX export stub exists behind job interface,none,/apps/worker/src/export-jobs
 EXP-006,Add secure download URL flow,Export,Done,Medium,,EXP-002,Completed exports return secure download references,spec,"/apps/api,/apps/worker"
-EXP-007,Add export UI integration,Export,Backlog,Medium,,"WEB-013,EXP-002",UI can request export and show status,none,/apps/web
+EXP-007,Add export UI integration,Export,Done,Medium,,"WEB-013,EXP-002",UI can request export and show status,none,/apps/web
 INFRA-001,Add Docker Compose for Postgres and Redis,Infrastructure,Done,High,,DB-001,Compose file starts required local services,change note,/infrastructure/docker
 INFRA-002,Add local object storage service to Compose,Infrastructure,Done,Medium,,INFRA-001,Compose includes local object storage,none,/infrastructure/docker
 INFRA-003,Add API service container,Infrastructure,Done,Medium,,API-001,Docker setup can run API service,none,/infrastructure/docker

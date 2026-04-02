@@ -108,3 +108,4 @@ Response:
 - the current implementation uses a local mock provider path for development
 - request state is stored in memory
 - accepted proposals do not yet mutate document content
+- stale proposals are rejected with `AI_PROPOSAL_STALE` when their stored revision fingerprint no longer matches the latest known document fingerprint

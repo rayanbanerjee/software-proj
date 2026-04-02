@@ -1,4 +1,6 @@
 import type {
+  AiProposal,
+  SubmitAiRequestRequest,
   DocumentMetadata,
   DocumentPermissionSummary,
   DocumentSummary,
@@ -137,6 +139,40 @@ export function makeUserFixture(
     id: "user_123",
     imageUrl: "https://example.com/avatar.png",
     name: "User Example",
+    ...overrides
+  };
+}
+
+export function makeAiRequestFixture(
+  overrides: Partial<SubmitAiRequestRequest> = {}
+): SubmitAiRequestRequest {
+  return {
+    documentId: "doc_demo",
+    action: "summarize",
+    prompt: "Keep it concise",
+    context: {
+      scope: "selection",
+      selectedText: "This fixture document needs a concise summary.",
+      surroundingText: "Additional surrounding fixture text."
+    },
+    maskPersonalData: false,
+    ...overrides
+  };
+}
+
+export function makeAiProposalFixture(
+  overrides: Partial<AiProposal> = {}
+): AiProposal {
+  return {
+    proposalId: "proposal_fixture",
+    requestId: "air_fixture",
+    documentId: "doc_demo",
+    action: "summarize",
+    originalText: "This fixture document needs a concise summary.",
+    proposedText: "[SUMMARY] This fixture document needs a concise summary.",
+    summary: "Fixture proposal summary.",
+    createdAt: "2026-04-02T18:00:00.000Z",
+    isStale: false,
     ...overrides
   };
 }

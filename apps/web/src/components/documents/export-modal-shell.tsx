@@ -1,15 +1,25 @@
-import { exportOptions } from "../../lib/app-shell";
+import type { ExportPanelState } from "../../lib/export-panel-state";
 
-export function ExportModalShell() {
+interface ExportModalShellProps {
+  panelState: ExportPanelState;
+}
+
+export function ExportModalShell({ panelState }: ExportModalShellProps) {
   return (
     <section className="overlay-shell">
       <div className="overlay-shell-header">
         <span className="section-chip">WEB-013</span>
         <h3>Export modal shell</h3>
       </div>
-      <p>Queued export targets are represented here as shell options until worker-backed jobs land.</p>
+      <p>{panelState.summary}</p>
+      {panelState.job ? (
+        <div className="overlay-caption">
+          <strong>Latest job:</strong> {panelState.job.format} · {panelState.job.status}
+          {panelState.job.downloadUrl ? ` · ${panelState.job.downloadUrl}` : ""}
+        </div>
+      ) : null}
       <div className="overlay-list">
-        {exportOptions.map((item) => (
+        {panelState.entries.map((item) => (
           <article className="overlay-option-card" key={item.format}>
             <strong>{item.format}</strong>
             <p>{item.summary}</p>

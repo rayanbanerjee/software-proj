@@ -13,15 +13,22 @@ import { AppError } from "../../common/errors.js";
 import type { DocumentActor, DocumentsService } from "../documents/service.js";
 import type { MockProviderClient } from "./mock-provider-client.js";
 import type { SubmitAiRequestInput } from "./schema.js";
+import {
+  buildProposalRevisionFingerprint,
+  isProposalStale,
+  type ProposalRevisionFingerprint
+} from "./staleness.js";
 
 type AiRequestRecord = {
   action: AiAction;
   completedAt: string | null;
   context: SubmitAiRequestInput["context"];
+  currentFingerprint: ProposalRevisionFingerprint;
   documentId: string;
   errorMessage: string | null;
   proposal: AiProposal | null;
   requestId: string;
+  sourceFingerprint: ProposalRevisionFingerprint;
   startedAt: string | null;
   status: GetAiRequestStatusResponse["status"];
 };
@@ -54,6 +61,20 @@ export class AiService {
     this.documentsService.getDocumentMetadata(documentId, actor);
   }
 
+  private refreshStaleness(request: AiRequestRecord) {
+    if (!request.proposal) {
+      return;
+    }
+
+    const stale = isProposalStale(request.sourceFingerprint, request.currentFingerprint);
+    request.proposal.isStale = stale;
+
+    if (stale) {
+      request.status = "stale";
+      request.completedAt ??= new Date().toISOString();
+    }
+  }
+
   async submitRequest(
     documentId: string,
     input: SubmitAiRequestInput,
@@ -64,6 +85,11 @@ export class AiService {
     const queuedAt = new Date().toISOString();
     const startedAt = queuedAt;
     const sourceText = getSourceText(input);
+    const sourceFingerprint = buildProposalRevisionFingerprint({
+      documentId,
+      scope: input.context.scope,
+      sourceText
+    });
     const providerResult = await this.mockProvider.generate({
       action: input.action,
       prompt: input.prompt,
@@ -85,10 +111,12 @@ export class AiService {
       action: input.action,
       completedAt: queuedAt,
       context: input.context,
+      currentFingerprint: sourceFingerprint,
       documentId,
       errorMessage: null,
       proposal,
       requestId,
+      sourceFingerprint,
       startedAt,
       status: "succeeded"
     });
@@ -111,6 +139,8 @@ export class AiService {
     if (!request || request.documentId !== documentId) {
       throw new AppError("AI_REQUEST_NOT_FOUND", 404, "AI request was not found for this document.");
     }
+
+    this.refreshStaleness(request);
 
     return {
       requestId: request.requestId,
@@ -135,6 +165,8 @@ export class AiService {
     if (!request || !request.proposal) {
       throw new AppError("AI_PROPOSAL_NOT_FOUND", 404, "AI proposal was not found for this document.");
     }
+
+    this.refreshStaleness(request);
 
     if (request.proposal.isStale) {
       throw new AppError("AI_PROPOSAL_STALE", 409, "AI proposal is stale and cannot be applied.");
@@ -172,5 +204,26 @@ export class AiService {
       proposalId,
       rejectedAt
     };
+  }
+
+  markRequestStaleForTest(
+    requestId: string,
+    nextState: {
+      scope?: "document" | "selection";
+      sourceText: string;
+    }
+  ) {
+    const request = this.requests.get(requestId);
+
+    if (!request) {
+      throw new AppError("AI_REQUEST_NOT_FOUND", 404, "AI request was not found for this document.");
+    }
+
+    request.currentFingerprint = buildProposalRevisionFingerprint({
+      documentId: request.documentId,
+      scope: nextState.scope ?? request.context.scope,
+      sourceText: nextState.sourceText
+    });
+    this.refreshStaleness(request);
   }
 }

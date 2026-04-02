@@ -1,5 +1,6 @@
 import type { DocumentOverlay, DocumentRecord, DocumentScreenState } from "../../lib/app-shell";
 import { createAiPanelState } from "../../lib/ai-panel-state";
+import type { ExportPanelState } from "../../lib/export-panel-state";
 import type { VersionHistoryEntry } from "../../lib/version-history";
 import { BaseEditor } from "../../editor/base-editor";
 import { activeOverlayCopy } from "../../lib/app-shell";
@@ -14,6 +15,7 @@ import { VersionHistoryShell } from "./version-history-shell";
 
 interface DocumentWorkspaceShellProps {
   document: DocumentRecord;
+  exportPanelState: ExportPanelState;
   offline: boolean;
   overlay: DocumentOverlay;
   versionHistoryEntries: readonly VersionHistoryEntry[];
@@ -22,6 +24,7 @@ interface DocumentWorkspaceShellProps {
 
 export function DocumentWorkspaceShell({
   document,
+  exportPanelState,
   offline,
   overlay,
   versionHistoryEntries,
@@ -68,7 +71,7 @@ export function DocumentWorkspaceShell({
               </div>
               {overlay === "sharing" ? <SharingModalShell /> : null}
               {overlay === "ai" ? <AiActionMenuShell panelState={aiPanelState} /> : null}
-              {overlay === "export" ? <ExportModalShell /> : null}
+              {overlay === "export" ? <ExportModalShell panelState={exportPanelState} /> : null}
             </div>
           ) : null}
         </div>

@@ -3,10 +3,12 @@ import { headers } from "next/headers";
 import { DocumentWorkspaceShell } from "../../../../components/documents/document-workspace-shell";
 import {
   getDocumentRecord,
+  parseExportJobId,
   parseDocumentOverlay,
   parseDocumentScreenState,
   parseOfflineFlag
 } from "../../../../lib/app-shell";
+import { getExportPanelState } from "../../../../lib/export-panel-state";
 import { getVersionHistoryEntries } from "../../../../lib/version-history";
 
 type DocumentPageProps = {
@@ -22,11 +24,16 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
   const versionHistoryEntries = await getVersionHistoryEntries(documentId, {
     cookieHeader: requestHeaders.get("cookie")
   });
+  const exportPanelState = await getExportPanelState(documentId, {
+    cookieHeader: requestHeaders.get("cookie"),
+    exportJobId: parseExportJobId(currentSearchParams.exportJobId)
+  });
 
   return (
     <div className="workspace-page-stack">
       <DocumentWorkspaceShell
         document={document}
+        exportPanelState={exportPanelState}
         offline={parseOfflineFlag(currentSearchParams.offline)}
         overlay={parseDocumentOverlay(currentSearchParams.overlay)}
         versionHistoryEntries={versionHistoryEntries}
