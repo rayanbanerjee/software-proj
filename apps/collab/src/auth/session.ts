@@ -17,6 +17,7 @@ interface SessionTokenClaims {
 }
 
 export interface CollabSessionContext {
+  reconnectSessionId?: string | null;
   presenceSessionId?: string;
   session: {
     expiresAt: string;

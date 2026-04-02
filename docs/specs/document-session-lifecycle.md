@@ -101,8 +101,8 @@ Define the expected lifecycle for opening a document, joining a collaboration se
 ### 7. Reconnect
 
 1. The client may reconnect using a fresh WebSocket plus the current signed session token.
-2. The client may provide `lastKnownSessionId` so the server can mark the new session as a resumption attempt.
-3. If resumption succeeds, `resumedFromSessionId` is set in the returned session state.
+2. The client may provide `lastKnownSessionId` to both the API bootstrap and the collab handshake so the server can mark the new session as a resumption attempt.
+3. If resumption succeeds, the collab service replaces the prior disconnected session id with the new live session and `resumedFromSessionId` is set in the returned session state.
 4. If resumption is not possible, the server creates a new session and the client performs a normal state resync.
 
 ## Failure Cases

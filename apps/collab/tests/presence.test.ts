@@ -61,6 +61,42 @@ describe("presence manager", () => {
     expect(presence.getSnapshot("doc-1")).toEqual([]);
   });
 
+  it("allows a reconnecting session to replace its previous disconnected session id", () => {
+    const presence = new PresenceManager();
+
+    presence.upsertConnection("doc-1", "socket-1", {
+      displayName: "Owner Demo",
+      user: {
+        id: "google:user_owner",
+        name: "Owner Demo"
+      }
+    });
+    presence.removeConnection("doc-1", "socket-1");
+
+    const resumed = presence.resumeConnection(
+      "doc-1",
+      "socket-2",
+      "socket-1",
+      {
+        displayName: "Owner Demo",
+        user: {
+          id: "google:user_owner",
+          name: "Owner Demo"
+        }
+      }
+    );
+
+    expect(resumed.resumedFromSessionId).toBe("socket-1");
+    expect(presence.getSnapshot("doc-1")).toEqual([
+      expect.objectContaining({
+        sessionId: "socket-2",
+        userId: "google:user_owner",
+        connectionStatus: "active",
+        isPresent: true
+      })
+    ]);
+  });
+
   it("prunes stale sessions after the timeout window", () => {
     const presence = new PresenceManager();
 

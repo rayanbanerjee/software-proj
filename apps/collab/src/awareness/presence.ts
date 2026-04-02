@@ -7,6 +7,11 @@ type SessionIdentity = {
   user: Pick<UserProfile, "id" | "name">;
 };
 
+type ResumeResult = {
+  current: PresenceEntry;
+  resumedFromSessionId: string | null;
+};
+
 export const PRESENCE_SWEEP_INTERVAL_MS = 5_000;
 export const PRESENCE_STALE_TIMEOUT_MS = 45_000;
 
@@ -41,6 +46,34 @@ export class PresenceManager {
     sessions.set(sessionId, next);
 
     return next;
+  }
+
+  resumeConnection(
+    documentId: string,
+    nextSessionId: string,
+    previousSessionId: string | null | undefined,
+    identity: SessionIdentity
+  ): ResumeResult {
+    const sessions = this.getDocumentSessions(documentId);
+    const requestedPreviousSessionId = previousSessionId?.trim() || null;
+
+    if (requestedPreviousSessionId) {
+      const previous = sessions.get(requestedPreviousSessionId);
+
+      if (previous && previous.userId === identity.user.id) {
+        sessions.delete(requestedPreviousSessionId);
+
+        return {
+          current: this.upsertConnection(documentId, nextSessionId, identity),
+          resumedFromSessionId: requestedPreviousSessionId
+        };
+      }
+    }
+
+    return {
+      current: this.upsertConnection(documentId, nextSessionId, identity),
+      resumedFromSessionId: null
+    };
   }
 
   markAwarenessActive(documentId: string, sessionId: string): PresenceEntry | null {
@@ -78,18 +111,16 @@ export class PresenceManager {
       return null;
     }
 
-    sessions.delete(sessionId);
-
-    if (sessions.size === 0) {
-      this.documents.delete(documentId);
-    }
-
-    return {
+    const updated: PresenceEntry = {
       ...existing,
       isPresent: false,
       lastSeenAt: new Date().toISOString(),
       connectionStatus: "disconnected"
     };
+
+    sessions.set(sessionId, updated);
+
+    return updated;
   }
 
   pruneStaleConnections(
@@ -115,12 +146,14 @@ export class PresenceManager {
         }
 
         sessions.delete(sessionId);
-        removed.push({
+        const staleEntry: PresenceEntry = {
           ...entry,
           isPresent: false,
           lastSeenAt: new Date(now).toISOString(),
           connectionStatus: "stale"
-        });
+        };
+
+        removed.push(staleEntry);
       }
 
       if (sessions.size === 0) {
@@ -145,13 +178,15 @@ export class PresenceManager {
       return [];
     }
 
-    return Array.from(sessions.values()).sort((left, right) => {
+    return Array.from(sessions.values())
+      .filter((entry) => entry.isPresent && entry.connectionStatus === "active")
+      .sort((left, right) => {
       if (left.userId === right.userId) {
         return left.sessionId.localeCompare(right.sessionId);
       }
 
       return left.userId.localeCompare(right.userId);
-    });
+      });
   }
 
   buildSnapshotEvent(documentId: string): PresenceSnapshotEvent {

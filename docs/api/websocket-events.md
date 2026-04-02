@@ -13,10 +13,14 @@ Required query parameters:
 - `documentName`: the document/session identifier the client wants to join
 - `token`: the API-issued signed session token from the auth flow
 
+Optional query parameters:
+
+- `lastKnownSessionId`: the prior collab session id the client is attempting to resume
+
 Example:
 
 ```text
-ws://localhost:4001?documentName=project-kickoff&token=<signed-session-token>
+ws://localhost:4001?documentName=project-kickoff&token=<signed-session-token>&lastKnownSessionId=<prior-session-id>
 ```
 
 Authentication behavior:
@@ -69,11 +73,12 @@ Behavior:
 - awareness updates refresh `lastSeenAt` and rebroadcast the current snapshot
 - disconnect removes the collaborator from the active snapshot
 - silent or abandoned sessions are pruned after the collab timeout window and rebroadcast as removed
+- a reconnecting client may replace its prior disconnected session when `lastKnownSessionId` matches a recent session for the same user
 
 ## Current Hooks
 
 - `onConnect`: verifies the `token` query parameter and attaches the authenticated user to collab context
-- `connected`: logs successful document connections
+- `connected`: logs successful document connections and reconnect resumptions
 - `onAwarenessUpdate`: refreshes presence state and rebroadcasts the stateless snapshot
 - `onDisconnect`: logs connection shutdown
 - periodic sweep: removes stale presence entries that have not refreshed within the timeout window

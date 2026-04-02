@@ -85,6 +85,7 @@ export function createCollabServer(
 
         data.context = {
           ...(data.context as Record<string, unknown> | undefined),
+          reconnectSessionId: data.requestParameters.get("lastKnownSessionId"),
           presenceSessionId: data.socketId,
           session: sessionContext.session,
           user: sessionContext.user
@@ -106,11 +107,25 @@ export function createCollabServer(
       const document = data.connection.document;
 
       if (context.user && context.presenceSessionId) {
-        presence.upsertConnection(document.name, context.presenceSessionId, {
+        const resumed = presence.resumeConnection(
+          document.name,
+          context.presenceSessionId,
+          context.reconnectSessionId,
+          {
           displayName: context.user.name,
           user: context.user
-        });
+          }
+        );
         document.broadcastStateless(JSON.stringify(presence.buildSnapshotEvent(document.name)));
+
+        if (resumed.resumedFromSessionId) {
+          logger.info("collab.connection.resumed", {
+            documentName: document.name,
+            resumedFromSessionId: resumed.resumedFromSessionId,
+            socketId: data.socketId,
+            userId: context.user.id
+          });
+        }
       }
 
       logger.info("collab.connection.opened", {
