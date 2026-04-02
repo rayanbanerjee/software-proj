@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { webAppModules } from "../apps/web/src/lib/app-shell";
+import { documentListSections, workspaceNavigation } from "../apps/web/src/lib/app-shell";
 import { editorNodeKinds } from "../packages/editor-schema/src/index";
 import { aiActions } from "../packages/prompt-templates/src/index";
 import { fixtureDocument } from "../packages/test-fixtures/src/index";
 
 describe("repository foundation", () => {
-  it("exposes the planned web app modules", () => {
-    expect(webAppModules).toContain("ai");
+  it("exposes the planned web app workspace routes", () => {
+    expect(workspaceNavigation.map((item) => item.href)).toEqual([
+      "/documents",
+      "/documents/project-kickoff",
+      "/auth"
+    ]);
+    expect(documentListSections.flatMap((section) => section.documents).map((document) => document.id)).toContain(
+      "project-kickoff"
+    );
   });
 
   it("keeps the minimal editor schema available", () => {
