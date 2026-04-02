@@ -7,7 +7,7 @@
     "dev": "next dev",
     "lint": "eslint src tests next-env.d.ts next.config.ts --max-warnings=0",
     "start": "next start",
-    "test": "vitest run tests/app-shell.test.ts",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
