@@ -7,6 +7,9 @@ type SessionIdentity = {
   user: Pick<UserProfile, "id" | "name">;
 };
 
+export const PRESENCE_SWEEP_INTERVAL_MS = 5_000;
+export const PRESENCE_STALE_TIMEOUT_MS = 45_000;
+
 export class PresenceManager {
   private readonly documents = new Map<string, Map<string, PresenceEntry>>();
 
@@ -87,6 +90,52 @@ export class PresenceManager {
       lastSeenAt: new Date().toISOString(),
       connectionStatus: "disconnected"
     };
+  }
+
+  pruneStaleConnections(
+    now: number,
+    staleAfterMs: number
+  ): Array<{
+    documentId: string;
+    removed: PresenceEntry[];
+  }> {
+    const results: Array<{
+      documentId: string;
+      removed: PresenceEntry[];
+    }> = [];
+
+    for (const [documentId, sessions] of this.documents.entries()) {
+      const removed: PresenceEntry[] = [];
+
+      for (const [sessionId, entry] of sessions.entries()) {
+        const lastSeen = Date.parse(entry.lastSeenAt);
+
+        if (Number.isNaN(lastSeen) || now - lastSeen < staleAfterMs) {
+          continue;
+        }
+
+        sessions.delete(sessionId);
+        removed.push({
+          ...entry,
+          isPresent: false,
+          lastSeenAt: new Date(now).toISOString(),
+          connectionStatus: "stale"
+        });
+      }
+
+      if (sessions.size === 0) {
+        this.documents.delete(documentId);
+      }
+
+      if (removed.length > 0) {
+        results.push({
+          documentId,
+          removed
+        });
+      }
+    }
+
+    return results;
   }
 
   getSnapshot(documentId: string): CollaboratorPresenceSummary[] {

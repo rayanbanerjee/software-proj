@@ -111,7 +111,7 @@ COLLAB-001,Initialize real collaboration server,Collaboration,Done,High,,ADR-004
 COLLAB-002,Add session token verification,Collaboration,Done,High,,"COLLAB-001,AUTH-005",Collab server verifies session token before join,none,/apps/collab
 COLLAB-003,Add document join flow,Collaboration,Done,High,,"COLLAB-002,PKG-002",Document join flow is implemented and documented,spec + api doc,/apps/collab
 COLLAB-004,Add presence awareness channel,Collaboration,Done,High,,COLLAB-003,Presence awareness events broadcast correctly,none,/apps/collab/src/awareness
-COLLAB-005,Add heartbeat timeout cleanup,Collaboration,Backlog,Medium,,COLLAB-004,Stale sessions are cleaned up on timeout,none,/apps/collab/src/awareness
+COLLAB-005,Add heartbeat timeout cleanup,Collaboration,Done,Medium,,COLLAB-004,Stale sessions are cleaned up on timeout,none,/apps/collab/src/awareness
 COLLAB-006,Add writer-slot allocation logic,Collaboration,Backlog,High,,COLLAB-003,Writer slots are allocated deterministically,none,/apps/collab/src/writer-slots
 COLLAB-007,Add writer-slot queue logic,Collaboration,Backlog,Medium,,COLLAB-006,Queued editors are promoted correctly,none,/apps/collab/src/writer-slots
 COLLAB-008,Add permission update push event,Collaboration,Backlog,High,,"SHARE-003,COLLAB-003",Permission updates propagate to active sessions,spec + api doc,/apps/collab/src/permissions

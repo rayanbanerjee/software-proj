@@ -60,4 +60,34 @@ describe("presence manager", () => {
     );
     expect(presence.getSnapshot("doc-1")).toEqual([]);
   });
+
+  it("prunes stale sessions after the timeout window", () => {
+    const presence = new PresenceManager();
+
+    presence.upsertConnection("doc-1", "socket-1", {
+      displayName: "Owner Demo",
+      user: {
+        id: "google:user_owner",
+        name: "Owner Demo"
+      }
+    });
+
+    const [snapshot] = presence.getSnapshot("doc-1");
+    const staleAt = Date.parse(snapshot.lastSeenAt) + 60_000;
+    const pruned = presence.pruneStaleConnections(staleAt, 45_000);
+
+    expect(pruned).toEqual([
+      {
+        documentId: "doc-1",
+        removed: [
+          expect.objectContaining({
+            connectionStatus: "stale",
+            isPresent: false,
+            sessionId: "socket-1"
+          })
+        ]
+      }
+    ]);
+    expect(presence.getSnapshot("doc-1")).toEqual([]);
+  });
 });

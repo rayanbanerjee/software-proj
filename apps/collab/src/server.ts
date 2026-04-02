@@ -1,7 +1,11 @@
 import { Server } from "@hocuspocus/server";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { PresenceManager } from "./awareness/presence.js";
+import {
+  PresenceManager,
+  PRESENCE_STALE_TIMEOUT_MS,
+  PRESENCE_SWEEP_INTERVAL_MS
+} from "./awareness/presence.js";
 import { requireCollabSession, type CollabSessionContext } from "./auth/session.js";
 import { getCollabEnv, type CollabEnv } from "./config/env.js";
 
@@ -66,8 +70,7 @@ export function createCollabServer(
   logger: CollabLogger = createCollabLogger()
 ) {
   const presence = new PresenceManager();
-
-  return new Server({
+  const server = new Server({
     address: env.host,
     debounce: 2000,
     maxDebounce: 10000,
@@ -160,6 +163,33 @@ export function createCollabServer(
       ) {
         throw null;
       }
+    },
+    async onDestroy() {
+      clearInterval(presenceSweep);
     }
   });
+  const presenceSweep = setInterval(() => {
+    const prunedDocuments = presence.pruneStaleConnections(
+      Date.now(),
+      PRESENCE_STALE_TIMEOUT_MS
+    );
+
+    for (const { documentId, removed } of prunedDocuments) {
+      const document = server.hocuspocus.documents.get(documentId);
+
+      if (!document) {
+        continue;
+      }
+
+      document.broadcastStateless(JSON.stringify(presence.buildSnapshotEvent(documentId)));
+      logger.info("collab.presence.pruned", {
+        documentId,
+        removedCount: removed.length
+      });
+    }
+  }, PRESENCE_SWEEP_INTERVAL_MS);
+
+  presenceSweep.unref();
+
+  return server;
 }

@@ -95,7 +95,8 @@ Define the expected lifecycle for opening a document, joining a collaboration se
 
 1. A connection may end explicitly, through network loss, or through token/session invalidation.
 2. The collab service marks the session as disconnected or stale.
-3. The disconnected collaborator should no longer appear as actively present once the server’s timeout or cleanup path runs.
+3. A periodic cleanup sweep removes stale sessions whose `lastSeenAt` no longer refreshes within the timeout window.
+4. The disconnected collaborator should no longer appear as actively present once the server’s timeout or cleanup path runs.
 
 ### 7. Reconnect
 

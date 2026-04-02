@@ -68,6 +68,7 @@ Behavior:
 - a fresh snapshot is broadcast when a collaborator connection is established
 - awareness updates refresh `lastSeenAt` and rebroadcast the current snapshot
 - disconnect removes the collaborator from the active snapshot
+- silent or abandoned sessions are pruned after the collab timeout window and rebroadcast as removed
 
 ## Current Hooks
 
@@ -75,6 +76,7 @@ Behavior:
 - `connected`: logs successful document connections
 - `onAwarenessUpdate`: refreshes presence state and rebroadcasts the stateless snapshot
 - `onDisconnect`: logs connection shutdown
+- periodic sweep: removes stale presence entries that have not refreshed within the timeout window
 
 ## Operational Endpoints
 
