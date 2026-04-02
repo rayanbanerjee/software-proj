@@ -1,5 +1,7 @@
 import type { Job } from "bullmq";
 
+import { renderDocxStub } from "../renderers/docx";
+import { renderPdfStub } from "../renderers/pdf";
 import { renderPlainText } from "../renderers/plain-text";
 import type {
   ExportJobPayload,
@@ -15,10 +17,27 @@ export async function processExportJob(
   job: Job<ExportJobPayload>,
   writeStatus: StatusWriter<ExportJobPayload, ExportJobResult> = noopStatusWriter
 ): Promise<ExportJobResult> {
+  const content = job.data.content ?? "";
+  const title = job.data.title;
+
   if (job.data.format === "txt") {
     renderPlainText({
-      title: job.data.title,
-      content: job.data.content ?? ""
+      title,
+      content
+    });
+  }
+
+  if (job.data.format === "pdf") {
+    renderPdfStub({
+      title,
+      content
+    });
+  }
+
+  if (job.data.format === "docx") {
+    renderDocxStub({
+      title,
+      content
     });
   }
 
