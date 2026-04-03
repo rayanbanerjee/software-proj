@@ -191,13 +191,6 @@ Docs pipeline:
 node scripts/check-docs.mjs
 ```
 
-## AI1220 document build
-
-Assignment sources:
-
-- [AI1220_system_design_document.md](/Users/rayan.banerjee/courses/software%20project/AI1220_system_design_document.md)
-- [AI1220_system_design_document.tex](/Users/rayan.banerjee/courses/software%20project/AI1220_system_design_document.tex)
-
 Regenerate Mermaid diagram images:
 
 ```bash
