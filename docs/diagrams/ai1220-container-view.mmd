@@ -1,33 +1,17 @@
 flowchart LR
     user["User Browser"]
-
-    subgraph system["Collaborative Document Editor"]
-        web["Web Client: Next.js and React"]
-        api["Backend API: Fastify and TypeScript"]
-        collab["Realtime Collaboration Service: Hocuspocus and Yjs"]
-        worker["Background Worker: BullMQ"]
-        pg[("PostgreSQL")]
-        redis[("Redis")]
-        minio[("Object Storage: MinIO")]
-        disk[("Local Yjs Snapshot Store")]
-    end
-
-    idp["Identity Provider: Google"]
-    llm["LLM Provider: OpenRouter"]
+    web["Web Client\nNext.js + React"]
+    api["Backend API\nFastify + TypeScript"]
+    collab["Realtime Collaboration Service\nHocuspocus + Yjs"]
+    idp["Google Identity Services"]
+    llm["OpenRouter"]
+    disk[("Local Yjs Snapshot Store")]
 
     user -->|"HTTPS"| web
     web -->|"REST / JSON"| api
     web -->|"WebSocket / Yjs sync"| collab
     web -->|"browser sign-in"| idp
-
     api -->|"verify token"| idp
     api -->|"AI requests"| llm
-    api -->|"planned durable metadata"| pg
-    api -->|"queue jobs"| redis
-    api -->|"export artifacts"| minio
     api -->|"rollback + permission events"| collab
-
     collab -->|"persist snapshots"| disk
-    worker -->|"consume jobs"| redis
-    worker -->|"planned job metadata"| pg
-    worker -->|"artifact IO"| minio

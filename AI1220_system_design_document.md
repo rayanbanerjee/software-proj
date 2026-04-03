@@ -56,6 +56,10 @@ Mermaid source: [ai1220-container-view.mmd](/Users/rayan.banerjee/courses/softwa
 
 ![Container Diagram](docs/diagrams/generated/ai1220-container-view.png)
 
+Async and storage support path: [ai1220-container-async-view.mmd](/Users/rayan.banerjee/courses/software%20project/docs/diagrams/ai1220-container-async-view.mmd)
+
+![Async and Storage Container Diagram](docs/diagrams/generated/ai1220-container-async-view.png)
+
 #### Container responsibilities
 
 | Container | Responsibility | Technology choice |

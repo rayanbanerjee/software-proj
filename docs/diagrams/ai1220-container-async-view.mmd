@@ -1,0 +1,13 @@
+flowchart LR
+    api["Backend API\nFastify + TypeScript"]
+    worker["Background Worker\nBullMQ"]
+    redis[("Redis")]
+    pg[("PostgreSQL")]
+    minio[("Object Storage\nMinIO / S3-compatible")]
+
+    api -->|"enqueue jobs"| worker
+    api -->|"planned durable metadata"| pg
+    api -->|"export artifacts"| minio
+    worker -->|"consume jobs"| redis
+    worker -->|"planned job metadata"| pg
+    worker -->|"artifact IO"| minio
