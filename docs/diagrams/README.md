@@ -1,14 +1,16 @@
 # Diagrams
 
-Add container, sequence, and deployment diagrams derived from the system design document.
-
-Recommended conventions:
-
-- one file per diagram topic
-- include the source format next to rendered exports when possible
-- link each diagram from the relevant ADR or spec
+This folder contains the current Mermaid source files used by the AI1220 system design document and their rendered outputs.
 
 Current source files:
 
-- `docs/diagrams/container-diagram.mmd`: initial service/container view based on the accepted monorepo, API, web, collaboration, worker, and database ADRs
-- `docs/diagrams/open-document-and-join-session.mmd`: sequence view for opening a document, verifying access, and establishing the collaboration session
+- `docs/diagrams/ai1220-system-context.mmd`
+- `docs/diagrams/ai1220-container-view.mmd`
+- `docs/diagrams/ai1220-container-async-view.mmd`
+- `docs/diagrams/ai1220-ai-component-view.mmd`
+- `docs/diagrams/ai1220-open-shared-document-sequence.mmd`
+- `docs/diagrams/ai1220-entity-relationship.mmd`
+
+Rendered images are written to `docs/diagrams/generated/` by:
+
+- `node scripts/render-ai1220-diagrams.mjs`
