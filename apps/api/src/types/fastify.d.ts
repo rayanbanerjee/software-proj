@@ -22,6 +22,7 @@ declare module "fastify" {
     documentsService: DocumentsService;
     exportsService: ExportsService;
     googleTokenValidator: GoogleTokenValidator;
+    googleTokenValidatorOverride?: GoogleTokenValidator;
     sharingService: SharingService;
     versionsService: VersionsService;
   }

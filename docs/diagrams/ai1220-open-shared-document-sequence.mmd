@@ -1,0 +1,20 @@
+sequenceDiagram
+    autonumber
+    actor User
+    participant Web as Web Client
+    participant API as Backend API
+    participant Collab as Realtime Collab Service
+    participant Store as Yjs Snapshot Store
+
+    User->>Web: Open shared document
+    Web->>API: GET /v1/documents/:documentId
+    API-->>Web: Metadata + permissions
+    Web->>API: POST /v1/documents/:documentId/sessions
+    API-->>Web: websocketUrl + token + session metadata
+    Web->>Collab: Connect with token-authenticated session
+    Collab->>Store: Load Yjs snapshot
+    Store-->>Collab: Existing state or empty state
+    Collab-->>Web: Presence + writer slot snapshot
+    Collab-->>Web: Realtime document state
+    Web->>Collab: Local edits / awareness updates
+    Collab-->>Web: Remote edits / presence updates

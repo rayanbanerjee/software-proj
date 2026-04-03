@@ -1,3 +1,4 @@
+import { OAuth2Client } from "google-auth-library";
 import { z } from "zod";
 
 const googleTokenClaimsSchema = z.object({
@@ -17,9 +18,40 @@ export interface GoogleTokenValidator {
 
 interface GoogleTokenValidatorConfig {
   googleClientId: string;
+  verifyIdToken?: VerifyGoogleIdToken;
 }
 
-class StubGoogleTokenValidator implements GoogleTokenValidator {
+type VerifyGoogleIdToken = (
+  idToken: string,
+  googleClientId: string
+) => Promise<GoogleTokenClaims>;
+
+async function verifyGoogleIdTokenWithGoogleAuthLibrary(
+  idToken: string,
+  googleClientId: string
+): Promise<GoogleTokenClaims> {
+  const client = new OAuth2Client();
+  const ticket = await client.verifyIdToken({
+    idToken,
+    audience: googleClientId
+  });
+  const payload = ticket.getPayload();
+
+  if (!payload) {
+    throw new Error("Google token payload is missing.");
+  }
+
+  return googleTokenClaimsSchema.parse({
+    audience: payload.aud,
+    email: payload.email,
+    emailVerified: payload.email_verified,
+    name: payload.name,
+    picture: payload.picture,
+    subject: payload.sub
+  });
+}
+
+class GoogleAuthLibraryTokenValidator implements GoogleTokenValidator {
   constructor(private readonly config: GoogleTokenValidatorConfig) {}
 
   async validateIdToken(idToken: string): Promise<GoogleTokenClaims> {
@@ -27,24 +59,13 @@ class StubGoogleTokenValidator implements GoogleTokenValidator {
       throw new Error("Google ID token is required.");
     }
 
-    if (idToken !== "stub-valid-token") {
-      throw new Error("Google token validation is not implemented. Use stub-valid-token in tests only.");
-    }
-
-    return googleTokenClaimsSchema.parse({
-      audience: this.config.googleClientId,
-      email: "stub-user@example.com",
-      emailVerified: true,
-      name: "Stub User",
-      picture: "https://example.com/avatar.png",
-      subject: "google-oauth-subject"
-    });
+    const verifyIdToken = this.config.verifyIdToken ?? verifyGoogleIdTokenWithGoogleAuthLibrary;
+    return verifyIdToken(idToken, this.config.googleClientId);
   }
 }
 
 export function createGoogleTokenValidator(
   config: GoogleTokenValidatorConfig
 ): GoogleTokenValidator {
-  return new StubGoogleTokenValidator(config);
+  return new GoogleAuthLibraryTokenValidator(config);
 }
-

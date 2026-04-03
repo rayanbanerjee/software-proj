@@ -4,5 +4,4 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 COMPOSE_FILE="$ROOT_DIR/infrastructure/docker/docker-compose.yml"
 
-docker compose -f "$COMPOSE_FILE" up -d
-
+docker compose -f "$COMPOSE_FILE" up -d --build

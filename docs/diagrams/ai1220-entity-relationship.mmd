@@ -1,0 +1,57 @@
+erDiagram
+    USER ||--o{ DOCUMENT : owns
+    USER ||--o{ DOCUMENT_PERMISSION : receives
+    USER ||--o{ AI_REQUEST : creates
+    DOCUMENT ||--o{ DOCUMENT_PERMISSION : has
+    DOCUMENT ||--o{ DOCUMENT_VERSION : has
+    DOCUMENT ||--o{ AI_REQUEST : has
+    DOCUMENT ||--o{ COMMENT : has
+
+    USER {
+      string id
+      string email
+      string name
+    }
+
+    DOCUMENT {
+      string id
+      string title
+      string ownerId
+      datetime createdAt
+      datetime updatedAt
+      datetime archivedAt
+    }
+
+    DOCUMENT_PERMISSION {
+      string documentId
+      string userId
+      string role
+    }
+
+    DOCUMENT_VERSION {
+      string id
+      string documentId
+      string revisionLabel
+      string snapshotRef
+      string createdBy
+      datetime createdAt
+    }
+
+    AI_REQUEST {
+      string id
+      string documentId
+      string userId
+      string action
+      string scope
+      string status
+      string proposalRef
+      datetime createdAt
+    }
+
+    COMMENT {
+      string id
+      string documentId
+      string authorUserId
+      string body
+      datetime createdAt
+    }

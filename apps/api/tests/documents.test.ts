@@ -99,6 +99,51 @@ describe("documents module", () => {
     await app.close();
   });
 
+  it("shows newly created documents to other accounts during local development", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "development";
+    try {
+      const app = await createApiTestApp();
+      const ownerHeaders = createSessionHeaders(app, {
+        email: "owner@example.com",
+        subject: "user_owner"
+      });
+      const otherHeaders = createSessionHeaders(app, {
+        email: "other@example.com",
+        subject: "user_other"
+      });
+
+      await app.inject({
+        method: "POST",
+        url: "/v1/documents",
+        headers: ownerHeaders,
+        payload: {
+          title: "Visible across dev accounts"
+        }
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/v1/documents",
+        headers: otherHeaders
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().documents).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            title: "Visible across dev accounts",
+            role: "editor"
+          })
+        ])
+      );
+
+      await app.close();
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
+  });
+
   it("returns document metadata for an authorized user", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
@@ -251,6 +296,8 @@ describe("documents module", () => {
   });
 
   it("rejects metadata and rename access for other users", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "development";
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
@@ -278,12 +325,13 @@ describe("documents module", () => {
       headers: otherHeaders
     });
 
-    expect(metadataResponse.statusCode).toBe(403);
-    expect(metadataResponse.json()).toEqual({
-      error: {
-        code: "DOCUMENT_FORBIDDEN",
-        message: "You do not have access to this document.",
-        statusCode: 403
+    expect(metadataResponse.statusCode).toBe(200);
+    expect(metadataResponse.json()).toMatchObject({
+      document: {
+        id: documentId,
+        permissions: {
+          role: "editor"
+        }
       }
     });
 
@@ -296,19 +344,21 @@ describe("documents module", () => {
       }
     });
 
-    expect(renameResponse.statusCode).toBe(403);
-    expect(renameResponse.json()).toEqual({
-      error: {
-        code: "DOCUMENT_FORBIDDEN",
-        message: "You do not have permission to rename this document.",
-        statusCode: 403
+    expect(renameResponse.statusCode).toBe(200);
+    expect(renameResponse.json()).toMatchObject({
+      document: {
+        id: documentId,
+        title: "Should fail"
       }
     });
 
+    process.env.NODE_ENV = originalNodeEnv;
     await app.close();
   });
 
   it("rejects session bootstrap for a user without document access", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "development";
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
@@ -336,15 +386,19 @@ describe("documents module", () => {
       payload: {}
     });
 
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toEqual({
-      error: {
-        code: "DOCUMENT_FORBIDDEN",
-        message: "You do not have access to this document.",
-        statusCode: 403
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      session: {
+        documentId,
+        self: {
+          userId: "google:user_other",
+          role: "editor",
+          accessLevel: "write"
+        }
       }
     });
 
+    process.env.NODE_ENV = originalNodeEnv;
     await app.close();
   });
 

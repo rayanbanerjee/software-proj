@@ -1,7 +1,5 @@
 import type { ListRevisionsResponse, RevisionSummary } from "@repo/shared-types";
 
-import { versionHistory } from "./app-shell";
-
 export type VersionHistoryEntry = {
   key: string;
   label: string;
@@ -50,15 +48,6 @@ export function mapRevisionSummaryToHistoryEntry(
   };
 }
 
-export function getFallbackVersionHistoryEntries(): VersionHistoryEntry[] {
-  return versionHistory.map((entry) => ({
-    key: entry.label,
-    label: entry.label,
-    summary: entry.summary,
-    when: entry.when
-  }));
-}
-
 export async function getVersionHistoryEntries(
   documentId: string,
   options: {
@@ -68,11 +57,7 @@ export async function getVersionHistoryEntries(
     now?: Date;
   } = {}
 ): Promise<VersionHistoryEntry[]> {
-  const apiBaseUrl = options.apiBaseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL;
-
-  if (!apiBaseUrl) {
-    return getFallbackVersionHistoryEntries();
-  }
+  const apiBaseUrl = options.apiBaseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
 
   const fetchImpl = options.fetchImpl ?? fetch;
   const now = options.now ?? new Date();
@@ -88,17 +73,17 @@ export async function getVersionHistoryEntries(
     });
 
     if (!response.ok) {
-      return getFallbackVersionHistoryEntries();
+      return [];
     }
 
     const payload = (await response.json()) as ListRevisionsResponse;
 
     if (!Array.isArray(payload.revisions) || payload.revisions.length === 0) {
-      return getFallbackVersionHistoryEntries();
+      return [];
     }
 
     return payload.revisions.map((revision) => mapRevisionSummaryToHistoryEntry(revision, now));
   } catch {
-    return getFallbackVersionHistoryEntries();
+    return [];
   }
 }

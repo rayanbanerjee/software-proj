@@ -1,41 +1,108 @@
 "use client";
 
-import { startTransition, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-import { createDraftDocumentRecord, documentListSections, type DocumentRecord } from "../../lib/app-shell";
+import { type DocumentRecord } from "../../lib/app-shell";
+import { archiveWorkspaceDocument, createWorkspaceDocument } from "../../lib/documents";
 
-export function DocumentListShell() {
-  const [drafts, setDrafts] = useState<DocumentRecord[]>([]);
+interface DocumentListShellProps {
+  documents: DocumentRecord[];
+}
+
+function groupDocuments(documents: DocumentRecord[]) {
+  const myDocuments = documents.filter((document) => document.role === "owner" || document.role === "editor");
+  const sharedDocuments = documents.filter((document) => document.role === "commenter" || document.role === "viewer");
+
+  return [
+    {
+      eyebrow: "Workspace",
+      title: "My documents",
+      summary: "Server-backed documents you can actively edit or manage from the current workspace.",
+      documents: myDocuments
+    },
+    {
+      eyebrow: "Shared",
+      title: "Shared with me",
+      summary: "Documents available to review, comment on, or reference from other collaborators.",
+      documents: sharedDocuments
+    }
+  ].filter((section) => section.documents.length > 0);
+}
+
+export function DocumentListShell({ documents }: DocumentListShellProps) {
+  const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const sections = groupDocuments(documents);
 
-  function handleCreateDocument() {
+  async function handleCreateDocument() {
     if (isCreating) {
       return;
     }
 
     setIsCreating(true);
+    setErrorMessage(null);
 
-    startTransition(() => {
-      const nextSequence = drafts.length + 1;
-
-      setDrafts((currentDrafts) => [
-        createDraftDocumentRecord(nextSequence),
-        ...currentDrafts
-      ]);
+    try {
+      const createdDocument = await createWorkspaceDocument(`Untitled document ${documents.length + 1}`);
+      router.push(`/documents/${createdDocument.id}`);
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to create document.");
+    } finally {
       setIsCreating(false);
-    });
+    }
+  }
+
+  async function handleDeleteDocument(documentId: string) {
+    if (deletingDocumentId) {
+      return;
+    }
+
+    setDeletingDocumentId(documentId);
+    setErrorMessage(null);
+
+    try {
+      await archiveWorkspaceDocument(documentId);
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to delete document.");
+    } finally {
+      setDeletingDocumentId(null);
+    }
   }
 
   return (
     <div className="document-list-shell">
       <section className="page-intro-card">
-        <span className="workspace-kicker">WEB-005</span>
-        <h2>Document list scaffold</h2>
+        <span className="workspace-kicker">Documents</span>
+        <h2>Document workspace</h2>
         <p>
-          This shell previews the list route, sorting cards, metadata chips, and launch links into
-          the editor scaffold without depending on live backend data.
+          Browse live workspace documents, queue quick drafts, and jump into the editor surface without leaving the main workspace.
         </p>
+        <div className="document-list-metrics">
+          <div>
+            <strong>{documents.length}</strong>
+            <span>Documents</span>
+          </div>
+          <div>
+            <strong>{sections.length}</strong>
+            <span>Groups</span>
+          </div>
+          <div>
+            <strong>{documents.filter((document) => document.role === "owner").length}</strong>
+            <span>Owned</span>
+          </div>
+        </div>
+        <div className="document-list-toolbar">
+          <span className="document-list-filter document-list-filter-active">All documents</span>
+          <span className="document-list-filter">Editable</span>
+          <span className="document-list-filter">Shared</span>
+          <span className="document-list-filter">Read-only</span>
+        </div>
         <div className="page-intro-actions">
           <button
             className="document-list-action"
@@ -43,55 +110,35 @@ export function DocumentListShell() {
             onClick={handleCreateDocument}
             type="button"
           >
-            {isCreating ? "Creating draft..." : "New document"}
+            {isCreating ? "Creating..." : "New document"}
           </button>
           <span className="document-list-action-note">
-            Uses a local shell draft for now. Later work will switch this to the real create API.
+            {documents.length > 0
+              ? "Create and delete actions now use the live documents API."
+              : "Sign in first so the workspace can load or create real server-backed documents."}
           </span>
         </div>
+        {errorMessage ? <p className="document-list-error">{errorMessage}</p> : null}
       </section>
 
-      <section className="blocked-note-card">
-        <strong>Stub now active</strong>
-        <p>
-          `WEB-006` now creates a local draft card so the list page has a concrete launch action
-          while the full persisted create flow is refined.
-        </p>
-      </section>
-
-      {drafts.length > 0 ? (
-        <section className="document-section-card document-draft-section">
-          <div className="document-section-header">
-            <div>
-              <span className="section-chip">Drafts</span>
-              <h3>New shell drafts</h3>
-            </div>
-            <p>These appear immediately from the stub flow so the list page can exercise creation UX.</p>
-          </div>
-
-          <div className="document-card-grid">
-            {drafts.map((document) => (
-              <article className="document-list-card" key={document.id}>
-                <div className="document-card-topline">
-                  <span className={`document-role-badge document-role-${document.role}`}>
-                    {document.role}
-                  </span>
-                  <span className="document-updated-label">{document.updatedLabel}</span>
-                </div>
-                <h4>{document.title}</h4>
-                <p>{document.summary}</p>
-                <div className="document-card-footer">
-                  <span>{document.collaborators} collaborator</span>
-                  <Link href={`/documents/${document.id}`}>Open scaffold</Link>
-                </div>
-              </article>
-            ))}
-          </div>
+      {documents.length > 0 ? (
+        <section className="blocked-note-card">
+          <strong>API-backed navigation active</strong>
+          <p>
+            The list and sidebar now reflect the same document workspace instead of mixing repo-file chrome with document routes.
+          </p>
         </section>
-      ) : null}
+      ) : (
+        <section className="blocked-note-card">
+          <strong>Sign in required</strong>
+          <p>
+            No server-backed documents are available yet. Use the `Sign in` entry in the sidebar or open `/auth` to continue with Google.
+          </p>
+        </section>
+      )}
 
       <div className="document-section-stack">
-        {documentListSections.map((section) => (
+        {sections.map((section) => (
           <section className="document-section-card" key={section.title}>
             <div className="document-section-header">
               <div>
@@ -110,11 +157,28 @@ export function DocumentListShell() {
                     </span>
                     <span className="document-updated-label">{document.updatedLabel}</span>
                   </div>
+                  <div className="document-card-stripe" aria-hidden="true" />
                   <h4>{document.title}</h4>
                   <p>{document.summary}</p>
+                  <ul className="document-card-meta">
+                    <li>{document.updatedLabel}</li>
+                    <li>{document.role}</li>
+                  </ul>
                   <div className="document-card-footer">
-                    <span>{document.collaborators} collaborators</span>
-                    <Link href={`/documents/${document.id}`}>Open scaffold</Link>
+                    <span>{document.updatedLabel}</span>
+                    <div className="document-card-actions">
+                      {document.role === "owner" ? (
+                        <button
+                          className="document-list-inline-action"
+                          disabled={deletingDocumentId === document.id}
+                          onClick={() => void handleDeleteDocument(document.id)}
+                          type="button"
+                        >
+                          {deletingDocumentId === document.id ? "Deleting..." : "Delete"}
+                        </button>
+                      ) : null}
+                      <Link href={`/documents/${document.id}`}>Open document</Link>
+                    </div>
                   </div>
                 </article>
               ))}

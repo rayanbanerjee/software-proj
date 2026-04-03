@@ -1,0 +1,17 @@
+flowchart TB
+    route["AI Route Handler"]
+    auth["Authorization Check"]
+    validator["Payload + Scope Validation"]
+    context["Context Builder"]
+    provider["Provider Adapter: OpenRouter or test provider"]
+    proposal["Proposal Builder"]
+    status["Request Status Store"]
+    client["Web Client Polling"]
+
+    route --> auth
+    auth --> validator
+    validator --> context
+    context --> provider
+    provider --> proposal
+    proposal --> status
+    client -->|"GET request status"| status

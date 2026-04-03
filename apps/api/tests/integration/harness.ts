@@ -1,8 +1,12 @@
 import type { FastifyInstance } from "fastify";
 
 import { createApp } from "../../src/app.js";
-import type { GoogleTokenClaims } from "../../src/modules/auth/google-token-validator.js";
+import type {
+  GoogleTokenClaims,
+  GoogleTokenValidator
+} from "../../src/modules/auth/google-token-validator.js";
 import { defaultApiTestEnv } from "../../../../tests/config/env.js";
+import { createTestGoogleTokenValidator } from "../helpers/google-token-validator.js";
 
 export function applyApiTestEnv(overrides: Partial<NodeJS.ProcessEnv> = {}) {
   return {
@@ -11,8 +15,12 @@ export function applyApiTestEnv(overrides: Partial<NodeJS.ProcessEnv> = {}) {
   };
 }
 
-export async function createApiTestApp(): Promise<FastifyInstance> {
-  const { app } = await createApp();
+export async function createApiTestApp(options: {
+  googleTokenValidator?: GoogleTokenValidator;
+} = {}): Promise<FastifyInstance> {
+  const { app } = await createApp({
+    googleTokenValidator: options.googleTokenValidator ?? createTestGoogleTokenValidator()
+  });
   return app;
 }
 

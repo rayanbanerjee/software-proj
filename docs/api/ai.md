@@ -106,8 +106,10 @@ Response:
 ## Notes
 
 - if `OPENROUTER_API_KEY` is configured, the API uses OpenRouter's `POST /api/v1/chat/completions` endpoint for proposal generation
+- if `OPENROUTER_API_KEY` is absent but `OPENAI_API_KEY` is present in the shell environment, the API reuses that value as the OpenRouter bearer token
 - if `OPENROUTER_API_KEY` is absent, the API falls back to the local mock provider path for development and tests
 - optional `OPENROUTER_APP_URL` and `OPENROUTER_APP_NAME` values are forwarded as `HTTP-Referer` and `X-Title`
+- the default model is `qwen/qwen3.6-plus:free` unless `OPENROUTER_MODEL` is overridden
 - request state is stored in memory
 - accepted proposals do not yet mutate document content
 - stale proposals are rejected with `AI_PROPOSAL_STALE` when their stored revision fingerprint no longer matches the latest known document fingerprint

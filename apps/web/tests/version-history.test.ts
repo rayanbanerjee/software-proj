@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  getFallbackVersionHistoryEntries,
   getVersionHistoryEntries,
   mapRevisionSummaryToHistoryEntry
 } from "../src/lib/version-history";
@@ -70,14 +69,12 @@ describe("version history data hook", () => {
     );
   });
 
-  it("falls back to static shell history when the API request fails", async () => {
-    const fallback = getFallbackVersionHistoryEntries();
-
+  it("returns an empty history when the API request fails", async () => {
     await expect(
       getVersionHistoryEntries("doc-1", {
         apiBaseUrl: "http://localhost:4000",
         fetchImpl: vi.fn<typeof fetch>().mockRejectedValue(new Error("offline"))
       })
-    ).resolves.toEqual(fallback);
+    ).resolves.toEqual([]);
   });
 });

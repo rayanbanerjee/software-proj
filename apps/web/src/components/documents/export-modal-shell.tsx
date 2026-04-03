@@ -8,8 +8,8 @@ export function ExportModalShell({ panelState }: ExportModalShellProps) {
   return (
     <section className="overlay-shell">
       <div className="overlay-shell-header">
-        <span className="section-chip">WEB-013</span>
-        <h3>Export modal shell</h3>
+        <span className="section-chip">Export</span>
+        <h3>Export file</h3>
       </div>
       <p>{panelState.summary}</p>
       {panelState.job ? (

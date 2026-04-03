@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 import type {
@@ -43,29 +45,38 @@ function buildDocumentHref(
 }
 
 interface EditorToolbarShellProps {
+  blameMode: boolean;
   documentId: string;
   overlay: DocumentOverlay;
+  onToggleBlame: () => void;
+  showDebugControls?: boolean;
   syncState: SyncConnectionState;
   view: DocumentScreenState;
 }
 
 export function EditorToolbarShell({
+  blameMode,
   documentId,
   overlay,
+  onToggleBlame,
+  showDebugControls = false,
   syncState,
   view
 }: EditorToolbarShellProps) {
-  const overlayLinks: { key: Exclude<DocumentOverlay, null>; label: string }[] = [
-    { key: "sharing", label: "Sharing" },
-    { key: "ai", label: "AI" },
-    { key: "export", label: "Export" }
+  const overlayLinks: { key: Exclude<DocumentOverlay, null>; label: string; icon: string }[] = [
+    { key: "sharing", label: "Sharing", icon: "S" },
+    { key: "export", label: "Export", icon: "E" }
   ];
   const viewLinks: DocumentScreenState[] = ["ready", "empty", "error"];
 
   return (
     <section className="editor-toolbar-shell">
-      <div className="editor-toolbar-group">
-        <span className="section-chip">WEB-008</span>
+      <div className="editor-toolbar-icon-row">
+        <span className="editor-toolbar-dot editor-toolbar-dot-blue" />
+        <span className="editor-toolbar-dot editor-toolbar-dot-green" />
+        <span className="editor-toolbar-dot editor-toolbar-dot-dark" />
+      </div>
+      <div className="editor-toolbar-group editor-toolbar-group-compact">
         <div className="toolbar-pill-group">
           {overlayLinks.map((item) => {
             const nextOverlay = overlay === item.key ? null : item.key;
@@ -81,68 +92,79 @@ export function EditorToolbarShell({
                   view
                 })}
                 key={item.key}
+                title={item.label}
               >
-                {item.label}
+                {item.icon}
               </Link>
             );
           })}
+          <button
+            className={`toolbar-link toolbar-link-button${blameMode ? " toolbar-link-active" : ""}`}
+            onClick={onToggleBlame}
+            title="Blame mode"
+            type="button"
+          >
+            B
+          </button>
         </div>
       </div>
 
-      <div className="editor-toolbar-group">
-        <span className="section-chip">Screen states</span>
-        <div className="toolbar-pill-group">
-          {viewLinks.map((item) => (
-            <Link
-              className={`toolbar-link${view === item ? " toolbar-link-active" : ""}`}
-              href={buildDocumentHref(documentId, {
-                overlay,
-                permissionState: "normal",
-                stateVector: syncState === "online" ? null : "sv-reconnect-demo",
-                syncState,
-                view: item
-              })}
-              key={item}
-            >
-              {item}
-            </Link>
-          ))}
-          {(["offline", "reconnecting", "recovered"] as const).map((state) => (
-            <Link
-              className={`toolbar-link${syncState === state ? " toolbar-link-active" : ""}`}
-              href={buildDocumentHref(documentId, {
-                overlay,
-                permissionState: "normal",
-                stateVector: state === "offline" ? "sv-offline-demo" : "sv-reconnect-demo",
-                syncState: syncState === state ? "online" : state,
-                view
-              })}
-              key={state}
-            >
-              {state === "offline"
-                ? "Offline"
-                : state === "reconnecting"
-                  ? "Reconnecting"
-                  : "Recovered"}
-            </Link>
-          ))}
-          {(["read-only", "revoked"] as const).map((permissionState) => (
-            <Link
-              className={`toolbar-link${permissionState === "read-only" ? "" : ""}`}
-              href={buildDocumentHref(documentId, {
-                overlay,
-                permissionState,
-                stateVector: "sv-permission-demo",
-                syncState: permissionState === "revoked" ? "recovered" : "offline",
-                view
-              })}
-              key={permissionState}
-            >
-              {permissionState === "read-only" ? "Permission read-only" : "Permission revoked"}
-            </Link>
-          ))}
+      {showDebugControls ? (
+        <div className="editor-toolbar-group">
+          <span className="section-chip">Workspace state</span>
+          <div className="toolbar-pill-group">
+            {viewLinks.map((item) => (
+              <Link
+                className={`toolbar-link${view === item ? " toolbar-link-active" : ""}`}
+                href={buildDocumentHref(documentId, {
+                  overlay,
+                  permissionState: "normal",
+                  stateVector: syncState === "online" ? null : "sv-reconnect-demo",
+                  syncState,
+                  view: item
+                })}
+                key={item}
+              >
+                {item}
+              </Link>
+            ))}
+            {(["offline", "reconnecting", "recovered"] as const).map((state) => (
+              <Link
+                className={`toolbar-link${syncState === state ? " toolbar-link-active" : ""}`}
+                href={buildDocumentHref(documentId, {
+                  overlay,
+                  permissionState: "normal",
+                  stateVector: state === "offline" ? "sv-offline-demo" : "sv-reconnect-demo",
+                  syncState: syncState === state ? "online" : state,
+                  view
+                })}
+                key={state}
+              >
+                {state === "offline"
+                  ? "Offline"
+                  : state === "reconnecting"
+                    ? "Reconnecting"
+                    : "Recovered"}
+              </Link>
+            ))}
+            {(["read-only", "revoked"] as const).map((permissionState) => (
+              <Link
+                className="toolbar-link"
+                href={buildDocumentHref(documentId, {
+                  overlay,
+                  permissionState,
+                  stateVector: "sv-permission-demo",
+                  syncState: permissionState === "revoked" ? "recovered" : "offline",
+                  view
+                })}
+                key={permissionState}
+              >
+                {permissionState === "read-only" ? "Permission read-only" : "Permission revoked"}
+              </Link>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
     </section>
   );
 }

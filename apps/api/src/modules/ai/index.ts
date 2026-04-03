@@ -5,6 +5,7 @@ import { AppError } from "../../common/errors.js";
 import { authenticateRequest, requireCurrentUser } from "../auth/guard.js";
 import type { DocumentActor } from "../documents/service.js";
 import { MockProviderClient } from "./mock-provider-client.js";
+import { NotConfiguredProviderClient } from "./not-configured-provider.js";
 import { OpenRouterProviderClient } from "./openrouter-provider.js";
 import { submitAiRequestSchema } from "./schema.js";
 import { AiService } from "./service.js";
@@ -30,7 +31,9 @@ export async function registerAiModule(app: FastifyInstance) {
         baseUrl: app.apiEnv.OPENROUTER_BASE_URL,
         model: app.apiEnv.OPENROUTER_MODEL
       })
-    : new MockProviderClient();
+    : app.apiEnv.NODE_ENV === "test"
+      ? new MockProviderClient()
+      : new NotConfiguredProviderClient();
 
   app.decorate("aiService", new AiService(app.documentsService, provider));
 

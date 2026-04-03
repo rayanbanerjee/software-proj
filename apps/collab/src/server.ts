@@ -1,6 +1,10 @@
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Server } from "@hocuspocus/server";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { StringDecoder } from "node:string_decoder";
+import * as Y from "yjs";
 
 import type {
   DocumentPermissionUpdatedEvent,
@@ -13,7 +17,7 @@ import {
   PRESENCE_STALE_TIMEOUT_MS,
   PRESENCE_SWEEP_INTERVAL_MS
 } from "./awareness/presence.js";
-import { requireCollabSession, type CollabSessionContext } from "./auth/session.js";
+import { verifyCollabSessionToken, type CollabSessionContext } from "./auth/session.js";
 import { getCollabEnv, type CollabEnv } from "./config/env.js";
 import { createCollabLogger, type CollabLogger } from "./logger.js";
 import { isDocumentPermissionUpdatedEvent } from "./permissions/events.js";
@@ -38,6 +42,38 @@ type InternalCollabRuntime = CollabDocumentsRuntime & {
   presence?: PresenceManager;
   writerSlots?: WriterSlotManager;
 };
+
+const COLLAPSE_DATA_DIR = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "data",
+  "documents"
+);
+
+function sanitizeDocumentName(documentName: string) {
+  return documentName.replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
+function getDocumentStoragePath(documentName: string) {
+  return join(COLLAPSE_DATA_DIR, `${sanitizeDocumentName(documentName)}.bin`);
+}
+
+function ensureDocumentStorageDir() {
+  mkdirSync(COLLAPSE_DATA_DIR, { recursive: true });
+}
+
+function readStoredDocumentUpdate(documentName: string) {
+  try {
+    return readFileSync(getDocumentStoragePath(documentName));
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredDocumentUpdate(documentName: string, state: Uint8Array) {
+  ensureDocumentStorageDir();
+  writeFileSync(getDocumentStoragePath(documentName), Buffer.from(state));
+}
 
 function writeJson(
   response: ServerResponse,
@@ -242,6 +278,7 @@ export function createCollabServer(
   logger: CollabLogger = createCollabLogger()
 ) {
   const presence = new PresenceManager();
+  const persistedStates = new Map<string, Uint8Array>();
   const writerSlots = new WriterSlotManager();
   const server = new Server({
     address: env.host,
@@ -252,21 +289,16 @@ export function createCollabServer(
     quiet: env.nodeEnv === "test",
     timeout: 30000,
     unloadImmediately: false,
-    async onConnect(data) {
+    async onAuthenticate(data) {
       try {
-        const sessionContext = requireCollabSession(data.requestParameters, env);
+        const sessionContext = verifyCollabSessionToken(data.token, env.sessionSecret);
 
-        data.context = {
-          ...(data.context as Record<string, unknown> | undefined),
-          accessLevel: (data.requestParameters.get("accessLevel") === "read" ? "read" : "write") as SessionAccessLevel,
-          reconnectSessionId: data.requestParameters.get("lastKnownSessionId"),
-          presenceSessionId: data.socketId,
+        return {
           session: sessionContext.session,
-          stateVector: data.requestParameters.get("stateVector"),
           user: sessionContext.user
-        } satisfies CollabSessionContext;
+        } satisfies Pick<CollabSessionContext, "session" | "user">;
       } catch (error) {
-        logger.error("collab.connection.rejected", {
+        logger.error("collab.authentication.rejected", {
           documentName: data.documentName,
           reason: error instanceof Error ? error.message : "Invalid session token.",
           socketId: data.socketId
@@ -274,6 +306,37 @@ export function createCollabServer(
 
         throw error;
       }
+    },
+    async onLoadDocument(data) {
+      const inMemoryState = persistedStates.get(data.documentName);
+      const storedState = inMemoryState ?? readStoredDocumentUpdate(data.documentName);
+
+      if (!storedState) {
+        return null;
+      }
+
+      const document = new Y.Doc();
+      Y.applyUpdate(document, storedState);
+      return document;
+    },
+    async onStoreDocument(data) {
+      const state = Y.encodeStateAsUpdate(data.document);
+
+      persistedStates.set(data.documentName, state);
+      writeStoredDocumentUpdate(data.documentName, state);
+
+      logger.info("collab.document.stored", {
+        bytes: state.byteLength,
+        documentName: data.documentName
+      });
+    },
+    async onConnect(data) {
+      return {
+        accessLevel: (data.requestParameters.get("accessLevel") === "read" ? "read" : "write") as SessionAccessLevel,
+        reconnectSessionId: data.requestParameters.get("lastKnownSessionId"),
+        presenceSessionId: data.socketId,
+        stateVector: data.requestParameters.get("stateVector")
+      } satisfies Omit<CollabSessionContext, "session" | "user">;
     },
     async connected(data) {
       const context = data.context as CollabSessionContext & {

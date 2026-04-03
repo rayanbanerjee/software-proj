@@ -9,8 +9,8 @@ export function AiActionMenuShell({ panelState }: AiActionMenuShellProps) {
   return (
     <section className="overlay-shell">
       <div className="overlay-shell-header">
-        <span className="section-chip">WEB-012</span>
-        <h3>AI action menu shell</h3>
+        <span className="section-chip">Assistant</span>
+        <h3>AI actions</h3>
       </div>
       <p>
         {panelState.summary}

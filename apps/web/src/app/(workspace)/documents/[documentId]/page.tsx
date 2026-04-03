@@ -4,7 +4,6 @@ import { DocumentWorkspaceShell } from "../../../../components/documents/documen
 import {
   applySyncPermissionState,
   applySyncViewOverride,
-  getDocumentRecord,
   parseExportJobId,
   parseDocumentOverlay,
   parseDocumentScreenState,
@@ -12,6 +11,7 @@ import {
   parseSyncPermissionState,
   parseSyncStateVector
 } from "../../../../lib/app-shell";
+import { getWorkspaceDocumentRecord } from "../../../../lib/documents";
 import { getExportPanelState } from "../../../../lib/export-panel-state";
 import { getVersionHistoryEntries } from "../../../../lib/version-history";
 
@@ -23,9 +23,13 @@ type DocumentPageProps = {
 export default async function DocumentPage({ params, searchParams }: DocumentPageProps) {
   const { documentId } = await params;
   const currentSearchParams = await searchParams;
+  const showDebugControls = currentSearchParams.debug === "1";
   const permissionState = parseSyncPermissionState(currentSearchParams.permission);
-  const document = applySyncPermissionState(getDocumentRecord(documentId), permissionState);
   const requestHeaders = await headers();
+  const record = await getWorkspaceDocumentRecord(documentId, {
+      cookieHeader: requestHeaders.get("cookie")
+    });
+  const document = applySyncPermissionState(record.document, permissionState);
   const versionHistoryEntries = await getVersionHistoryEntries(documentId, {
     cookieHeader: requestHeaders.get("cookie")
   });
@@ -41,10 +45,14 @@ export default async function DocumentPage({ params, searchParams }: DocumentPag
         exportPanelState={exportPanelState}
         overlay={parseDocumentOverlay(currentSearchParams.overlay)}
         permissionState={permissionState}
+        realtimeDocumentId={record.isMissing ? null : document.id}
         serverStateVector={parseSyncStateVector(currentSearchParams.stateVector)}
+        showDebugControls={showDebugControls}
         syncState={parseSyncConnectionState(currentSearchParams.sync)}
         versionHistoryEntries={versionHistoryEntries}
-        view={applySyncViewOverride(parseDocumentScreenState(currentSearchParams.view), permissionState)}
+        view={record.isMissing
+          ? "error"
+          : applySyncViewOverride(parseDocumentScreenState(currentSearchParams.view), permissionState)}
       />
     </div>
   );

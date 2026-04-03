@@ -9,11 +9,10 @@ export function DocumentStateShell({ document, view }: DocumentStateShellProps) 
   if (view === "empty") {
     return (
       <section className="document-state-card">
-        <span className="section-chip">WEB-015</span>
-        <h2>No section selected</h2>
+        <span className="section-chip">Empty file</span>
+        <h2>No content yet</h2>
         <p>
-          This empty-state shell reserves space for the editor canvas while later tasks define real
-          document blocks and selection behavior.
+          The editor canvas is ready, but this file is currently blank while the richer block workflow is still being layered in.
         </p>
       </section>
     );
@@ -22,11 +21,10 @@ export function DocumentStateShell({ document, view }: DocumentStateShellProps) 
   if (view === "error") {
     return (
       <section className="document-state-card document-state-card-error">
-        <span className="section-chip">WEB-015</span>
-        <h2>Document preview unavailable</h2>
+        <span className="section-chip">Unavailable</span>
+        <h2>Editor preview unavailable</h2>
         <p>
-          Simulated route-level failure state for connection, permission, or metadata loading
-          issues.
+          This shell stands in for permission loss, metadata failures, or connection problems that block the editor surface.
         </p>
       </section>
     );
@@ -36,10 +34,17 @@ export function DocumentStateShell({ document, view }: DocumentStateShellProps) 
     <section className="document-canvas-shell">
       <div className="document-canvas-header">
         <div>
-          <span className="section-chip">WEB-007</span>
+          <span className="section-chip">Preview</span>
           <h2>{document.title}</h2>
         </div>
         <p>{document.summary}</p>
+      </div>
+      <div className="document-canvas-meta">
+        <span className={`document-role-badge document-role-${document.role}`}>
+          {document.role}
+        </span>
+        <span className="document-updated-label">{document.updatedLabel}</span>
+        <span className="document-updated-label">{document.collaborators} collaborators</span>
       </div>
       <div className="document-paragraph-stack">
         {document.paragraphs.map((paragraph) => (

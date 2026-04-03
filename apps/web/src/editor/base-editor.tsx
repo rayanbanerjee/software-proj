@@ -1,9 +1,17 @@
 "use client";
 
+import Collaboration from "@tiptap/extension-collaboration";
 import { EditorContent, useEditor } from "@tiptap/react";
-import { useEffect, useState } from "react";
-import { minimalEditorExtensions } from "@repo/editor-schema";
+import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import type { AiAction } from "@repo/shared-types";
+import {
+  baseEditorExtensions,
+  headingEditorExtensions,
+  minimalEditorExtensions
+} from "@repo/editor-schema";
+import type * as Y from "yjs";
 import type { DocumentRecord } from "../lib/app-shell";
+import { getCollaboratorColors } from "../lib/collab-colors";
 
 import { getEditorModeLabel, isEditorReadOnly } from "./access";
 import {
@@ -36,10 +44,43 @@ const starterContent = `
   </p>
 `;
 
+function editorHasMeaningfulContent(value: { getJSON: () => unknown }) {
+  const json = value.getJSON() as {
+    content?: Array<{
+      content?: Array<{ text?: string; type?: string }>;
+      type?: string;
+    }>;
+  };
+
+  return (json.content ?? []).some((node) => {
+    const textContent = (node.content ?? [])
+      .map((entry) => entry.text ?? "")
+      .join("")
+      .trim();
+
+    return textContent.length > 0 || node.type === "heading";
+  });
+}
+
 interface BaseEditorProps {
   accessLevel?: "none" | "read" | "write";
+  blameMode?: boolean;
+  collaboratorSeeds?: readonly string[];
+  collaborationDocument?: Y.Doc | null;
   documentId?: string;
   initialTitle?: string;
+  isRenamingTitle?: boolean;
+  onRenameTitle?: (nextTitle: string) => Promise<void> | void;
+  onAiActionSelect?: (payload: { action: AiAction; from: number; selectedText: string; to: number }) => void;
+  pendingAiApplication?: null | {
+    proposalId: string;
+    selection: {
+      from: number;
+      to: number;
+    };
+    text: string;
+  };
+  onAiApplicationHandled?: (proposalId: string) => void;
   role?: DocumentRecord["role"];
   serverStateVector?: string | null;
   syncState?: "online" | "offline" | "reconnecting" | "recovered";
@@ -47,17 +88,27 @@ interface BaseEditorProps {
 
 export function BaseEditor({
   accessLevel = "write",
+  blameMode = false,
+  collaboratorSeeds = [],
+  collaborationDocument = null,
   documentId = "route-shell-document",
   initialTitle = "Untitled document",
+  isRenamingTitle = false,
+  onRenameTitle,
+  onAiActionSelect,
+  pendingAiApplication = null,
+  onAiApplicationHandled,
   role = "owner",
   serverStateVector = null,
   syncState = "online"
 }: BaseEditorProps) {
   type EditorContentValue = Parameters<NonNullable<typeof editor>["commands"]["setContent"]>[0];
+  const [aiMenu, setAiMenu] = useState<null | { text: string; x: number; y: number }>(null);
   const [hasHydratedDraft, setHasHydratedDraft] = useState(false);
-  const [recoveryStatus, setRecoveryStatus] = useState<"buffered" | "none" | "replayed">("none");
   const [title, setTitle] = useState(initialTitle);
+  const hasCollaboration = Boolean(collaborationDocument);
   const readOnly = accessLevel !== "write" || isEditorReadOnly(role);
+  const collaboratorColors = getCollaboratorColors(collaboratorSeeds);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -67,8 +118,16 @@ export function BaseEditor({
         class: `base-editor-content${readOnly ? " base-editor-content-readonly" : ""}`
       }
     },
-    content: starterContent,
-    extensions: [...minimalEditorExtensions],
+    content: hasCollaboration ? undefined : starterContent,
+    extensions: hasCollaboration && collaborationDocument
+      ? [
+          ...baseEditorExtensions,
+          ...headingEditorExtensions,
+          Collaboration.configure({
+            document: collaborationDocument
+          })
+        ]
+      : [...minimalEditorExtensions],
     onUpdate({ editor: currentEditor }) {
       if (typeof window === "undefined") {
         return;
@@ -90,9 +149,17 @@ export function BaseEditor({
         savedAt: new Date().toISOString(),
         sourceStateVector: serverStateVector
       });
-      setRecoveryStatus(syncState === "online" ? "none" : "buffered");
     }
-  });
+  }, [collaborationDocument, documentId, hasCollaboration, readOnly]);
+
+  useEffect(() => {
+    setHasHydratedDraft(false);
+  }, [documentId, hasCollaboration]);
+
+  useEffect(() => {
+    setTitle(initialTitle);
+    setAiMenu(null);
+  }, [documentId, initialTitle]);
 
   useEffect(() => {
     editor?.setEditable(!readOnly);
@@ -117,12 +184,8 @@ export function BaseEditor({
 
       if (shouldReplay && recoveryBuffer) {
         editor.commands.setContent(recoveryBuffer.content as EditorContentValue);
-        setRecoveryStatus("replayed");
-      } else if (storedDraft) {
+      } else if (storedDraft && (!hasCollaboration || !editorHasMeaningfulContent(editor))) {
         editor.commands.setContent(storedDraft as EditorContentValue);
-        setRecoveryStatus(recoveryBuffer?.pendingWrites ? "buffered" : "none");
-      } else {
-        setRecoveryStatus("none");
       }
 
       if (syncState === "recovered" && recoveryBuffer && !shouldReplay) {
@@ -131,10 +194,97 @@ export function BaseEditor({
 
       setHasHydratedDraft(true);
     })();
-  }, [documentId, editor, hasHydratedDraft, serverStateVector, syncState]);
+  }, [documentId, editor, hasCollaboration, hasHydratedDraft, serverStateVector, syncState]);
+
+  useEffect(() => {
+    if (!editor || !pendingAiApplication || readOnly) {
+      return;
+    }
+
+    editor.chain().focus().insertContentAt(pendingAiApplication.selection, pendingAiApplication.text).run();
+    onAiApplicationHandled?.(pendingAiApplication.proposalId);
+  }, [editor, onAiApplicationHandled, pendingAiApplication, readOnly]);
 
   const selection = getSelectionSummary(editor);
   const history = getEditorHistoryState(editor);
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    const currentEditor = editor;
+    const root = currentEditor.view.dom as HTMLElement;
+
+    function applyBlameStyling() {
+      const blocks = Array.from(root.children) as HTMLElement[];
+
+      blocks.forEach((block, index) => {
+        if (!blameMode) {
+          block.style.removeProperty("background");
+          block.style.removeProperty("box-shadow");
+          block.style.removeProperty("border-radius");
+          block.style.removeProperty("padding-left");
+          block.style.removeProperty("padding-right");
+          return;
+        }
+
+        const color = collaboratorColors[index % collaboratorColors.length];
+
+        block.style.background = `linear-gradient(90deg, ${color.fill} 0%, rgba(255,255,255,0) 92%)`;
+        block.style.boxShadow = `inset 4px 0 0 ${color.ring}`;
+        block.style.borderRadius = "8px";
+        block.style.paddingLeft = "12px";
+        block.style.paddingRight = "12px";
+      });
+    }
+
+    function handleContextMenu(event: MouseEvent) {
+      const { from, to } = currentEditor.state.selection;
+      const selectedText = currentEditor.state.doc.textBetween(from, to, " ").trim();
+
+      if (!selectedText) {
+        setAiMenu(null);
+        return;
+      }
+
+      event.preventDefault();
+      setAiMenu({
+        text: selectedText,
+        x: event.clientX,
+        y: event.clientY
+      });
+    }
+
+    function handleWindowClick() {
+      setAiMenu(null);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setAiMenu(null);
+      }
+    }
+
+    function refresh() {
+      requestAnimationFrame(applyBlameStyling);
+    }
+
+    root.addEventListener("contextmenu", handleContextMenu);
+    window.addEventListener("click", handleWindowClick);
+    window.addEventListener("keydown", handleKeyDown);
+    currentEditor.on("update", refresh);
+    currentEditor.on("selectionUpdate", refresh);
+    refresh();
+
+    return () => {
+      root.removeEventListener("contextmenu", handleContextMenu);
+      window.removeEventListener("click", handleWindowClick);
+      window.removeEventListener("keydown", handleKeyDown);
+      currentEditor.off("update", refresh);
+      currentEditor.off("selectionUpdate", refresh);
+    };
+  }, [blameMode, collaboratorColors, editor]);
 
   function setParagraph() {
     editor?.chain().focus().setParagraph().run();
@@ -144,26 +294,51 @@ export function BaseEditor({
     editor?.chain().focus().toggleHeading({ level }).run();
   }
 
+  async function commitTitleChange() {
+    const trimmedTitle = title.trim();
+
+    if (!onRenameTitle || trimmedTitle.length === 0 || trimmedTitle === initialTitle) {
+      setTitle(initialTitle);
+      return;
+    }
+
+    try {
+      await onRenameTitle(trimmedTitle);
+    } catch {
+      setTitle(initialTitle);
+    }
+  }
+
+  async function handleTitleBlur() {
+    await commitTitleChange();
+  }
+
+  async function handleTitleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    event.preventDefault();
+    await commitTitleChange();
+  }
+
   return (
     <section className="base-editor-shell">
-      <div className="base-editor-header">
-        <span className="workspace-kicker">EDIT-002</span>
-        <h3>Base editor component</h3>
-        <p>TipTap is mounted and ready for richer editor behavior in follow-up tasks.</p>
-      </div>
-
       <label className="base-editor-title">
-        <span className="section-chip">EDIT-007</span>
         <input
           aria-label="Document title"
           className="base-editor-title-input"
-          disabled={readOnly}
+          disabled={readOnly || isRenamingTitle}
+          onBlur={() => void handleTitleBlur()}
           onChange={(event) => setTitle(event.target.value)}
+          onKeyDown={(event) => void handleTitleKeyDown(event)}
           readOnly={readOnly}
           type="text"
           value={title}
         />
-        <small>{getEditorModeLabel(role)}</small>
+        <small>
+          {getEditorModeLabel(role)} · {isRenamingTitle ? "Saving title..." : syncState === "online" ? "Synced" : syncState}
+        </small>
       </label>
 
       <div className="base-editor-toolbar" aria-label="Editor block controls">
@@ -173,7 +348,7 @@ export function BaseEditor({
           onClick={setParagraph}
           type="button"
         >
-          Paragraph
+          P
         </button>
         <button
           className={`base-editor-button${selection.currentBlock === "heading-1" ? " base-editor-button-active" : ""}`}
@@ -181,7 +356,7 @@ export function BaseEditor({
           onClick={() => setHeading(1)}
           type="button"
         >
-          H1
+          1
         </button>
         <button
           className={`base-editor-button${selection.currentBlock === "heading-2" ? " base-editor-button-active" : ""}`}
@@ -189,7 +364,7 @@ export function BaseEditor({
           onClick={() => setHeading(2)}
           type="button"
         >
-          H2
+          2
         </button>
         <button
           className={`base-editor-button${selection.currentBlock === "heading-3" ? " base-editor-button-active" : ""}`}
@@ -197,7 +372,7 @@ export function BaseEditor({
           onClick={() => setHeading(3)}
           type="button"
         >
-          H3
+          3
         </button>
         <button
           className="base-editor-button"
@@ -205,7 +380,7 @@ export function BaseEditor({
           onClick={() => runUndo(editor)}
           type="button"
         >
-          Undo
+          {"<"}
         </button>
         <button
           className="base-editor-button"
@@ -213,40 +388,63 @@ export function BaseEditor({
           onClick={() => runRedo(editor)}
           type="button"
         >
-          Redo
+          {">"}
         </button>
+        <div className="base-editor-statusline">
+          <span>{syncState === "online" ? "live" : syncState}</span>
+          <span>{blameMode ? "blame" : "writing"}</span>
+          <span>{selection.empty ? "caret" : `selection ${selection.from}-${selection.to}`}</span>
+        </div>
       </div>
-
-      <dl className="base-editor-selection-stats">
-        <div>
-          <dt>Block</dt>
-          <dd>{selection.currentBlock}</dd>
-        </div>
-        <div>
-          <dt>Selection</dt>
-          <dd>{selection.empty ? "caret" : `${selection.from}-${selection.to}`}</dd>
-        </div>
-        <div>
-          <dt>Local draft</dt>
-          <dd>{hasHydratedDraft ? "hydrated" : "booting"}</dd>
-        </div>
-        <div>
-          <dt>History</dt>
-          <dd>{`${history.canUndo ? "undo" : "no-undo"} / ${history.canRedo ? "redo" : "no-redo"}`}</dd>
-        </div>
-        <div>
-          <dt>Mode</dt>
-          <dd>{getEditorModeLabel(role)}</dd>
-        </div>
-        <div>
-          <dt>Recovery</dt>
-          <dd>{recoveryStatus}</dd>
-        </div>
-      </dl>
 
       <div className="base-editor-frame">
         <EditorContent editor={editor} />
       </div>
+      {aiMenu ? (
+        <div
+          className="ai-context-menu"
+          style={{
+            left: aiMenu.x,
+            top: aiMenu.y
+          }}
+        >
+          {([
+            "rewrite",
+            "summarize",
+            "translate",
+            "restructure"
+          ] as const).map((action) => (
+            <button
+              className="ai-context-menu-item"
+              key={action}
+              onClick={() => {
+                const currentSelection = editor?.state.selection;
+
+                if (!currentSelection) {
+                  return;
+                }
+
+                onAiActionSelect?.({
+                  action,
+                  from: currentSelection.from,
+                  selectedText: aiMenu.text,
+                  to: currentSelection.to
+                });
+                setAiMenu(null);
+              }}
+              type="button"
+            >
+              {action === "rewrite"
+                ? "Rewrite"
+                : action === "summarize"
+                  ? "Summarize"
+                  : action === "translate"
+                    ? "Translate"
+                    : "Tone adjustment"}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }

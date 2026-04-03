@@ -13,6 +13,26 @@ afterEach(() => {
 });
 
 describe("auth callback endpoint", () => {
+  it("handles auth callback preflight requests for the web app origin", async () => {
+    const app = await createApiTestApp();
+
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/v1/auth/callback",
+      headers: {
+        origin: "http://localhost:3002",
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type"
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:3002");
+    expect(response.headers["access-control-allow-credentials"]).toBe("true");
+
+    await app.close();
+  });
+
   it("accepts the stub Google token and returns the issued session payload", async () => {
     const app = await createApiTestApp();
 
@@ -60,7 +80,7 @@ describe("auth callback endpoint", () => {
     expect(response.json()).toEqual({
       error: {
         code: "INVALID_GOOGLE_TOKEN",
-        message: "Google token validation is not implemented. Use stub-valid-token in tests only.",
+        message: "Google token validation failed.",
         statusCode: 401
       }
     });

@@ -3,7 +3,9 @@ import type { GetCurrentUserResponse } from "@repo/shared-types";
 import { z } from "zod";
 
 import { AppError } from "../../common/errors.js";
-import { createGoogleTokenValidator } from "./google-token-validator.js";
+import {
+  createGoogleTokenValidator
+} from "./google-token-validator.js";
 import { authenticateRequest, requireCurrentUser } from "./guard.js";
 import { AuthSessionService } from "./session.js";
 
@@ -12,7 +14,7 @@ const authCallbackBodySchema = z.object({
 });
 
 export async function registerAuthModule(app: FastifyInstance) {
-  const validator = createGoogleTokenValidator({
+  const validator = app.googleTokenValidatorOverride ?? createGoogleTokenValidator({
     googleClientId: app.apiEnv.GOOGLE_CLIENT_ID
   });
   const authSessionService = new AuthSessionService({

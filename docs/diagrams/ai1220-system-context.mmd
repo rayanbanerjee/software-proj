@@ -1,0 +1,11 @@
+flowchart TB
+    user["Users"]
+    system["Collaborative Document Editor with AI Writing Assistant"]
+    google["Identity Provider: Google Identity Services"]
+    llm["LLM Provider: OpenRouter"]
+    storage["Object Storage: MinIO or S3-compatible"]
+
+    user -->|"edit, comment, share, export, invoke AI"| system
+    system -->|"verify sign-in token"| google
+    system -->|"generate AI proposals"| llm
+    system -->|"store or fetch artifacts"| storage

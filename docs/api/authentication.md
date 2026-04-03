@@ -5,16 +5,22 @@
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `SESSION_SECRET`
+- `WEB_ORIGIN`
+
+## Required Web Environment Variables
+
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+- `NEXT_PUBLIC_API_BASE_URL`
 
 ## `POST /v1/auth/callback`
 
-Accepts a Google ID token, validates it through the auth module's shared validator abstraction, issues the initial API session, and returns the normalized session payload.
+Accepts a Google ID token from the browser, verifies it against Google with the configured `GOOGLE_CLIENT_ID`, issues the initial API session, and returns the normalized session payload.
 
 Request body:
 
 ```json
 {
-  "idToken": "stub-valid-token"
+  "idToken": "<google-id-token>"
 }
 ```
 
@@ -81,6 +87,9 @@ Failure cases:
 ## Notes
 
 - `GOOGLE_CLIENT_ID` controls Google token audience validation
-- `SESSION_SECRET` signs the API-issued session token
-- the current implementation uses the repo's stub validator path, so `stub-valid-token` remains the local test credential until real Google verification replaces it
+- `GOOGLE_CLIENT_SECRET` should be stored for Google OAuth configuration and future server-side auth flow expansion, but the current browser sign-in path exchanges a Google ID token instead of an authorization code
+- `WEB_ORIGIN` controls the allowed browser origin for the API CORS policy
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is required by the web app to render the Google sign-in button
+- `NEXT_PUBLIC_API_BASE_URL` should point at the API origin that serves `/v1/auth/callback`
+- tests still use the local `stub-valid-token` helper through an injected test validator; production and development runtime now verify real Google tokens
 - protected API routes now read the same signed session token from the cookie or bearer header instead of the earlier test-only identity headers

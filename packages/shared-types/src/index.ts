@@ -122,6 +122,28 @@ export interface AuditEventRecord {
   metadata: Record<string, string | null>;
 }
 
+export interface CommentRecord {
+  id: string;
+  documentId: string;
+  authorUserId: string;
+  authorName: string | null;
+  body: string;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+}
+
+export interface ListCommentsResponse {
+  comments: CommentRecord[];
+}
+
+export interface CreateCommentRequest {
+  body: string;
+}
+
+export interface CreateCommentResponse {
+  comment: CommentRecord;
+}
+
 export type SessionConnectionStatus = "active" | "stale" | "disconnected";
 
 export type SessionAccessLevel = "read" | "write";

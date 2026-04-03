@@ -2,9 +2,19 @@ node_modules
 .turbo
 .next
 dist
+.tmp
 *.tsbuildinfo
 coverage
 .DS_Store
 .env
 .env.local
 .env.*.local
+client_secret_*.apps.googleusercontent.com.json
+secrets/
+apps/collab/data/
+*.aux
+*.log
+*.out
+*.toc
+AI1220_assignment.pdf
+system_design_document (1).pdf

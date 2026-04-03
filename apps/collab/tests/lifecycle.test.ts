@@ -14,7 +14,14 @@ describe("collab lifecycle hooks", () => {
       socketId: "socket-1"
     });
 
-    await harness.server.configuration.onConnect?.(firstPayload as never);
+    Object.assign(firstPayload, { token });
+    const firstConnectContext = await harness.server.configuration.onConnect?.(firstPayload as never);
+    const firstAuthContext = await harness.server.configuration.onAuthenticate?.(firstPayload as never);
+    firstPayload.context = {
+      ...firstPayload.context,
+      ...firstConnectContext,
+      ...firstAuthContext
+    };
     await harness.server.configuration.connected?.(firstPayload as never);
     await harness.server.configuration.onAwarenessUpdate?.(firstPayload as never);
 
@@ -44,14 +51,20 @@ describe("collab lifecycle hooks", () => {
 
     const reconnectPayload = harness.createHookPayload({
       requestParameters: new URLSearchParams([
-        ["token", token],
         ["lastKnownSessionId", "socket-1"],
         ["stateVector", "sv-42"]
       ]),
       socketId: "socket-2"
     });
 
-    await harness.server.configuration.onConnect?.(reconnectPayload as never);
+    Object.assign(reconnectPayload, { token });
+    const reconnectConnectContext = await harness.server.configuration.onConnect?.(reconnectPayload as never);
+    const reconnectAuthContext = await harness.server.configuration.onAuthenticate?.(reconnectPayload as never);
+    reconnectPayload.context = {
+      ...reconnectPayload.context,
+      ...reconnectConnectContext,
+      ...reconnectAuthContext
+    };
     await harness.server.configuration.connected?.(reconnectPayload as never);
 
     const reconnectBroadcast = JSON.parse(reconnectPayload.document.broadcasts.at(-1) ?? "{}");

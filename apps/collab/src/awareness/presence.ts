@@ -208,15 +208,29 @@ export class PresenceManager {
       return [];
     }
 
-    return Array.from(sessions.values())
-      .filter((entry) => entry.isPresent && entry.connectionStatus === "active")
-      .sort((left, right) => {
-      if (left.userId === right.userId) {
-        return left.sessionId.localeCompare(right.sessionId);
+    const byUserId = new Map<string, CollaboratorPresenceSummary>();
+
+    for (const entry of sessions.values()) {
+      if (!entry.isPresent || entry.connectionStatus !== "active") {
+        continue;
       }
 
-      return left.userId.localeCompare(right.userId);
-      });
+      const existing = byUserId.get(entry.userId);
+
+      if (!existing) {
+        byUserId.set(entry.userId, entry);
+        continue;
+      }
+
+      const existingTime = Date.parse(existing.lastSeenAt);
+      const nextTime = Date.parse(entry.lastSeenAt);
+
+      if (Number.isNaN(existingTime) || (!Number.isNaN(nextTime) && nextTime >= existingTime)) {
+        byUserId.set(entry.userId, entry);
+      }
+    }
+
+    return Array.from(byUserId.values()).sort((left, right) => left.userId.localeCompare(right.userId));
   }
 
   buildSnapshotEvent(documentId: string): PresenceSnapshotEvent {

@@ -97,6 +97,32 @@ describe("presence manager", () => {
     ]);
   });
 
+  it("collapses duplicate active sessions for the same user into one collaborator summary", () => {
+    const presence = new PresenceManager();
+
+    presence.upsertConnection("doc-1", "socket-1", {
+      displayName: "Owner Demo",
+      user: {
+        id: "google:user_owner",
+        name: "Owner Demo"
+      }
+    });
+    presence.upsertConnection("doc-1", "socket-2", {
+      displayName: "Owner Demo",
+      user: {
+        id: "google:user_owner",
+        name: "Owner Demo"
+      }
+    });
+
+    expect(presence.getSnapshot("doc-1")).toHaveLength(1);
+    expect(presence.getSnapshot("doc-1")[0]).toMatchObject({
+      userId: "google:user_owner",
+      isPresent: true,
+      connectionStatus: "active"
+    });
+  });
+
   it("prunes stale sessions after the timeout window", () => {
     const presence = new PresenceManager();
 
