@@ -434,6 +434,8 @@ export function DocumentWorkspaceShell({
               blameMode={blameMode}
               collaboratorSeeds={collaboratorSeeds}
               collaborationDocument={collab.document}
+              collaborationProvider={collab.provider}
+              collaborationUser={collab.selfUser}
               documentId={document.id}
               initialTitle={documentTitle}
               isRenamingTitle={isRenamingTitle}

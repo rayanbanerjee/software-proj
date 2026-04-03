@@ -15,6 +15,7 @@
     "@hocuspocus/provider": "^3.4.4",
     "@repo/editor-schema": "workspace:*",
     "@tiptap/extension-collaboration": "^2.27.2",
+    "@tiptap/extension-collaboration-cursor": "^2.26.2",
     "@tiptap/pm": "^2.26.4",
     "@tiptap/react": "^2.26.4",
     "lib0": "^0.2.117",

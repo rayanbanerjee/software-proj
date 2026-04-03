@@ -55,7 +55,13 @@ export function useDocumentCollab(documentId: string | null) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastPermissionEvent, setLastPermissionEvent] = useState<DocumentPermissionUpdatedEvent | null>(null);
   const [lastRollbackEvent, setLastRollbackEvent] = useState<DocumentRollbackEvent | null>(null);
+  const [provider, setProvider] = useState<HocuspocusProvider | null>(null);
   const [selfSessionId, setSelfSessionId] = useState<string | null>(null);
+  const [selfUser, setSelfUser] = useState<null | {
+    displayName: string;
+    sessionId: string;
+    userId: string;
+  }>(null);
   const [status, setStatus] = useState<RealtimeStatus>("idle");
   const [writerSlots, setWriterSlots] = useState<WriterSlotSnapshotEvent | null>(null);
 
@@ -72,7 +78,9 @@ export function useDocumentCollab(documentId: string | null) {
     setErrorMessage(null);
     setLastPermissionEvent(null);
     setLastRollbackEvent(null);
+    setProvider(null);
     setSelfSessionId(null);
+    setSelfUser(null);
     setStatus("idle");
     setWriterSlots(null);
 
@@ -119,6 +127,11 @@ export function useDocumentCollab(documentId: string | null) {
 
         setCollaborators(mapSessionCollaborators(payload.session));
         setSelfSessionId(payload.session.self.sessionId);
+        setSelfUser({
+          displayName: payload.session.self.displayName ?? "Collaborator",
+          sessionId: payload.session.self.sessionId,
+          userId: payload.session.self.userId
+        });
         window.localStorage.setItem(`${SESSION_STORAGE_PREFIX}${activeDocumentId}`, payload.session.self.sessionId);
 
         currentDoc = new Y.Doc();
@@ -177,6 +190,7 @@ export function useDocumentCollab(documentId: string | null) {
           url: websocketUrl.toString()
         });
         providerRef.current = currentProvider;
+        setProvider(currentProvider);
         currentProvider.setAwarenessField("displayName", payload.session.self.displayName);
         currentProvider.setAwarenessField("sessionId", payload.session.self.sessionId);
         currentProvider.setAwarenessField("userId", payload.session.self.userId);
@@ -205,6 +219,7 @@ export function useDocumentCollab(documentId: string | null) {
 
       currentProvider?.destroy();
       providerRef.current = null;
+      setProvider(null);
       currentDoc?.destroy();
     };
   }, [documentId]);
@@ -215,7 +230,9 @@ export function useDocumentCollab(documentId: string | null) {
     errorMessage,
     lastPermissionEvent,
     lastRollbackEvent,
+    provider,
     selfSessionId,
+    selfUser,
     status,
     writerSlots
   };

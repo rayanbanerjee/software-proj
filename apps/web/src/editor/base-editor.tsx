@@ -1,6 +1,8 @@
 "use client";
 
 import Collaboration from "@tiptap/extension-collaboration";
+import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
+import type { HocuspocusProvider } from "@hocuspocus/provider";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { AiAction } from "@repo/shared-types";
@@ -67,6 +69,12 @@ interface BaseEditorProps {
   blameMode?: boolean;
   collaboratorSeeds?: readonly string[];
   collaborationDocument?: Y.Doc | null;
+  collaborationProvider?: HocuspocusProvider | null;
+  collaborationUser?: null | {
+    displayName: string;
+    sessionId: string;
+    userId: string;
+  };
   documentId?: string;
   initialTitle?: string;
   isRenamingTitle?: boolean;
@@ -91,6 +99,8 @@ export function BaseEditor({
   blameMode = false,
   collaboratorSeeds = [],
   collaborationDocument = null,
+  collaborationProvider = null,
+  collaborationUser = null,
   documentId = "route-shell-document",
   initialTitle = "Untitled document",
   isRenamingTitle = false,
@@ -109,6 +119,9 @@ export function BaseEditor({
   const hasCollaboration = Boolean(collaborationDocument);
   const readOnly = accessLevel !== "write" || isEditorReadOnly(role);
   const collaboratorColors = getCollaboratorColors(collaboratorSeeds);
+  const currentCollaboratorColor = getCollaboratorColors([
+    collaborationUser?.userId ?? collaborationUser?.sessionId ?? "local-user"
+  ])[0];
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -125,7 +138,18 @@ export function BaseEditor({
           ...headingEditorExtensions,
           Collaboration.configure({
             document: collaborationDocument
-          })
+          }),
+          ...(collaborationProvider && collaborationUser
+            ? [
+                CollaborationCursor.configure({
+                  provider: collaborationProvider,
+                  user: {
+                    color: currentCollaboratorColor.ring,
+                    name: collaborationUser.displayName
+                  }
+                })
+              ]
+            : [])
         ]
       : [...minimalEditorExtensions],
     onUpdate({ editor: currentEditor }) {
@@ -150,7 +174,15 @@ export function BaseEditor({
         sourceStateVector: serverStateVector
       });
     }
-  }, [collaborationDocument, documentId, hasCollaboration, readOnly]);
+  }, [
+    collaborationDocument,
+    collaborationProvider,
+    collaborationUser,
+    currentCollaboratorColor.ring,
+    documentId,
+    hasCollaboration,
+    readOnly
+  ]);
 
   useEffect(() => {
     setHasHydratedDraft(false);
@@ -164,6 +196,24 @@ export function BaseEditor({
   useEffect(() => {
     editor?.setEditable(!readOnly);
   }, [editor, readOnly]);
+
+  useEffect(() => {
+    const awareness = collaborationProvider?.awareness;
+
+    if (!hasCollaboration || !awareness || !collaborationUser) {
+      return;
+    }
+
+    awareness.setLocalStateField("user", {
+      color: currentCollaboratorColor.ring,
+      name: collaborationUser.displayName
+    });
+  }, [
+    collaborationProvider,
+    collaborationUser,
+    currentCollaboratorColor.ring,
+    hasCollaboration
+  ]);
 
   useEffect(() => {
     if (!editor || typeof window === "undefined" || hasHydratedDraft) {

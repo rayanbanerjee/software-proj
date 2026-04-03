@@ -3163,6 +3163,35 @@ body {
   font-weight: 700;
 }
 
+.base-editor-content .collaboration-cursor__caret {
+  border-left: 4px solid;
+  margin-left: -2px;
+  margin-right: -2px;
+  position: relative;
+  pointer-events: none;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+.base-editor-content .collaboration-cursor__label {
+  position: absolute;
+  top: -1.55em;
+  left: -2px;
+  padding: 3px 8px;
+  border-radius: 8px 8px 8px 2px;
+  color: #fffdf8;
+  font-family: var(--mono-font);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.base-editor-content .collaboration-cursor__selection {
+  display: inline;
+}
+
 .document-comment-composer {
   display: flex;
   gap: 10px;
