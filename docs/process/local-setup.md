@@ -98,6 +98,8 @@ Useful commands:
 ./run.sh check
 ```
 
+See [testing-guide.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/docs/process/testing-guide.md) for the confirmed backend and frontend coverage split.
+
 ## Database helpers
 
 Generate Prisma client:

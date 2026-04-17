@@ -53,6 +53,7 @@ Useful local commands:
 ```
 
 For the full environment and testing guide, see [local-setup.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/docs/process/local-setup.md).
+For the confirmed backend and frontend testing coverage, see [testing-guide.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/docs/process/testing-guide.md).
 
 ## Prerequisites
 
