@@ -489,7 +489,7 @@ export function BaseEditor({
                 : action === "summarize"
                   ? "Summarize"
                   : action === "translate"
-                    ? "Translate"
+                    ? "Translate to English"
                     : "Tone adjustment"}
             </button>
           ))}

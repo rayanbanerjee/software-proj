@@ -37,7 +37,7 @@ function getActionLabel(action: AiAction) {
     case "summarize":
       return "Summarize";
     case "translate":
-      return "Translate";
+      return "Translate to English";
     case "restructure":
       return "Tone adjustment";
   }

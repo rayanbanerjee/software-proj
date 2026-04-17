@@ -23,18 +23,28 @@ interface OpenRouterChatResponse {
 
 type OpenRouterMessageContent = string | Array<{ text?: string; type?: string }>;
 
-const actionInstructions: Record<AiAction, string> = {
+const actionInstructions: Record<Exclude<AiAction, "translate">, string> = {
   rewrite: "Rewrite the source text while preserving meaning and improving clarity.",
   summarize: "Summarize the source text concisely.",
-  translate: "Translate the source text while preserving intent and meaning.",
   restructure: "Restructure the source text into a clearer organization."
 };
 
+function getActionInstruction(input: AiProviderGenerateInput): string {
+  if (input.action === "translate") {
+    const targetLanguage = input.prompt?.trim() || "English";
+    return `Translate the source text into ${targetLanguage} while preserving intent, tone, and meaning.`;
+  }
+
+  return actionInstructions[input.action];
+}
+
 function buildUserMessage(input: AiProviderGenerateInput) {
-  const prompt = input.prompt ? `Additional instruction: ${input.prompt}\n\n` : "";
+  const prompt = input.action !== "translate" && input.prompt
+    ? `Additional instruction: ${input.prompt}\n\n`
+    : "";
 
   return [
-    `Task: ${actionInstructions[input.action]}`,
+    `Task: ${getActionInstruction(input)}`,
     prompt,
     "Return a JSON object with exactly these keys:",
     '- "proposedText": string',

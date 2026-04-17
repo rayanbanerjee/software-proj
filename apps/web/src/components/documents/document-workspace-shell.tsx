@@ -193,7 +193,7 @@ export function DocumentWorkspaceShell({
       const response = await fetch(`${apiBaseUrl}/v1/documents/${apiDocumentId}/ai/requests`, {
         body: JSON.stringify({
           action: payload.action,
-          prompt: null,
+          prompt: payload.action === "translate" ? "English" : null,
           context: {
             scope: "selection",
             selectedText: payload.selectedText,

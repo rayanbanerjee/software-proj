@@ -83,6 +83,62 @@ describe("ai module", () => {
     await app.close();
   });
 
+  it("defaults translation requests to English when no target language is provided", async () => {
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Translation doc"
+      }
+    });
+    const documentId = createResponse.json().document.id as string;
+
+    const submitResponse = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/ai/requests`,
+      headers: ownerHeaders,
+      payload: {
+        action: "translate",
+        prompt: null,
+        context: {
+          scope: "selection",
+          selectedText: "Bonjour tout le monde.",
+          surroundingText: null
+        },
+        maskPersonalData: false
+      }
+    });
+
+    expect(submitResponse.statusCode).toBe(202);
+    const requestId = submitResponse.json().requestId as string;
+
+    const statusResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/ai/requests/${requestId}`,
+      headers: ownerHeaders
+    });
+
+    expect(statusResponse.statusCode).toBe(200);
+    expect(statusResponse.json()).toMatchObject({
+      requestId,
+      status: "succeeded",
+      proposal: {
+        action: "translate",
+        proposedText: expect.stringContaining("[TRANSLATED TO ENGLISH]"),
+        summary: "Mock translate proposal generated locally for development to English."
+      }
+    });
+
+    await app.close();
+  });
+
   it("accepts and rejects proposal decisions through dedicated endpoints", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {

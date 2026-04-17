@@ -27,7 +27,7 @@ export async function runMockAi(input: MockAiRequest): Promise<MockAiResponse> {
       result = `[REWRITE] ${input.text}`;
       break;
     case "translate":
-      result = `[TRANSLATED] ${input.text}`;
+      result = `[TRANSLATED TO ${(input.parameters?.targetLanguage ?? "English").toUpperCase()}] ${input.text}`;
       break;
     case "restructure":
       result = `[RESTRUCTURED] ${input.text}`;
