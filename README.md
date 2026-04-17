@@ -12,6 +12,48 @@ Collaborative document editor with realtime Yjs/Hocuspocus sync, Google sign-in,
 - `infrastructure/*`: Docker and local helper scripts
 - `docs/*`: ADRs, API docs, specs, task tracking, diagrams
 
+## Quick start
+
+Install dependencies:
+
+```bash
+corepack enable
+corepack pnpm install
+```
+
+Copy the local env templates:
+
+```bash
+cp apps/api/.env.example apps/api/.env.local
+cp apps/web/.env.example apps/web/.env.local
+```
+
+Start the local stack:
+
+```bash
+./run.sh start
+```
+
+Run the web app:
+
+```bash
+./run.sh web -- --port 3002
+```
+
+Useful local commands:
+
+```bash
+./run.sh check
+./run.sh test
+./run.sh test:backend
+./run.sh test:frontend
+./run.sh test:e2e
+./run.sh logs api
+./run.sh stop
+```
+
+For the full environment and testing guide, see [local-setup.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/docs/process/local-setup.md).
+
 ## Prerequisites
 
 - Node.js `>= 22`
@@ -19,19 +61,6 @@ Collaborative document editor with realtime Yjs/Hocuspocus sync, Google sign-in,
 - Docker Desktop running for local services
 - Google OAuth client for browser sign-in
 - OpenRouter API key if you want real AI responses instead of config errors
-
-Use the repo Node version:
-
-```bash
-cat .nvmrc
-```
-
-Then install dependencies:
-
-```bash
-corepack enable
-corepack pnpm install
-```
 
 ## Environment setup
 
@@ -90,25 +119,25 @@ docker info
 This builds and starts Postgres, Redis, MinIO, API, collab, and worker:
 
 ```bash
-bash infrastructure/scripts/start-local.sh
+./run.sh start
 ```
 
 Stop the stack:
 
 ```bash
-bash infrastructure/scripts/stop-local.sh
+./run.sh stop
 ```
 
 View logs:
 
 ```bash
-bash infrastructure/scripts/logs-local.sh
+./run.sh logs
 ```
 
 One service only:
 
 ```bash
-bash infrastructure/scripts/logs-local.sh api
+./run.sh logs api
 ```
 
 ### 3. Start the web app
@@ -116,7 +145,7 @@ bash infrastructure/scripts/logs-local.sh api
 Run the web app separately:
 
 ```bash
-corepack pnpm --filter @repo/web dev -- --port 3002
+./run.sh web -- --port 3002
 ```
 
 ### 4. Open the app
@@ -167,28 +196,24 @@ corepack pnpm --filter @repo/api prisma:generate
 
 ## Validation
 
-Lint:
+Repository-wide checks:
 
 ```bash
-corepack pnpm lint
+./run.sh check
+./run.sh test
 ```
 
-Typecheck:
+Backend testing:
 
 ```bash
-corepack pnpm typecheck
+./run.sh test:backend
 ```
 
-Tests:
+Frontend testing:
 
 ```bash
-corepack pnpm test
-```
-
-Docs pipeline:
-
-```bash
-node scripts/check-docs.mjs
+./run.sh test:frontend
+./run.sh test:e2e
 ```
 
 Regenerate Mermaid diagram images:
@@ -201,6 +226,7 @@ node scripts/render-ai1220-diagrams.mjs
 
 Process guidance lives in:
 
-- [documentation-pipeline.md](/Users/rayan.banerjee/courses/software%20project/docs/process/documentation-pipeline.md)
-- [CONTRIBUTING.md](/Users/rayan.banerjee/courses/software%20project/CONTRIBUTING.md)
-- [git-conventions.md](/Users/rayan.banerjee/courses/software%20project/docs/process/git-conventions.md)
+- [documentation-pipeline.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/docs/process/documentation-pipeline.md)
+- [CONTRIBUTING.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/CONTRIBUTING.md)
+- [git-conventions.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/docs/process/git-conventions.md)
+- [local-setup.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/docs/process/local-setup.md)
