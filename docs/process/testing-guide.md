@@ -23,6 +23,14 @@ Backend automated coverage currently includes:
 - collaboration server tests in `apps/collab/tests`
 - worker tests in `apps/worker/tests`
 
+Collaboration websocket coverage currently includes:
+
+- session-token authentication rejection checks
+- connect and reconnect hook behavior
+- presence snapshot updates
+- writer-slot snapshot updates
+- stateless permission and rollback event rebroadcasts
+
 Run the backend suites:
 
 ```bash
