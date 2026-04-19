@@ -138,18 +138,6 @@ function isRuntimeDocumentEmpty(document: Y.Doc) {
   return document.getXmlFragment("prosemirror").length === 0;
 }
 
-function readNodePlainText(node: Y.XmlElement | Y.XmlText): string {
-  if (node instanceof Y.XmlText) {
-    return node.toDelta().map((entry: { insert?: unknown }) => String(entry.insert ?? "")).join("");
-  }
-
-  return node
-    .toArray()
-    .filter((child): child is Y.XmlElement | Y.XmlText => child instanceof Y.XmlElement || child instanceof Y.XmlText)
-    .map((child) => readNodePlainText(child))
-    .join("");
-}
-
 function matchDocumentContentSyncRoute(url: string) {
   const match = /^\/internal\/documents\/([^/]+)\/content-sync$/.exec(url);
 
@@ -409,15 +397,6 @@ function requestHeadersValue(
 ) {
   const value = request.headers?.[name] ?? request.headers?.[name.toLowerCase()];
   return Array.isArray(value) ? value[0] : value;
-}
-
-function documentToPlainText(document: Y.Doc) {
-  return document
-    .getXmlFragment("prosemirror")
-    .toArray()
-    .filter((node): node is Y.XmlElement | Y.XmlText => node instanceof Y.XmlElement || node instanceof Y.XmlText)
-    .map((node) => readNodePlainText(node))
-    .join("\n");
 }
 
 export function createCollabServer(
