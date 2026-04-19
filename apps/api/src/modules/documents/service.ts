@@ -27,6 +27,7 @@ import type {
   UpdateDocumentContentResponse
 } from "@repo/shared-types";
 import { AppError } from "../../common/errors.js";
+import { readJsonFile, resolveDataPath, writeJsonFile } from "../../common/file-store.js";
 
 type StoredMembership = {
   role: DocumentRole;
@@ -39,6 +40,12 @@ type StoredDocument = {
   createdAt: string;
   id: string;
   memberships: StoredMembership[];
+  title: string;
+  updatedAt: string;
+};
+
+type DocumentSnapshot = {
+  text: string;
   title: string;
   updatedAt: string;
 };
@@ -115,30 +122,20 @@ function toCollaboratorSessionSummary(
 
 export class DocumentsService {
   private readonly documents = new Map<string, StoredDocument>();
+  private readonly storagePath: string;
 
-  private maybeGrantDevelopmentAccess(document: StoredDocument, actor: DocumentActor): StoredMembership | undefined {
-    const existingMembership = this.getMembership(document, actor.userId);
+  constructor(dataDir: string) {
+    this.storagePath = resolveDataPath(dataDir, "documents.json");
 
-    if (existingMembership) {
-      return existingMembership;
+    const storedDocuments = readJsonFile<StoredDocument[]>(this.storagePath, []);
+
+    for (const document of storedDocuments) {
+      this.documents.set(document.id, document);
     }
+  }
 
-    if (
-      process.env.NODE_ENV === "production"
-      || process.env.NODE_ENV === "test"
-    ) {
-      return undefined;
-    }
-
-    const membership: StoredMembership = {
-      userId: actor.userId,
-      role: "editor"
-    };
-
-    document.memberships.push(membership);
-    document.updatedAt = new Date().toISOString();
-
-    return membership;
+  private persistDocuments() {
+    writeJsonFile(this.storagePath, Array.from(this.documents.values()));
   }
 
   private getMembership(document: StoredDocument, userId: string): StoredMembership | undefined {
@@ -173,6 +170,7 @@ export class DocumentsService {
     };
 
     this.documents.set(document.id, document);
+    this.persistDocuments();
 
     return {
       document: toDocumentMetadata(document, "owner")
@@ -182,7 +180,7 @@ export class DocumentsService {
   listDocuments(actor: DocumentActor): ListDocumentsResponse {
     const documents = Array.from(this.documents.values())
       .map((document) => {
-        const membership = this.maybeGrantDevelopmentAccess(document, actor) ?? this.getMembership(
+        const membership = this.getMembership(
           document,
           actor.userId
         );
@@ -206,7 +204,7 @@ export class DocumentsService {
   getDocumentMetadata(documentId: string, actor: DocumentActor): GetDocumentMetadataResponse {
     const document = this.requireDocument(documentId);
 
-    const membership = this.maybeGrantDevelopmentAccess(document, actor) ?? this.getMembership(document, actor.userId);
+    const membership = this.getMembership(document, actor.userId);
 
     if (!membership || !canView(membership.role)) {
       throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have access to this document.");
@@ -227,7 +225,7 @@ export class DocumentsService {
     }
   ): JoinDocumentSessionResponse {
     const document = this.requireDocument(documentId);
-    const membership = this.maybeGrantDevelopmentAccess(document, actor) ?? this.getMembership(document, actor.userId);
+    const membership = this.getMembership(document, actor.userId);
 
     if (!membership || !canView(membership.role)) {
       throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have access to this document.");
@@ -278,6 +276,7 @@ export class DocumentsService {
 
     document.title = title;
     document.updatedAt = new Date().toISOString();
+    this.persistDocuments();
 
     return {
       document: toDocumentMetadata(document, membership.role)
@@ -299,6 +298,7 @@ export class DocumentsService {
     const archivedAt = new Date().toISOString();
     document.archivedAt = archivedAt;
     document.updatedAt = archivedAt;
+    this.persistDocuments();
 
     return {
       documentId: document.id,
@@ -308,7 +308,7 @@ export class DocumentsService {
 
   getDocumentContent(documentId: string, actor: DocumentActor): GetDocumentContentResponse {
     const document = this.requireDocument(documentId);
-    const membership = this.maybeGrantDevelopmentAccess(document, actor) ?? this.getMembership(document, actor.userId);
+    const membership = this.getMembership(document, actor.userId);
 
     if (!membership || !canView(membership.role)) {
       throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have access to this document.");
@@ -325,7 +325,7 @@ export class DocumentsService {
     actor: DocumentActor
   ): UpdateDocumentContentResponse {
     const document = this.requireDocument(documentId);
-    const membership = this.maybeGrantDevelopmentAccess(document, actor) ?? this.getMembership(document, actor.userId);
+    const membership = this.getMembership(document, actor.userId);
 
     if (!membership || !canEdit(membership.role)) {
       throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have permission to edit this document.");
@@ -333,9 +333,55 @@ export class DocumentsService {
 
     document.content = text;
     document.updatedAt = new Date().toISOString();
+    this.persistDocuments();
 
     return {
       content: toDocumentContent(document)
+    };
+  }
+
+  getDocumentSnapshot(
+    documentId: string,
+    actor: DocumentActor
+  ): DocumentSnapshot {
+    const document = this.requireDocument(documentId);
+    const membership = this.getMembership(document, actor.userId);
+
+    if (!membership || !canView(membership.role)) {
+      throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have access to this document.");
+    }
+
+    return {
+      text: document.content,
+      title: document.title,
+      updatedAt: document.updatedAt
+    };
+  }
+
+  restoreDocumentSnapshot(
+    documentId: string,
+    snapshot: {
+      text: string;
+      title: string;
+    },
+    actor: DocumentActor
+  ) {
+    const document = this.requireDocument(documentId);
+    const membership = this.getMembership(document, actor.userId);
+
+    if (!membership || !canRollback(membership.role)) {
+      throw new AppError("REVISION_FORBIDDEN", 403, "You do not have permission to roll back this document.");
+    }
+
+    document.content = snapshot.text;
+    document.title = snapshot.title;
+    document.updatedAt = new Date().toISOString();
+    this.persistDocuments();
+
+    return {
+      text: document.content,
+      title: document.title,
+      updatedAt: document.updatedAt
     };
   }
 
@@ -352,6 +398,7 @@ export class DocumentsService {
     if (existingMembership) {
       existingMembership.role = role;
       document.updatedAt = new Date().toISOString();
+      this.persistDocuments();
       return existingMembership;
     }
 
@@ -362,6 +409,7 @@ export class DocumentsService {
 
     document.memberships.push(membership);
     document.updatedAt = new Date().toISOString();
+    this.persistDocuments();
 
     return membership;
   }
@@ -376,5 +424,6 @@ export class DocumentsService {
 
     document.memberships = nextMemberships;
     document.updatedAt = new Date().toISOString();
+    this.persistDocuments();
   }
 }

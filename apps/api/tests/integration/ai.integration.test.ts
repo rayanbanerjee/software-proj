@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { GetAiRequestStatusResponse } from "@repo/shared-types";
 
 import { makeAiRequestFixture } from "@repo/test-fixtures";
 
@@ -9,6 +10,37 @@ import {
 } from "./harness.js";
 
 const originalEnv = { ...process.env };
+
+async function waitForAiRequest(
+  app: Awaited<ReturnType<typeof createApiTestApp>>,
+  documentId: string,
+  requestId: string,
+  headers: Record<string, string>
+) {
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    const response = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/ai/requests/${requestId}`,
+      headers
+    });
+
+    if (response.statusCode !== 200) {
+      throw new Error(`Unexpected AI status response ${response.statusCode}`);
+    }
+
+    const payload = response.json() as GetAiRequestStatusResponse;
+
+    if (payload.status !== "queued" && payload.status !== "running") {
+      return payload;
+    }
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+  }
+
+  throw new Error(`AI request ${requestId} did not finish in time.`);
+}
 
 beforeEach(() => {
   process.env = applyApiTestEnv();
@@ -35,6 +67,16 @@ describe("ai integration flow", () => {
       }
     });
     const documentId = createResponse.json().document.id as string;
+    const seedContentResponse = await app.inject({
+      method: "PUT",
+      url: `/v1/documents/${documentId}/content`,
+      headers: ownerHeaders,
+      payload: {
+        text: "Original integration text."
+      }
+    });
+
+    expect(seedContentResponse.statusCode).toBe(200);
     const aiRequest = makeAiRequestFixture({
       documentId,
       action: "rewrite",
@@ -60,6 +102,7 @@ describe("ai integration flow", () => {
 
     expect(submitResponse.statusCode).toBe(202);
     const requestId = submitResponse.json().requestId as string;
+    await waitForAiRequest(app, documentId, requestId, ownerHeaders);
 
     app.aiService.markRequestStaleForTest(requestId, {
       sourceText: "Document text changed after the AI request."

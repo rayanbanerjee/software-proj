@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import type { DocumentPermissionUpdatedEvent, DocumentRole, SessionAccessLevel } from "@repo/shared-types";
 
-import { authenticateRequest, requireCurrentUser } from "../auth/guard.js";
+import { protectedRoute, requireCurrentUser } from "../auth/guard.js";
 import type { DocumentActor } from "../documents/service.js";
 import { SharingService } from "./service.js";
 
@@ -100,7 +100,7 @@ export async function registerSharingModule(app: FastifyInstance) {
     new SharingService(app.documentsService, app.auditService, app.apiEnv.SESSION_SECRET)
   );
 
-  app.post("/v1/documents/:documentId/invitations", { preHandler: authenticateRequest }, async (request, reply) => {
+  app.post("/v1/documents/:documentId/invitations", protectedRoute, async (request, reply) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string };
     const body = createInvitationBodySchema.parse(request.body);
@@ -109,7 +109,7 @@ export async function registerSharingModule(app: FastifyInstance) {
     return reply.status(201).send(response);
   });
 
-  app.post("/v1/invitations/accept", { preHandler: authenticateRequest }, async (request) => {
+  app.post("/v1/invitations/accept", protectedRoute, async (request) => {
     const actor = getActorWithEmail(requireCurrentUser(request));
     const body = acceptInvitationBodySchema.parse(request.body);
     const response = app.sharingService.acceptInvitation(body.token, actor);
@@ -127,7 +127,7 @@ export async function registerSharingModule(app: FastifyInstance) {
     return response;
   });
 
-  app.patch("/v1/documents/:documentId/members/:userId", { preHandler: authenticateRequest }, async (request) => {
+  app.patch("/v1/documents/:documentId/members/:userId", protectedRoute, async (request) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string; userId: string };
     const body = updateRoleBodySchema.parse(request.body);
@@ -146,7 +146,7 @@ export async function registerSharingModule(app: FastifyInstance) {
     return response;
   });
 
-  app.delete("/v1/documents/:documentId/members/:userId", { preHandler: authenticateRequest }, async (request) => {
+  app.delete("/v1/documents/:documentId/members/:userId", protectedRoute, async (request) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string; userId: string };
     const response = app.sharingService.revokeAccess(params.documentId, params.userId, actor);

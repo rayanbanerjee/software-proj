@@ -99,7 +99,7 @@ describe("documents module", () => {
     await app.close();
   });
 
-  it("shows newly created documents to other accounts during local development", async () => {
+  it("does not expose documents to unrelated accounts in development", async () => {
     const originalNodeEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = "development";
     try {
@@ -118,7 +118,7 @@ describe("documents module", () => {
         url: "/v1/documents",
         headers: ownerHeaders,
         payload: {
-          title: "Visible across dev accounts"
+          title: "Private across dev accounts"
         }
       });
 
@@ -129,14 +129,9 @@ describe("documents module", () => {
       });
 
       expect(response.statusCode).toBe(200);
-      expect(response.json().documents).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            title: "Visible across dev accounts",
-            role: "editor"
-          })
-        ])
-      );
+      expect(response.json()).toEqual({
+        documents: []
+      });
 
       await app.close();
     } finally {
@@ -296,8 +291,6 @@ describe("documents module", () => {
   });
 
   it("rejects metadata and rename access for other users", async () => {
-    const originalNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = "development";
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
@@ -325,13 +318,12 @@ describe("documents module", () => {
       headers: otherHeaders
     });
 
-    expect(metadataResponse.statusCode).toBe(200);
-    expect(metadataResponse.json()).toMatchObject({
-      document: {
-        id: documentId,
-        permissions: {
-          role: "editor"
-        }
+    expect(metadataResponse.statusCode).toBe(403);
+    expect(metadataResponse.json()).toEqual({
+      error: {
+        code: "DOCUMENT_FORBIDDEN",
+        message: "You do not have access to this document.",
+        statusCode: 403
       }
     });
 
@@ -344,21 +336,19 @@ describe("documents module", () => {
       }
     });
 
-    expect(renameResponse.statusCode).toBe(200);
-    expect(renameResponse.json()).toMatchObject({
-      document: {
-        id: documentId,
-        title: "Should fail"
+    expect(renameResponse.statusCode).toBe(403);
+    expect(renameResponse.json()).toEqual({
+      error: {
+        code: "DOCUMENT_FORBIDDEN",
+        message: "You do not have permission to rename this document.",
+        statusCode: 403
       }
     });
 
-    process.env.NODE_ENV = originalNodeEnv;
     await app.close();
   });
 
   it("rejects session bootstrap for a user without document access", async () => {
-    const originalNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = "development";
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
@@ -386,20 +376,64 @@ describe("documents module", () => {
       payload: {}
     });
 
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
-      session: {
-        documentId,
-        self: {
-          userId: "google:user_other",
-          role: "editor",
-          accessLevel: "write"
-        }
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "DOCUMENT_FORBIDDEN",
+        message: "You do not have access to this document.",
+        statusCode: 403
       }
     });
 
-    process.env.NODE_ENV = originalNodeEnv;
     await app.close();
+  });
+
+  it("persists document metadata across app restarts when the data dir is reused", async () => {
+    const dataDir = applyApiTestEnv().API_DATA_DIR as string;
+    process.env = applyApiTestEnv({
+      API_DATA_DIR: dataDir
+    });
+
+    const firstApp = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(firstApp, {
+      email: "owner@example.com",
+      userId: "jwt:user_owner"
+    });
+    const createResponse = await firstApp.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Persisted document"
+      }
+    });
+    const documentId = createResponse.json().document.id as string;
+
+    await firstApp.close();
+
+    process.env = applyApiTestEnv({
+      API_DATA_DIR: dataDir
+    });
+
+    const secondApp = await createApiTestApp();
+    const response = await secondApp.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}`,
+      headers: createSessionHeaders(secondApp, {
+        email: "owner@example.com",
+        userId: "jwt:user_owner"
+      })
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      document: {
+        id: documentId,
+        title: "Persisted document"
+      }
+    });
+
+    await secondApp.close();
   });
 
   it("archives a document for an owner and removes it from listings", async () => {

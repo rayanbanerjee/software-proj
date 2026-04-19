@@ -55,7 +55,7 @@ describe("auth shell data", () => {
 });
 
 describe("document shell data", () => {
-  it("seeds the document list with placeholder cards for the list route", () => {
+  it("seeds the document list with shell cards for the list route", () => {
     const documentIds = documentListSections.flatMap((section) =>
       section.documents.map((document) => document.id)
     );
@@ -75,7 +75,7 @@ describe("document shell data", () => {
     });
   });
 
-  it("builds predictable local draft records for the create-document stub", () => {
+  it("builds predictable local draft records for the create-document flow", () => {
     expect(createDraftDocumentRecord(2)).toMatchObject({
       id: "draft-02",
       title: "Untitled Draft 02",

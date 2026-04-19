@@ -18,10 +18,14 @@ export interface AiJobPayload {
   documentId: string;
   userId: string;
   operation: "rewrite" | "summarize" | "translate" | "restructure";
+  prompt?: string | null;
+  sourceText?: string | null;
 }
 
 export interface AiJobResult {
   proposalId: string;
+  proposedText: string;
+  summary: string;
   status: "completed";
   processedAt: string;
 }
@@ -47,10 +51,13 @@ export interface RevisionSummaryJobPayload {
   documentId: string;
   revisionId: string;
   requestedBy: string;
+  title?: string | null;
+  snapshotText?: string | null;
 }
 
 export interface RevisionSummaryJobResult {
   summaryId: string;
+  summary: string;
   status: "completed";
   processedAt: string;
 }

@@ -1,26 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import { renderPdfStub } from "../src/renderers/pdf";
+import { renderPdf } from "../src/renderers/pdf";
 
-describe("renderPdfStub", () => {
-  it("returns PDF stub metadata and content", () => {
-    const output = renderPdfStub({
+describe("renderPdf", () => {
+  it("returns PDF metadata and content", () => {
+    const output = renderPdf({
       title: "Design Notes",
       content: "Hello PDF"
     });
 
     expect(output.mimeType).toBe("application/pdf");
     expect(output.fileExtension).toBe("pdf");
-    expect(output.content).toContain("PDF_STUB");
-    expect(output.content).toContain("TITLE:Design Notes");
-    expect(output.content).toContain("BODY:Hello PDF");
+    expect(Buffer.isBuffer(output.content)).toBe(true);
+    expect(output.content.toString("utf8")).toContain("%PDF-1.4");
+    expect(output.content.toString("utf8")).toContain("Design Notes");
+    expect(output.content.toString("utf8")).toContain("Hello PDF");
   });
 
   it("uses fallback title when missing", () => {
-    const output = renderPdfStub({
+    const output = renderPdf({
       content: "No title"
     });
 
-    expect(output.content).toContain("TITLE:Untitled document");
+    expect(output.content.toString("utf8")).toContain("Untitled document");
   });
 });

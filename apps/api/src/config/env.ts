@@ -3,8 +3,11 @@ import { z } from "zod";
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
+  API_DATA_DIR: z.string().trim().min(1).default("apps/api/.data"),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
+  GOOGLE_CLIENT_ID: z.string().trim().min(1).optional(),
+  GOOGLE_JWKS_URL: z.string().trim().url().default("https://www.googleapis.com/oauth2/v3/certs"),
   SESSION_SECRET: z.string().min(1),
   JWT_ISSUER: z.string().min(1).default("collab-editor-api"),
   JWT_LOGIN_PASSWORD: z.string().min(1).default("dev-password"),

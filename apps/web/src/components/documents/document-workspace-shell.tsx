@@ -296,11 +296,8 @@ export function DocumentWorkspaceShell({
       return;
     }
 
-    setPendingAiApplication({
-      proposalId: aiState.proposal.proposalId,
-      selection: aiState.selection,
-      text: aiState.proposal.proposedText
-    });
+    setPendingAiApplication(null);
+    setAiState(null);
   }
 
   async function rejectAiProposal() {
@@ -418,7 +415,13 @@ export function DocumentWorkspaceShell({
           {collab.lastRollbackEvent ? (
             <div className="offline-banner" role="status">
               <strong>Rollback event</strong>
-              <span>Revision {collab.lastRollbackEvent.revisionId} was broadcast to active collaborators.</span>
+              <span>
+                Revision {collab.lastRollbackEvent.revisionId} restored
+                {" "}
+                {collab.lastRollbackEvent.restoredFromRevisionId}
+                {" "}
+                and was broadcast to active collaborators.
+              </span>
             </div>
           ) : null}
           {renameErrorMessage ? (

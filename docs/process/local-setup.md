@@ -32,7 +32,6 @@ cp apps/api/.env.example apps/api/.env.local
 Important API values:
 
 - `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
 - `SESSION_SECRET`
 - `WEB_ORIGIN=http://localhost:3002`
 - `COLLAB_URL=ws://localhost:4001`
@@ -94,11 +93,12 @@ Useful commands:
 ```bash
 ./run.sh test:backend
 ./run.sh test:frontend
+./run.sh e2e:install
 ./run.sh test:e2e
 ./run.sh check
 ```
 
-See [testing-guide.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/docs/process/testing-guide.md) for the confirmed backend and frontend coverage split.
+See [testing-guide.md](/Users/rayan.banerjee/courses/software%20project/docs/process/testing-guide.md) for the confirmed backend and frontend coverage split.
 
 ## Database helpers
 
@@ -119,3 +119,26 @@ Seed demo data:
 ```bash
 ./run.sh db:seed
 ```
+
+## Playwright workflow
+
+Install the browser once on a machine:
+
+```bash
+./run.sh e2e:install
+```
+
+Recommended local E2E flow:
+
+1. `./run.sh start`
+2. `./run.sh db:seed`
+3. `./run.sh web -- --port 3000`
+4. `./run.sh test:e2e`
+
+The current shell E2E spec only needs the web app to boot, but using the seeded local stack keeps browser runs aligned with the rest of the documented workflow.
+
+## Auth and AI notes
+
+- local username/password login remains available at `/auth` for development and tests
+- Google callback auth can also be exercised when `GOOGLE_CLIENT_ID` is configured
+- real AI responses still require `OPENROUTER_API_KEY` or `OPENAI_API_KEY`

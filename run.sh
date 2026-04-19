@@ -21,6 +21,7 @@ Validation:
   test                  Run the full repository test suite
   test:backend          Run API, collab, and worker tests
   test:frontend         Run web unit tests and E2E setup checks
+  e2e:install           Install the Playwright browser used by the web E2E suite
   test:e2e              Run Playwright E2E tests for the web app
 
 Database helpers:
@@ -85,6 +86,9 @@ case "$command" in
   test:frontend)
     run_pnpm --filter @repo/web test
     run_pnpm e2e:check
+    ;;
+  e2e:install)
+    run_pnpm e2e:install
     ;;
   test:e2e)
     run_pnpm --filter @repo/web test:e2e

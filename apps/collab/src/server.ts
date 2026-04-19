@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Server } from "@hocuspocus/server";
+import { Document, Server } from "@hocuspocus/server";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { StringDecoder } from "node:string_decoder";
 import * as Y from "yjs";
@@ -32,6 +32,7 @@ type CollabDocumentsRuntime = {
 };
 
 type JsonReadableRequest = Pick<IncomingMessage, "method" | "url"> & {
+  headers?: IncomingMessage["headers"];
   on: (
     event: "data" | "end" | "error",
     listener: ((chunk: Buffer | string) => void) | (() => void) | ((error: Error) => void)
@@ -49,6 +50,7 @@ const COLLAPSE_DATA_DIR = join(
   "data",
   "documents"
 );
+const INTERNAL_CONTENT_SYNC_ORIGIN = "internal-content-sync";
 
 function sanitizeDocumentName(documentName: string) {
   return documentName.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -84,6 +86,78 @@ function writeJson(
     "Content-Type": "application/json"
   });
   response.end(JSON.stringify(body));
+}
+
+function createCollabDocumentFromPlainText(text: string) {
+  const document = new Y.Doc();
+  const fragment = document.getXmlFragment("prosemirror");
+  const normalized = text.replace(/\r\n/g, "\n");
+  const lines = normalized.length > 0 ? normalized.split("\n") : [""];
+  const paragraphs = lines.map((line) => {
+    const paragraph = new Y.XmlElement("paragraph");
+
+    if (line.length > 0) {
+      const textNode = new Y.XmlText();
+      textNode.insert(0, line);
+      paragraph.insert(0, [textNode]);
+    }
+
+    return paragraph;
+  });
+
+  fragment.insert(0, paragraphs);
+
+  return document;
+}
+
+function cloneXmlFragmentChildren(document: Y.Doc) {
+  return document
+    .getXmlFragment("prosemirror")
+    .toArray()
+    .filter((node): node is Y.XmlElement | Y.XmlText => node instanceof Y.XmlElement || node instanceof Y.XmlText)
+    .map((node) => node.clone());
+}
+
+function applyPlainTextToRuntimeDocument(document: Y.Doc, text: string) {
+  const nextDocument = createCollabDocumentFromPlainText(text);
+  const fragment = document.getXmlFragment("prosemirror");
+  const nextChildren = cloneXmlFragmentChildren(nextDocument);
+
+  document.transact(() => {
+    if (fragment.length > 0) {
+      fragment.delete(0, fragment.length);
+    }
+
+    if (nextChildren.length > 0) {
+      fragment.insert(0, nextChildren);
+    }
+  }, INTERNAL_CONTENT_SYNC_ORIGIN);
+}
+
+function isRuntimeDocumentEmpty(document: Y.Doc) {
+  return document.getXmlFragment("prosemirror").length === 0;
+}
+
+function readNodePlainText(node: Y.XmlElement | Y.XmlText): string {
+  if (node instanceof Y.XmlText) {
+    return node.toDelta().map((entry: { insert?: unknown }) => String(entry.insert ?? "")).join("");
+  }
+
+  return node
+    .toArray()
+    .filter((child): child is Y.XmlElement | Y.XmlText => child instanceof Y.XmlElement || child instanceof Y.XmlText)
+    .map((child) => readNodePlainText(child))
+    .join("");
+}
+
+function matchDocumentContentSyncRoute(url: string) {
+  const match = /^\/internal\/documents\/([^/]+)\/content-sync$/.exec(url);
+
+  if (!match) {
+    return null;
+  }
+
+  return decodeURIComponent(match[1] ?? "");
 }
 
 function readJsonBody(request: JsonReadableRequest): Promise<unknown> {
@@ -125,6 +199,7 @@ function isDocumentRollbackEvent(value: unknown): value is DocumentRollbackEvent
     candidate.type === "document.rollback"
     && typeof candidate.documentId === "string"
     && typeof candidate.revisionId === "string"
+    && typeof candidate.restoredFromRevisionId === "string"
     && typeof candidate.rolledBackAt === "string"
     && typeof candidate.triggeredByUserId === "string"
   );
@@ -179,10 +254,18 @@ export function handleCollabRequest(
   options: {
     activeConnections: number;
     activeDocuments: number;
+    internalToken?: string;
     logger: CollabLogger;
     runtime: InternalCollabRuntime;
+    syncDocumentContent?: (input: {
+      documentId: string;
+      initializeIfEmpty: boolean;
+      text: string;
+    }) => Promise<boolean>;
   }
 ) {
+  const contentSyncDocumentId = request.url ? matchDocumentContentSyncRoute(request.url) : null;
+
   if (request.url === "/health") {
     writeJson(response, 200, {
       service: "collab",
@@ -216,6 +299,7 @@ export function handleCollabRequest(
         options.logger.info("collab.document.rollback", {
           documentId: body.documentId,
           revisionId: body.revisionId,
+          restoredFromRevisionId: body.restoredFromRevisionId,
           rolledBackAt: body.rolledBackAt,
           broadcasted,
           triggeredByUserId: body.triggeredByUserId
@@ -270,7 +354,70 @@ export function handleCollabRequest(
       });
   }
 
+  if (contentSyncDocumentId && request.method === "POST") {
+    const token = requestHeadersValue(request, "x-collab-token");
+
+    if (!options.internalToken || token !== options.internalToken) {
+      writeJson(response, 401, {
+        error: "Invalid internal content sync token."
+      });
+      return true;
+    }
+
+    return readJsonBody(request)
+      .then(async (body) => {
+        const candidate = body as {
+          initializeIfEmpty?: unknown;
+          text?: unknown;
+        };
+
+        if (typeof candidate.text !== "string") {
+          writeJson(response, 400, {
+            error: "Invalid content sync payload."
+          });
+          return true;
+        }
+
+        const applied = options.syncDocumentContent
+          ? await options.syncDocumentContent({
+              documentId: contentSyncDocumentId,
+              initializeIfEmpty: candidate.initializeIfEmpty === true,
+              text: candidate.text
+            })
+          : false;
+
+        writeJson(response, 202, {
+          applied,
+          status: "accepted"
+        });
+        return true;
+      })
+      .catch(() => {
+        writeJson(response, 400, {
+          error: "Invalid content sync payload."
+        });
+        return true;
+      });
+  }
+
   return false;
+}
+
+function requestHeadersValue(
+  request: Pick<IncomingMessage, "headers"> | { headers?: Record<string, string | string[] | undefined> },
+  name: string
+) {
+  const value = request.headers?.[name] ?? request.headers?.[name.toLowerCase()];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function documentToPlainText(document: Y.Doc) {
+  return document
+    .getXmlFragment("prosemirror")
+    .toArray()
+    .filter((node): node is Y.XmlElement | Y.XmlText => node instanceof Y.XmlElement || node instanceof Y.XmlText)
+    .map((node) => readNodePlainText(node))
+    .join("\n");
 }
 
 export function createCollabServer(
@@ -280,6 +427,44 @@ export function createCollabServer(
   const presence = new PresenceManager();
   const persistedStates = new Map<string, Uint8Array>();
   const writerSlots = new WriterSlotManager();
+  async function syncDocumentContent(input: {
+    documentId: string;
+    initializeIfEmpty: boolean;
+    text: string;
+  }) {
+    const runtimeDocument = server.hocuspocus.documents.get(input.documentId) as Document | undefined;
+
+    if (runtimeDocument) {
+      if (input.initializeIfEmpty && !isRuntimeDocumentEmpty(runtimeDocument)) {
+        return false;
+      }
+
+      applyPlainTextToRuntimeDocument(runtimeDocument, input.text);
+      const state = Y.encodeStateAsUpdate(runtimeDocument);
+      persistedStates.set(input.documentId, state);
+      writeStoredDocumentUpdate(input.documentId, state);
+      return true;
+    }
+
+    const storedState = persistedStates.get(input.documentId) ?? readStoredDocumentUpdate(input.documentId);
+
+    if (input.initializeIfEmpty && storedState) {
+      const existingDocument = new Y.Doc();
+      Y.applyUpdate(existingDocument, storedState);
+
+      if (!isRuntimeDocumentEmpty(existingDocument)) {
+        return false;
+      }
+    }
+
+    const nextDocument = createCollabDocumentFromPlainText(input.text);
+    const nextState = Y.encodeStateAsUpdate(nextDocument);
+    persistedStates.set(input.documentId, nextState);
+    writeStoredDocumentUpdate(input.documentId, nextState);
+
+    return true;
+  }
+
   const server = new Server({
     address: env.host,
     debounce: 2000,
@@ -329,6 +514,10 @@ export function createCollabServer(
         bytes: state.byteLength,
         documentName: data.documentName
       });
+
+      if (data.transactionOrigin === INTERNAL_CONTENT_SYNC_ORIGIN) {
+        return;
+      }
     },
     async onConnect(data) {
       return {
@@ -422,12 +611,14 @@ export function createCollabServer(
       const handled = await handleCollabRequest(request, response, {
           activeConnections: instance.getConnectionsCount(),
           activeDocuments: instance.getDocumentsCount(),
+          internalToken: env.sessionSecret,
           logger,
           runtime: {
             documents: instance.documents,
             presence,
             writerSlots
-          }
+          },
+          syncDocumentContent
         });
 
       if (handled) {

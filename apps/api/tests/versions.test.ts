@@ -126,6 +126,14 @@ describe("versions module", () => {
       headers: ownerHeaders
     });
     const baselineRevisionId = listResponse.json().revisions[0].revisionId as string;
+    await app.inject({
+      method: "PUT",
+      url: `/v1/documents/${documentId}/content`,
+      headers: ownerHeaders,
+      payload: {
+        text: "Current draft line"
+      }
+    });
 
     const rollbackResponse = await app.inject({
       method: "POST",
@@ -157,14 +165,34 @@ describe("versions module", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:4001/internal/events/document-rollback",
       expect.objectContaining({
-        method: "POST"
+        method: "POST",
+        body: JSON.stringify({
+          type: "document.rollback",
+          documentId,
+          revisionId: rollbackResponse.json().revisionId,
+          restoredFromRevisionId: baselineRevisionId,
+          rolledBackAt: rollbackResponse.json().rolledBackAt,
+          triggeredByUserId: "google:user_owner"
+        })
       })
     );
+    const contentResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/content`,
+      headers: ownerHeaders
+    });
+    expect(contentResponse.json()).toEqual({
+      content: {
+        documentId,
+        text: "",
+        updatedAt: rollbackResponse.json().rolledBackAt
+      }
+    });
 
     await app.close();
   });
 
-  it("returns a validated diff stub for a revision", async () => {
+  it("returns a real diff for a revision against the current head", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
@@ -187,6 +215,14 @@ describe("versions module", () => {
       headers: ownerHeaders
     });
     const revisionId = listResponse.json().revisions[0].revisionId as string;
+    await app.inject({
+      method: "PUT",
+      url: `/v1/documents/${documentId}/content`,
+      headers: ownerHeaders,
+      payload: {
+        text: "First line\nSecond line"
+      }
+    });
 
     const response = await app.inject({
       method: "GET",
@@ -199,14 +235,82 @@ describe("versions module", () => {
       documentId,
       revisionId,
       compareToRevisionId: null,
-      summary: "Stub diff for Initial snapshot: Diff doc against the current head.",
+      summary: "2 lines added between Initial snapshot: Diff doc and the current head.",
       changes: [
         {
           field: "content",
-          kind: "stub",
-          description: "Detailed diff generation is not wired yet."
+          kind: "added",
+          description: "Line 1 added: First line"
+        },
+        {
+          field: "content",
+          kind: "added",
+          description: "Line 2 added: Second line"
         }
       ]
+    });
+
+    await app.close();
+  });
+
+  it("can diff one stored revision against another stored revision", async () => {
+    const app = await createApiTestApp();
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      status: 202
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Compared diff doc"
+      }
+    });
+    const documentId = createResponse.json().document.id as string;
+
+    const listResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/versions`,
+      headers: ownerHeaders
+    });
+    const baselineRevisionId = listResponse.json().revisions[0].revisionId as string;
+    await app.inject({
+      method: "PUT",
+      url: `/v1/documents/${documentId}/content`,
+      headers: ownerHeaders,
+      payload: {
+        text: "Changed line"
+      }
+    });
+    const rollbackResponse = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/versions/rollback`,
+      headers: ownerHeaders,
+      payload: {
+        revisionId: baselineRevisionId
+      }
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/versions/${baselineRevisionId}/diff?compareToRevisionId=${rollbackResponse.json().revisionId}`,
+      headers: ownerHeaders
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      documentId,
+      revisionId: baselineRevisionId,
+      compareToRevisionId: rollbackResponse.json().revisionId,
+      summary: "No content changes between Initial snapshot: Compared diff doc and Rollback to Initial snapshot: Compared diff doc.",
+      changes: []
     });
 
     await app.close();

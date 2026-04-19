@@ -237,6 +237,7 @@ export interface DocumentRollbackEvent {
   type: "document.rollback";
   documentId: string;
   revisionId: string;
+  restoredFromRevisionId: string;
   rolledBackAt: IsoDateString;
   triggeredByUserId: string;
 }
@@ -430,7 +431,7 @@ export interface RevisionDiffResponse {
   summary: string;
   changes: Array<{
     field: "content";
-    kind: "stub";
+    kind: "added" | "removed" | "modified";
     description: string;
   }>;
 }

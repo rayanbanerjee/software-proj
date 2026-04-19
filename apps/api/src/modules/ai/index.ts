@@ -4,8 +4,9 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 
 import { AppError } from "../../common/errors.js";
-import { authenticateRequest, requireCurrentUser } from "../auth/guard.js";
+import { protectedRoute, requireCurrentUser } from "../auth/guard.js";
 import type { DocumentActor } from "../documents/service.js";
+import { notifyCollabDocumentContentSync } from "../documents/collab-sync.js";
 import { NotConfiguredProviderClient } from "./not-configured-provider.js";
 import { OpenRouterProviderClient } from "./openrouter-provider.js";
 import { listPromptTemplates, retrieveRagContext } from "./rag.js";
@@ -54,13 +55,13 @@ export async function registerAiModule(app: FastifyInstance) {
       ? new StubStreamingProvider()
       : new NotConfiguredProviderClient();
 
-  app.decorate("aiService", new AiService(app.documentsService, provider));
+  app.decorate("aiService", new AiService(app.documentsService, provider, app.apiEnv.API_DATA_DIR));
 
-  app.get("/v1/ai/prompt-templates", { preHandler: authenticateRequest }, async () => {
+  app.get("/v1/ai/prompt-templates", protectedRoute, async () => {
     return listPromptTemplates();
   });
 
-  app.post("/v1/ai/context/retrieve", { preHandler: authenticateRequest }, async (request) => {
+  app.post("/v1/ai/context/retrieve", protectedRoute, async (request) => {
     const currentUser = requireCurrentUser(request);
     const body = retrieveContextBodySchema.parse(request.body) as RetrieveRagContextRequest;
     const actor = getActor(currentUser);
@@ -83,7 +84,7 @@ export async function registerAiModule(app: FastifyInstance) {
     });
   });
 
-  app.post("/v1/documents/:documentId/ai/requests", { preHandler: authenticateRequest }, async (request, reply) => {
+  app.post("/v1/documents/:documentId/ai/requests", protectedRoute, async (request, reply) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string };
     const parsed = submitAiRequestSchema.safeParse(request.body);
@@ -98,22 +99,25 @@ export async function registerAiModule(app: FastifyInstance) {
     return reply.status(202).send(response);
   });
 
-  app.get("/v1/documents/:documentId/ai/requests/:requestId", { preHandler: authenticateRequest }, async (request) => {
+  app.get("/v1/documents/:documentId/ai/requests/:requestId", protectedRoute, async (request) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string; requestId: string };
 
     return app.aiService.getRequestStatus(params.documentId, params.requestId, actor);
   });
 
-  app.post("/v1/documents/:documentId/ai/proposals/accept", { preHandler: authenticateRequest }, async (request) => {
+  app.post("/v1/documents/:documentId/ai/proposals/accept", protectedRoute, async (request) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string };
     const body = proposalDecisionSchema.parse(request.body);
 
-    return app.aiService.acceptProposal(params.documentId, body.proposalId, actor);
+    const response = app.aiService.acceptProposal(params.documentId, body.proposalId, actor);
+    await notifyCollabDocumentContentSync(app, params.documentId, actor);
+
+    return response;
   });
 
-  app.post("/v1/documents/:documentId/ai/proposals/reject", { preHandler: authenticateRequest }, async (request) => {
+  app.post("/v1/documents/:documentId/ai/proposals/reject", protectedRoute, async (request) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string };
     const body = proposalDecisionSchema.parse(request.body);
@@ -123,7 +127,7 @@ export async function registerAiModule(app: FastifyInstance) {
 
   app.post(
     "/v1/documents/:documentId/ai/stream",
-    { preHandler: authenticateRequest },
+    protectedRoute,
     async (request, reply) => {
       const currentUser = requireCurrentUser(request);
       const params = request.params as { documentId: string };

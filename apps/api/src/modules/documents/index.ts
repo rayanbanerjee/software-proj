@@ -2,7 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import { DocumentsService, type DocumentActor } from "./service.js";
-import { authenticateRequest, requireCurrentUser } from "../auth/guard.js";
+import { notifyCollabDocumentContentSync } from "./collab-sync.js";
+import { protectedRoute, requireCurrentUser } from "../auth/guard.js";
 
 const createDocumentBodySchema = z.object({
   title: z.string().trim().min(1)
@@ -28,9 +29,9 @@ function getActor(user: { id: string; name: string | null }): DocumentActor {
 }
 
 export async function registerDocumentsModule(app: FastifyInstance) {
-  app.decorate("documentsService", new DocumentsService());
+  app.decorate("documentsService", new DocumentsService(app.apiEnv.API_DATA_DIR));
 
-  app.post("/v1/documents", { preHandler: authenticateRequest }, async (request, reply) => {
+  app.post("/v1/documents", protectedRoute, async (request, reply) => {
     const actor = getActor(requireCurrentUser(request));
     const body = createDocumentBodySchema.parse(request.body);
     const response = app.documentsService.createDocument(body.title, actor);
@@ -38,12 +39,12 @@ export async function registerDocumentsModule(app: FastifyInstance) {
     return reply.status(201).send(response);
   });
 
-  app.get("/v1/documents", { preHandler: authenticateRequest }, async (request) => {
+  app.get("/v1/documents", protectedRoute, async (request) => {
     const actor = getActor(requireCurrentUser(request));
     return app.documentsService.listDocuments(actor);
   });
 
-  app.get("/v1/documents/:documentId", { preHandler: authenticateRequest }, async (request) => {
+  app.get("/v1/documents/:documentId", protectedRoute, async (request) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string };
 
@@ -52,7 +53,7 @@ export async function registerDocumentsModule(app: FastifyInstance) {
 
   app.post(
     "/v1/documents/:documentId/sessions",
-    { preHandler: authenticateRequest },
+    protectedRoute,
     async (request) => {
       const actor = getActor(requireCurrentUser(request));
       const params = request.params as { documentId: string };
@@ -62,6 +63,10 @@ export async function registerDocumentsModule(app: FastifyInstance) {
         throw new Error("Authenticated request is missing auth session context.");
       }
 
+      await notifyCollabDocumentContentSync(app, params.documentId, actor, {
+        initializeIfEmpty: true
+      });
+
       return app.documentsService.createDocumentSession(params.documentId, actor, {
         collabBaseUrl: app.apiEnv.COLLAB_URL,
         lastKnownSessionId: body.lastKnownSessionId,
@@ -70,14 +75,14 @@ export async function registerDocumentsModule(app: FastifyInstance) {
     }
   );
 
-  app.get("/v1/documents/:documentId/content", { preHandler: authenticateRequest }, async (request) => {
+  app.get("/v1/documents/:documentId/content", protectedRoute, async (request) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string };
 
     return app.documentsService.getDocumentContent(params.documentId, actor);
   });
 
-  app.patch("/v1/documents/:documentId", { preHandler: authenticateRequest }, async (request) => {
+  app.patch("/v1/documents/:documentId", protectedRoute, async (request) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string };
     const body = renameDocumentBodySchema.parse(request.body);
@@ -87,17 +92,20 @@ export async function registerDocumentsModule(app: FastifyInstance) {
 
   app.put(
     "/v1/documents/:documentId/content",
-    { preHandler: authenticateRequest },
+    protectedRoute,
     async (request) => {
       const actor = getActor(requireCurrentUser(request));
       const params = request.params as { documentId: string };
       const body = updateDocumentContentBodySchema.parse(request.body);
 
-      return app.documentsService.updateDocumentContent(params.documentId, body.text, actor);
+      const response = app.documentsService.updateDocumentContent(params.documentId, body.text, actor);
+      await notifyCollabDocumentContentSync(app, params.documentId, actor);
+
+      return response;
     }
   );
 
-  app.delete("/v1/documents/:documentId", { preHandler: authenticateRequest }, async (request) => {
+  app.delete("/v1/documents/:documentId", protectedRoute, async (request) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string };
 

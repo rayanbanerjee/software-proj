@@ -4,8 +4,9 @@ import { z } from "zod";
 import type { DocumentRollbackEvent } from "@repo/shared-types";
 
 import { VersionsService } from "./service.js";
-import { authenticateRequest, requireCurrentUser } from "../auth/guard.js";
+import { protectedRoute, requireCurrentUser } from "../auth/guard.js";
 import type { DocumentActor } from "../documents/service.js";
+import { notifyCollabDocumentContentSync } from "../documents/collab-sync.js";
 
 const rollbackRevisionBodySchema = z.object({
   revisionId: z.string().trim().min(1)
@@ -70,7 +71,7 @@ export async function registerVersionsModule(app: FastifyInstance) {
 
   app.get(
     "/v1/documents/:documentId/versions",
-    { preHandler: authenticateRequest },
+    protectedRoute,
     async (request) => {
       const actor = getActor(requireCurrentUser(request));
       const params = request.params as { documentId: string };
@@ -81,7 +82,7 @@ export async function registerVersionsModule(app: FastifyInstance) {
 
   app.get(
     "/v1/documents/:documentId/versions/:revisionId",
-    { preHandler: authenticateRequest },
+    protectedRoute,
     async (request) => {
       const actor = getActor(requireCurrentUser(request));
       const params = request.params as { documentId: string; revisionId: string };
@@ -92,7 +93,7 @@ export async function registerVersionsModule(app: FastifyInstance) {
 
   app.get(
     "/v1/documents/:documentId/versions/:revisionId/diff",
-    { preHandler: authenticateRequest },
+    protectedRoute,
     async (request) => {
       const actor = getActor(requireCurrentUser(request));
       const params = request.params as { documentId: string; revisionId: string };
@@ -109,17 +110,19 @@ export async function registerVersionsModule(app: FastifyInstance) {
 
   app.post(
     "/v1/documents/:documentId/versions/rollback",
-    { preHandler: authenticateRequest },
+    protectedRoute,
     async (request) => {
       const actor = getActor(requireCurrentUser(request));
       const params = request.params as { documentId: string };
       const body = rollbackRevisionBodySchema.parse(request.body);
       const rollback = app.versionsService.rollbackRevision(params.documentId, body.revisionId, actor);
+      await notifyCollabDocumentContentSync(app, params.documentId, actor);
 
       await notifyRollbackEvent(app, {
         type: "document.rollback",
         documentId: params.documentId,
         revisionId: rollback.revisionId,
+        restoredFromRevisionId: body.revisionId,
         rolledBackAt: rollback.rolledBackAt,
         triggeredByUserId: actor.userId
       });

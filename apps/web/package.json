@@ -8,6 +8,8 @@
     "lint": "eslint src tests next-env.d.ts next.config.ts --max-warnings=0",
     "start": "next start",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

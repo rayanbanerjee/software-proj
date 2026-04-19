@@ -47,13 +47,14 @@ Useful local commands:
 ./run.sh test
 ./run.sh test:backend
 ./run.sh test:frontend
+./run.sh e2e:install
 ./run.sh test:e2e
 ./run.sh logs api
 ./run.sh stop
 ```
 
-For the full environment and testing guide, see [local-setup.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/docs/process/local-setup.md).
-For the confirmed backend and frontend testing coverage, see [testing-guide.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/docs/process/testing-guide.md).
+For the full environment and testing guide, see [local-setup.md](/Users/rayan.banerjee/courses/software%20project/docs/process/local-setup.md).
+For the confirmed backend and frontend testing coverage, see [testing-guide.md](/Users/rayan.banerjee/courses/software%20project/docs/process/testing-guide.md).
 
 ## Prerequisites
 
@@ -78,7 +79,6 @@ cp apps/api/.env.example apps/api/.env.local
 Minimum important values:
 
 - `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
 - `SESSION_SECRET`
 - `WEB_ORIGIN=http://localhost:3002`
 - `COLLAB_URL=ws://localhost:4001`
@@ -164,7 +164,7 @@ Run the web app separately:
 Recommended smoke test:
 
 1. Open `http://localhost:3002/auth`
-2. Sign in with Google
+2. Sign in with a local account or with Google when configured
 3. Go to `/documents`
 4. Create a document manually with `New document`
 5. Open the same document in two tabs
@@ -177,8 +177,7 @@ Recommended smoke test:
 ## Development notes
 
 - no starter documents are created automatically anymore
-- in local development, cross-account document visibility is relaxed to simplify collaboration testing
-- metadata and comments are still API-memory-backed in the current prototype
+- API document metadata, comments, export jobs, and export artifacts are persisted under `API_DATA_DIR`
 - realtime Yjs content is persisted by the collab service locally
 
 ## Database and Prisma
@@ -214,6 +213,7 @@ Frontend testing:
 
 ```bash
 ./run.sh test:frontend
+./run.sh e2e:install
 ./run.sh test:e2e
 ```
 
@@ -227,7 +227,7 @@ node scripts/render-ai1220-diagrams.mjs
 
 Process guidance lives in:
 
-- [documentation-pipeline.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/docs/process/documentation-pipeline.md)
-- [CONTRIBUTING.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/CONTRIBUTING.md)
-- [git-conventions.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/docs/process/git-conventions.md)
-- [local-setup.md](/Users/indira.duisembayeva/Documents/New%20project/software-proj/docs/process/local-setup.md)
+- [documentation-pipeline.md](/Users/rayan.banerjee/courses/software%20project/docs/process/documentation-pipeline.md)
+- [CONTRIBUTING.md](/Users/rayan.banerjee/courses/software%20project/CONTRIBUTING.md)
+- [git-conventions.md](/Users/rayan.banerjee/courses/software%20project/docs/process/git-conventions.md)
+- [local-setup.md](/Users/rayan.banerjee/courses/software%20project/docs/process/local-setup.md)

@@ -1,3 +1,6 @@
+import { mkdtempSync } from "node:fs";
+import path from "node:path";
+import { tmpdir } from "node:os";
 import type { FastifyInstance } from "fastify";
 
 import { createApp } from "../../src/app.js";
@@ -7,6 +10,7 @@ import { defaultApiTestEnv } from "../../../../tests/config/env.js";
 export function applyApiTestEnv(overrides: Partial<NodeJS.ProcessEnv> = {}) {
   return {
     ...defaultApiTestEnv,
+    API_DATA_DIR: mkdtempSync(path.join(tmpdir(), "collab-editor-api-test-")),
     ...overrides
   };
 }

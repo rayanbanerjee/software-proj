@@ -116,4 +116,65 @@ describe("comments module", () => {
 
     await app.close();
   });
+
+  it("persists comments across app restarts when the data dir is reused", async () => {
+    const dataDir = applyApiTestEnv().API_DATA_DIR as string;
+    process.env = applyApiTestEnv({
+      API_DATA_DIR: dataDir
+    });
+
+    const firstApp = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(firstApp, {
+      email: "owner@example.com",
+      name: "Owner Demo",
+      subject: "user_owner"
+    });
+    const createDocumentResponse = await firstApp.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Persistent comments"
+      }
+    });
+    const documentId = createDocumentResponse.json().document.id as string;
+
+    await firstApp.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/comments`,
+      headers: ownerHeaders,
+      payload: {
+        body: "Persist me."
+      }
+    });
+
+    await firstApp.close();
+
+    process.env = applyApiTestEnv({
+      API_DATA_DIR: dataDir
+    });
+
+    const secondApp = await createApiTestApp();
+    const response = await secondApp.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/comments`,
+      headers: createSessionHeaders(secondApp, {
+        email: "owner@example.com",
+        name: "Owner Demo",
+        subject: "user_owner"
+      })
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      comments: [
+        {
+          documentId,
+          body: "Persist me."
+        }
+      ]
+    });
+
+    await secondApp.close();
+  });
 });

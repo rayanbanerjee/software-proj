@@ -47,8 +47,8 @@ export const workspaceHighlights = [
     detail: "Query-driven editor toggles preview overlays, offline state, and empty or error screens."
   },
   {
-    title: "Incremental follow-up room",
-    detail: "The list route now includes a stubbed create-document flow while deeper API wiring continues."
+    title: "API-backed launch points",
+    detail: "The list route can already open server documents while the remaining web polish focuses on richer live data."
   }
 ] as const;
 
@@ -58,7 +58,7 @@ export const authShellStates = [
     kicker: "Signed out",
     title: "Prompt the user to start a JWT session",
     description:
-      "The login endpoint exists now, so the shell can anchor around a concrete JWT session handoff instead of a generic placeholder.",
+      "The login endpoint exists now, so the shell can anchor around a concrete JWT session handoff and optional Google callback flow.",
     points: [
       "Primary call to action for Google sign-in",
       "Brief explanation of cookie-backed session issuance",
@@ -123,7 +123,7 @@ export const documentListSections: readonly DocumentSection[] = [
         summary: "Planning outline for the collaborative editor rollout.",
         paragraphs: [
           "The kickoff document anchors the sprint goals, the initial product walkthrough, and the ownership split for editor, API, and collab work.",
-          "A later editor task will replace this shell text with a real rich-text surface and block-level selection behavior."
+          "The live editor, AI panel, sharing controls, and version history now hang off this route as the realtime surface continues to harden."
         ]
       },
       {
@@ -135,7 +135,7 @@ export const documentListSections: readonly DocumentSection[] = [
         summary: "UI checkpoints for review flow, side panels, and shell interactions.",
         paragraphs: [
           "Review notes currently focus on navigation clarity, panel hierarchy, and route-level state treatment across mobile and desktop layouts.",
-          "Follow-up tasks will connect these view shells to real data hooks and a real editor model."
+          "Current follow-up work is mostly about reducing shell-only copy and connecting more of the workspace to durable realtime state."
         ]
       }
     ]
@@ -143,7 +143,7 @@ export const documentListSections: readonly DocumentSection[] = [
   {
     eyebrow: "Shared",
     title: "Shared with me",
-    summary: "Placeholder visibility and role labels make the list scaffold useful before live membership data exists.",
+    summary: "Role labels and seeded examples keep the list route readable while more live membership surfaces are wired in.",
     documents: [
       {
         id: "retrospective-archive",
@@ -154,7 +154,7 @@ export const documentListSections: readonly DocumentSection[] = [
         summary: "Archived feedback patterns for UX polish and workflow timing.",
         paragraphs: [
           "The retrospective archive is shown here as a role-limited document shell for comment-oriented review and timeline context.",
-          "Future sharing and permission tasks will replace these static summaries with real API-backed visibility."
+          "Sharing and permission flows are now API-backed, with the remaining work centered on replacing seeded shell summaries."
         ]
       }
     ]
@@ -270,10 +270,10 @@ export function getDocumentRecord(documentId: string): DocumentRecord {
     role: "owner",
     updatedLabel: "Updated just now",
     collaborators: 3,
-    summary: "Fallback shell document generated from the route segment.",
+    summary: "Fallback workspace document generated from the route segment.",
     paragraphs: [
-      "This fallback route shell keeps the editor view stable even when the URL does not match a seeded document card.",
-      "Later data fetching tasks will replace this logic with document metadata from the API."
+      "This fallback route keeps the editor view stable even when the URL does not match a seeded document card.",
+      "Known server documents already resolve through the API; this path only covers unknown local routes."
     ]
   };
 }
@@ -287,10 +287,10 @@ export function createDraftDocumentRecord(sequence: number): DocumentRecord {
     role: "owner",
     updatedLabel: "Created just now",
     collaborators: 1,
-    summary: "Local shell draft created from the document list before live persistence is wired.",
+    summary: "Local draft record created from the document list before the create flow redirects into the saved workspace.",
     paragraphs: [
-      "This placeholder draft card lets the web shell exercise a concrete create flow instead of leaving the entry point blocked.",
-      "A later API-backed slice will replace this optimistic shell record with a real document create request and redirect."
+      "This local draft card keeps the create interaction concrete even when the route is explored without a saved server document.",
+      "The full create-and-redirect path is the remaining step for replacing this optimistic record."
     ]
   };
 }

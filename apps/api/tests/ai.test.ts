@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { FastifyInstance } from "fastify";
+import type { GetAiRequestStatusResponse } from "@repo/shared-types";
 
 import {
   applyApiTestEnv,
@@ -7,6 +9,37 @@ import {
 } from "./integration/harness.js";
 
 const originalEnv = { ...process.env };
+
+async function waitForAiRequest(
+  app: FastifyInstance,
+  documentId: string,
+  requestId: string,
+  headers: Record<string, string>
+) {
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    const response = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/ai/requests/${requestId}`,
+      headers
+    });
+
+    if (response.statusCode !== 200) {
+      throw new Error(`Unexpected AI status response ${response.statusCode}`);
+    }
+
+    const payload = response.json() as GetAiRequestStatusResponse;
+
+    if (payload.status !== "queued" && payload.status !== "running") {
+      return payload;
+    }
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+  }
+
+  throw new Error(`AI request ${requestId} did not finish in time.`);
+}
 
 beforeEach(() => {
   process.env = applyApiTestEnv();
@@ -54,19 +87,14 @@ describe("ai module", () => {
     expect(submitResponse.statusCode).toBe(202);
     expect(submitResponse.json()).toMatchObject({
       requestId: expect.any(String),
-      status: "succeeded",
+      status: "queued",
       queuedAt: expect.any(String)
     });
 
     const requestId = submitResponse.json().requestId as string;
-    const statusResponse = await app.inject({
-      method: "GET",
-      url: `/v1/documents/${documentId}/ai/requests/${requestId}`,
-      headers: ownerHeaders
-    });
+    const statusPayload = await waitForAiRequest(app, documentId, requestId, ownerHeaders);
 
-    expect(statusResponse.statusCode).toBe(200);
-    expect(statusResponse.json()).toMatchObject({
+    expect(statusPayload).toMatchObject({
       requestId,
       status: "succeeded",
       proposal: {
@@ -118,15 +146,9 @@ describe("ai module", () => {
 
     expect(submitResponse.statusCode).toBe(202);
     const requestId = submitResponse.json().requestId as string;
+    const statusPayload = await waitForAiRequest(app, documentId, requestId, ownerHeaders);
 
-    const statusResponse = await app.inject({
-      method: "GET",
-      url: `/v1/documents/${documentId}/ai/requests/${requestId}`,
-      headers: ownerHeaders
-    });
-
-    expect(statusResponse.statusCode).toBe(200);
-    expect(statusResponse.json()).toMatchObject({
+    expect(statusPayload).toMatchObject({
       requestId,
       status: "succeeded",
       proposal: {
@@ -139,7 +161,7 @@ describe("ai module", () => {
     await app.close();
   });
 
-  it("accepts and rejects proposal decisions through dedicated endpoints", async () => {
+  it("accepts document-wide proposals and applies the generated content", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
@@ -155,6 +177,17 @@ describe("ai module", () => {
       }
     });
     const documentId = createResponse.json().document.id as string;
+
+    const seedContentResponse = await app.inject({
+      method: "PUT",
+      url: `/v1/documents/${documentId}/content`,
+      headers: ownerHeaders,
+      payload: {
+        text: "Rewrite this document in a simpler tone."
+      }
+    });
+
+    expect(seedContentResponse.statusCode).toBe(200);
 
     const submitResponse = await app.inject({
       method: "POST",
@@ -172,13 +205,8 @@ describe("ai module", () => {
       }
     });
     const requestId = submitResponse.json().requestId as string;
-
-    const statusResponse = await app.inject({
-      method: "GET",
-      url: `/v1/documents/${documentId}/ai/requests/${requestId}`,
-      headers: ownerHeaders
-    });
-    const proposalId = statusResponse.json().proposal.proposalId as string;
+    const statusPayload = await waitForAiRequest(app, documentId, requestId, ownerHeaders);
+    const proposalId = statusPayload.proposal?.proposalId as string;
 
     const acceptResponse = await app.inject({
       method: "POST",
@@ -195,6 +223,82 @@ describe("ai module", () => {
       appliedAt: expect.any(String)
     });
 
+    const contentResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/content`,
+      headers: ownerHeaders
+    });
+
+    expect(contentResponse.statusCode).toBe(200);
+    expect(contentResponse.json()).toMatchObject({
+      content: {
+        documentId,
+        text: "[REWRITE] Rewrite this document in a simpler tone."
+      }
+    });
+
+    const statusAfterAcceptResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/ai/requests/${requestId}`,
+      headers: ownerHeaders
+    });
+
+    expect(statusAfterAcceptResponse.statusCode).toBe(200);
+    expect(statusAfterAcceptResponse.json()).toMatchObject({
+      requestId,
+      proposal: null
+    });
+
+    await app.close();
+  });
+
+  it("rejects proposals without mutating the document", async () => {
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Rejected decision doc"
+      }
+    });
+    const documentId = createResponse.json().document.id as string;
+
+    const seedContentResponse = await app.inject({
+      method: "PUT",
+      url: `/v1/documents/${documentId}/content`,
+      headers: ownerHeaders,
+      payload: {
+        text: "Keep this content unchanged."
+      }
+    });
+
+    expect(seedContentResponse.statusCode).toBe(200);
+
+    const submitResponse = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/ai/requests`,
+      headers: ownerHeaders,
+      payload: {
+        action: "rewrite",
+        prompt: null,
+        context: {
+          scope: "document",
+          selectedText: null,
+          surroundingText: "Keep this content unchanged."
+        },
+        maskPersonalData: false
+      }
+    });
+    const requestId = submitResponse.json().requestId as string;
+    const statusPayload = await waitForAiRequest(app, documentId, requestId, ownerHeaders);
+    const proposalId = statusPayload.proposal?.proposalId as string;
+
     const rejectResponse = await app.inject({
       method: "POST",
       url: `/v1/documents/${documentId}/ai/proposals/reject`,
@@ -208,6 +312,95 @@ describe("ai module", () => {
     expect(rejectResponse.json()).toEqual({
       proposalId,
       rejectedAt: expect.any(String)
+    });
+
+    const contentResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/content`,
+      headers: ownerHeaders
+    });
+
+    expect(contentResponse.statusCode).toBe(200);
+    expect(contentResponse.json()).toMatchObject({
+      content: {
+        documentId,
+        text: "Keep this content unchanged."
+      }
+    });
+
+    await app.close();
+  });
+
+  it("applies selection proposals against the stored document snapshot", async () => {
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Selection AI doc"
+      }
+    });
+    const documentId = createResponse.json().document.id as string;
+
+    const seedContentResponse = await app.inject({
+      method: "PUT",
+      url: `/v1/documents/${documentId}/content`,
+      headers: ownerHeaders,
+      payload: {
+        text: "Alpha Beta Gamma"
+      }
+    });
+
+    expect(seedContentResponse.statusCode).toBe(200);
+
+    const submitResponse = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/ai/requests`,
+      headers: ownerHeaders,
+      payload: {
+        action: "rewrite",
+        prompt: null,
+        context: {
+          scope: "selection",
+          selectedText: "Beta",
+          surroundingText: "Alpha Beta Gamma"
+        },
+        maskPersonalData: false
+      }
+    });
+    const requestId = submitResponse.json().requestId as string;
+    const statusPayload = await waitForAiRequest(app, documentId, requestId, ownerHeaders);
+    const proposalId = statusPayload.proposal?.proposalId as string;
+
+    const acceptResponse = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/ai/proposals/accept`,
+      headers: ownerHeaders,
+      payload: {
+        proposalId
+      }
+    });
+
+    expect(acceptResponse.statusCode).toBe(200);
+
+    const contentResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/content`,
+      headers: ownerHeaders
+    });
+
+    expect(contentResponse.statusCode).toBe(200);
+    expect(contentResponse.json()).toMatchObject({
+      content: {
+        documentId,
+        text: "Alpha [REWRITE] Beta Gamma"
+      }
     });
 
     await app.close();
@@ -246,6 +439,7 @@ describe("ai module", () => {
       }
     });
     const requestId = submitResponse.json().requestId as string;
+    await waitForAiRequest(app, documentId, requestId, ownerHeaders);
 
     app.aiService.markRequestStaleForTest(requestId, {
       sourceText: "Revised document text after edits."
@@ -405,15 +599,11 @@ describe("ai module", () => {
 
     expect(submitResponse.statusCode).toBe(202);
     expect(submitResponse.json()).toMatchObject({
-      status: "succeeded"
+      status: "queued"
     });
 
     const requestId = submitResponse.json().requestId as string;
-    const statusResponse = await app.inject({
-      method: "GET",
-      url: `/v1/documents/${documentId}/ai/requests/${requestId}`,
-      headers: ownerHeaders
-    });
+    const statusPayload = await waitForAiRequest(app, documentId, requestId, ownerHeaders);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
@@ -428,8 +618,7 @@ describe("ai module", () => {
         })
       })
     );
-    expect(statusResponse.statusCode).toBe(200);
-    expect(statusResponse.json()).toMatchObject({
+    expect(statusPayload).toMatchObject({
       status: "succeeded",
       errorMessage: null,
       proposal: {
@@ -491,18 +680,13 @@ describe("ai module", () => {
 
     expect(submitResponse.statusCode).toBe(202);
     expect(submitResponse.json()).toMatchObject({
-      status: "failed"
+      status: "queued"
     });
 
     const requestId = submitResponse.json().requestId as string;
-    const statusResponse = await app.inject({
-      method: "GET",
-      url: `/v1/documents/${documentId}/ai/requests/${requestId}`,
-      headers: ownerHeaders
-    });
+    const statusPayload = await waitForAiRequest(app, documentId, requestId, ownerHeaders);
 
-    expect(statusResponse.statusCode).toBe(200);
-    expect(statusResponse.json()).toMatchObject({
+    expect(statusPayload).toMatchObject({
       requestId,
       status: "failed",
       errorMessage: "Invalid OpenRouter key.",
@@ -510,5 +694,67 @@ describe("ai module", () => {
     });
 
     await app.close();
+  });
+
+  it("persists queued AI requests across app restarts when the data dir is reused", async () => {
+    const dataDir = process.env.API_DATA_DIR as string;
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Persistent AI doc"
+      }
+    });
+    const documentId = createResponse.json().document.id as string;
+
+    const submitResponse = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/ai/requests`,
+      headers: ownerHeaders,
+      payload: {
+        action: "summarize",
+        prompt: null,
+        context: {
+          scope: "selection",
+          selectedText: "Persist this request across restarts.",
+          surroundingText: null
+        },
+        maskPersonalData: false
+      }
+    });
+
+    expect(submitResponse.statusCode).toBe(202);
+    const requestId = submitResponse.json().requestId as string;
+
+    await app.close();
+
+    process.env = applyApiTestEnv({
+      API_DATA_DIR: dataDir
+    });
+
+    const restartedApp = await createApiTestApp();
+    const restartedHeaders = createSessionHeaders(restartedApp, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+    const statusPayload = await waitForAiRequest(restartedApp, documentId, requestId, restartedHeaders);
+
+    expect(statusPayload).toMatchObject({
+      requestId,
+      status: "succeeded",
+      proposal: {
+        requestId,
+        documentId
+      }
+    });
+
+    await restartedApp.close();
   });
 });

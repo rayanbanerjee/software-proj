@@ -5,6 +5,7 @@ import Fastify from "fastify";
 
 import { registerErrorHandling } from "./common/error-handler.js";
 import { createAppLogger, type AppLogger } from "./common/logger.js";
+import { registerRateLimiting } from "./common/rate-limit.js";
 import { registerRequestLogging } from "./common/request-logging.js";
 import { parseApiEnv } from "./config/env.js";
 import { registerAiModule } from "./modules/ai/index.js";
@@ -100,6 +101,7 @@ export async function createApp(options: CreateAppOptions = {}) {
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
   });
   registerErrorHandling(app);
+  registerRateLimiting(app);
   registerRequestLogging(app);
   await registerAuditModule(app);
   await registerAuthModule(app);

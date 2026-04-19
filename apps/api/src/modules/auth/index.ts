@@ -3,8 +3,18 @@ import type { GetCurrentUserResponse } from "@repo/shared-types";
 import { z } from "zod";
 
 import { AppError } from "../../common/errors.js";
-import { authenticateRequest, requireCurrentUser } from "./guard.js";
+import { GoogleIdTokenVerifier } from "./google-id-token.js";
+import { protectedRoute, requireCurrentUser } from "./guard.js";
 import { AuthSessionService } from "./session.js";
+
+const authCallbackBodySchema = z
+  .object({
+    credential: z.string().trim().min(1).optional(),
+    idToken: z.string().trim().min(1).optional()
+  })
+  .refine((value) => Boolean(value.credential || value.idToken), {
+    message: "Google ID token is required."
+  });
 
 const authLoginBodySchema = z.object({
   username: z.string().trim().min(3).max(32).regex(/^[a-zA-Z0-9._-]+$/),
@@ -18,8 +28,50 @@ export async function registerAuthModule(app: FastifyInstance) {
     isProduction: app.apiEnv.NODE_ENV === "production",
     sessionSecret: app.apiEnv.SESSION_SECRET
   });
+  const googleIdTokenVerifier = app.apiEnv.GOOGLE_CLIENT_ID
+    ? new GoogleIdTokenVerifier({
+        clientId: app.apiEnv.GOOGLE_CLIENT_ID,
+        jwksUrl: app.apiEnv.GOOGLE_JWKS_URL
+      })
+    : null;
 
   app.decorate("authSessionService", authSessionService);
+  app.decorate("googleIdTokenVerifier", googleIdTokenVerifier);
+
+  app.post("/v1/auth/callback", async (request, reply) => {
+    if (!app.googleIdTokenVerifier) {
+      throw new AppError(
+        "AUTH_PROVIDER_NOT_CONFIGURED",
+        503,
+        "Google authentication is not configured."
+      );
+    }
+
+    const parseResult = authCallbackBodySchema.safeParse(request.body);
+
+    if (!parseResult.success) {
+      throw new AppError("BAD_REQUEST", 400, "Google ID token is required.");
+    }
+
+    const idToken = parseResult.data.credential ?? parseResult.data.idToken;
+
+    if (!idToken) {
+      throw new AppError("BAD_REQUEST", 400, "Google ID token is required.");
+    }
+
+    try {
+      const identity = await app.googleIdTokenVerifier.verifyIdToken(idToken);
+      const issuedSession = app.authSessionService.issueJwtSession(identity);
+
+      reply.header("set-cookie", issuedSession.cookie);
+
+      return reply.status(200).send({
+        session: issuedSession.session
+      });
+    } catch {
+      throw new AppError("AUTH_INVALID_GOOGLE_TOKEN", 401, "Google ID token is invalid.");
+    }
+  });
 
   app.post("/v1/auth/login", async (request, reply) => {
     const parseResult = authLoginBodySchema.safeParse(request.body);
@@ -50,9 +102,7 @@ export async function registerAuthModule(app: FastifyInstance) {
 
   app.get(
     "/v1/auth/me",
-    {
-      preHandler: authenticateRequest
-    },
+    protectedRoute,
     async (request): Promise<GetCurrentUserResponse> => {
       return {
         user: requireCurrentUser(request)
