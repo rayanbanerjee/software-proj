@@ -12,6 +12,10 @@ const renameDocumentBodySchema = z.object({
   title: z.string().trim().min(1)
 });
 
+const updateDocumentContentBodySchema = z.object({
+  text: z.string()
+});
+
 function getActor(user: { id: string; name: string | null }): DocumentActor {
   return {
     userId: user.id,
@@ -42,6 +46,17 @@ export async function registerDocumentsModule(app: FastifyInstance) {
     return app.documentsService.getDocumentMetadata(params.documentId, actor);
   });
 
+  app.get(
+    "/v1/documents/:documentId/content",
+    { preHandler: authenticateRequest },
+    async (request) => {
+      const actor = getActor(requireCurrentUser(request));
+      const params = request.params as { documentId: string };
+
+      return app.documentsService.getDocumentContent(params.documentId, actor);
+    }
+  );
+
   app.patch("/v1/documents/:documentId", { preHandler: authenticateRequest }, async (request) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string };
@@ -49,6 +64,18 @@ export async function registerDocumentsModule(app: FastifyInstance) {
 
     return app.documentsService.renameDocument(params.documentId, body.title, actor);
   });
+
+  app.put(
+    "/v1/documents/:documentId/content",
+    { preHandler: authenticateRequest },
+    async (request) => {
+      const actor = getActor(requireCurrentUser(request));
+      const params = request.params as { documentId: string };
+      const body = updateDocumentContentBodySchema.parse(request.body);
+
+      return app.documentsService.updateDocumentContent(params.documentId, body.text, actor);
+    }
+  );
 
   app.delete("/v1/documents/:documentId", { preHandler: authenticateRequest }, async (request) => {
     const actor = getActor(requireCurrentUser(request));

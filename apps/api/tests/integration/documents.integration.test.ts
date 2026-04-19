@@ -21,7 +21,7 @@ describe("documents integration flow", () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
-      subject: "user_owner"
+      userId: "jwt:user_owner"
     });
 
     const createResponse = await app.inject({

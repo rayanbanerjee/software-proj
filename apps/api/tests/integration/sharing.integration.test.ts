@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { applyApiTestEnv, createApiTestApp } from "./harness.js";
+import {
+  applyApiTestEnv,
+  createApiTestApp,
+  createSessionHeaders
+} from "./harness.js";
 
 const originalEnv = { ...process.env };
 
@@ -19,9 +23,10 @@ describe("sharing integration flow", () => {
     const documentResponse = await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "owner_user"
-      },
+      headers: createSessionHeaders(app, {
+        email: "owner@example.com",
+        userId: "owner_user"
+      }),
       payload: {
         title: "Sharing flow"
       }
@@ -32,9 +37,10 @@ describe("sharing integration flow", () => {
     const editorInvite = await app.inject({
       method: "POST",
       url: `/v1/documents/${documentId}/invitations`,
-      headers: {
-        "x-user-id": "owner_user"
-      },
+      headers: createSessionHeaders(app, {
+        email: "owner@example.com",
+        userId: "owner_user"
+      }),
       payload: {
         email: "editor@example.com",
         role: "editor"
@@ -44,9 +50,10 @@ describe("sharing integration flow", () => {
     const viewerInvite = await app.inject({
       method: "POST",
       url: `/v1/documents/${documentId}/invitations`,
-      headers: {
-        "x-user-id": "owner_user"
-      },
+      headers: createSessionHeaders(app, {
+        email: "owner@example.com",
+        userId: "owner_user"
+      }),
       payload: {
         email: "viewer@example.com",
         role: "viewer"
@@ -56,10 +63,10 @@ describe("sharing integration flow", () => {
     await app.inject({
       method: "POST",
       url: "/v1/invitations/accept",
-      headers: {
-        "x-user-id": "editor_user",
-        "x-user-email": "editor@example.com"
-      },
+      headers: createSessionHeaders(app, {
+        email: "editor@example.com",
+        userId: "editor_user"
+      }),
       payload: {
         token: editorInvite.json().acceptToken
       }
@@ -68,10 +75,10 @@ describe("sharing integration flow", () => {
     await app.inject({
       method: "POST",
       url: "/v1/invitations/accept",
-      headers: {
-        "x-user-id": "viewer_user",
-        "x-user-email": "viewer@example.com"
-      },
+      headers: createSessionHeaders(app, {
+        email: "viewer@example.com",
+        userId: "viewer_user"
+      }),
       payload: {
         token: viewerInvite.json().acceptToken
       }
@@ -80,9 +87,10 @@ describe("sharing integration flow", () => {
     const editorRename = await app.inject({
       method: "PATCH",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "editor_user"
-      },
+      headers: createSessionHeaders(app, {
+        email: "editor@example.com",
+        userId: "editor_user"
+      }),
       payload: {
         title: "Editor updated title"
       }
@@ -91,9 +99,10 @@ describe("sharing integration flow", () => {
     const viewerRename = await app.inject({
       method: "PATCH",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "viewer_user"
-      },
+      headers: createSessionHeaders(app, {
+        email: "viewer@example.com",
+        userId: "viewer_user"
+      }),
       payload: {
         title: "Viewer should fail"
       }
@@ -102,9 +111,10 @@ describe("sharing integration flow", () => {
     const editorInviteAttempt = await app.inject({
       method: "POST",
       url: `/v1/documents/${documentId}/invitations`,
-      headers: {
-        "x-user-id": "editor_user"
-      },
+      headers: createSessionHeaders(app, {
+        email: "editor@example.com",
+        userId: "editor_user"
+      }),
       payload: {
         email: "third@example.com",
         role: "viewer"
@@ -114,9 +124,10 @@ describe("sharing integration flow", () => {
     const viewerMetadata = await app.inject({
       method: "GET",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "viewer_user"
-      }
+      headers: createSessionHeaders(app, {
+        email: "viewer@example.com",
+        userId: "viewer_user"
+      })
     });
 
     expect(editorRename.statusCode).toBe(200);

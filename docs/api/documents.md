@@ -115,6 +115,44 @@ Request body:
 }
 ```
 
+## `GET /v1/documents/:documentId/content`
+
+Returns the stored text corpus for a document.
+
+Authentication:
+
+- `collab_session` cookie
+- or `Authorization: Bearer <token>`
+
+Response:
+
+```json
+{
+  "content": {
+    "documentId": "uuid",
+    "text": "Release plan\n\nInvite the editor to review the launch notes.",
+    "updatedAt": "2026-04-19T09:00:00.000Z"
+  }
+}
+```
+
+## `PUT /v1/documents/:documentId/content`
+
+Replaces the stored text corpus for a document.
+
+Authentication:
+
+- `collab_session` cookie
+- or `Authorization: Bearer <token>`
+
+Request body:
+
+```json
+{
+  "text": "Release plan\n\nInvite the editor to review the launch notes."
+}
+```
+
 Response:
 
 ```json
@@ -162,4 +200,4 @@ Response:
 - the current implementation uses an app-scoped in-memory repository while the API is still being wired to Prisma-backed persistence
 - owner membership is created together with the document creation flow
 - archived documents are removed from list responses but can still be retrieved directly by id
-- document routes now require the signed auth session established by `POST /v1/auth/callback`
+- document routes now require the signed auth session established by `POST /v1/auth/login`

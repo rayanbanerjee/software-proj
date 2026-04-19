@@ -26,7 +26,7 @@ describe("documents module", () => {
       headers: createSessionHeaders(app, {
         email: "owner@example.com",
         name: "Owner Demo",
-        subject: "user_owner"
+        userId: "jwt:user_owner"
       }),
       payload: {
         title: "Project kickoff"
@@ -53,11 +53,11 @@ describe("documents module", () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
-      subject: "user_owner"
+      userId: "jwt:user_owner"
     });
     const viewerHeaders = createSessionHeaders(app, {
       email: "viewer@example.com",
-      subject: "user_viewer"
+      userId: "jwt:user_viewer"
     });
 
     await app.inject({
@@ -103,7 +103,7 @@ describe("documents module", () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
-      subject: "user_owner"
+      userId: "jwt:user_owner"
     });
 
     const createResponse = await app.inject({
@@ -137,11 +137,63 @@ describe("documents module", () => {
     await app.close();
   });
 
+  it("reads and updates document content for a user with edit access", async () => {
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      userId: "jwt:user_owner"
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Content document"
+      }
+    });
+
+    const documentId = createResponse.json().document.id as string;
+
+    const updateResponse = await app.inject({
+      method: "PUT",
+      url: `/v1/documents/${documentId}/content`,
+      headers: ownerHeaders,
+      payload: {
+        text: "Release plan\n\nInvite the editor to review the launch notes."
+      }
+    });
+
+    expect(updateResponse.statusCode).toBe(200);
+    expect(updateResponse.json()).toMatchObject({
+      content: {
+        documentId,
+        text: "Release plan\n\nInvite the editor to review the launch notes."
+      }
+    });
+
+    const readResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/content`,
+      headers: ownerHeaders
+    });
+
+    expect(readResponse.statusCode).toBe(200);
+    expect(readResponse.json()).toMatchObject({
+      content: {
+        documentId,
+        text: "Release plan\n\nInvite the editor to review the launch notes."
+      }
+    });
+
+    await app.close();
+  });
+
   it("renames a document for a user with edit access", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
-      subject: "user_owner"
+      userId: "jwt:user_owner"
     });
 
     const createResponse = await app.inject({
@@ -191,11 +243,11 @@ describe("documents module", () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
-      subject: "user_owner"
+      userId: "jwt:user_owner"
     });
     const otherHeaders = createSessionHeaders(app, {
       email: "other@example.com",
-      subject: "user_other"
+      userId: "jwt:user_other"
     });
 
     const createResponse = await app.inject({
@@ -249,7 +301,7 @@ describe("documents module", () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
-      subject: "user_owner"
+      userId: "jwt:user_owner"
     });
 
     const createResponse = await app.inject({
@@ -305,11 +357,11 @@ describe("documents module", () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
-      subject: "user_owner"
+      userId: "jwt:user_owner"
     });
     const otherHeaders = createSessionHeaders(app, {
       email: "other@example.com",
-      subject: "user_other"
+      userId: "jwt:user_other"
     });
 
     const createResponse = await app.inject({
@@ -365,7 +417,7 @@ describe("documents module", () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
-      subject: "user_owner"
+      userId: "jwt:user_owner"
     });
 
     const createResponse = await app.inject({

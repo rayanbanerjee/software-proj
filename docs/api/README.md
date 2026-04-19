@@ -11,7 +11,7 @@ Expected contents:
 
 Planned REST surface:
 
-- `/v1/auth/callback`
+- `/v1/auth/login`
 - `/v1/documents`
 - `/v1/documents/{documentId}/invitations`
 - `/v1/documents/{documentId}/sessions`
@@ -22,5 +22,6 @@ Planned REST surface:
 Current docs:
 
 - `docs/api/authentication.md`
+- `docs/api/ai.md`
 - `docs/api/documents.md`
 - `docs/api/sharing.md`

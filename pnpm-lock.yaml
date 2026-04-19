@@ -38,6 +38,12 @@ importers:
       '@prisma/client':
         specifier: ^6.6.0
         version: 6.19.2(prisma@6.19.2(typescript@5.9.3))(typescript@5.9.3)
+      '@repo/authz':
+        specifier: workspace:*
+        version: link:../../packages/authz
+      '@repo/prompt-templates':
+        specifier: workspace:*
+        version: link:../../packages/prompt-templates
       fastify:
         specifier: ^5.2.1
         version: 5.8.4
@@ -59,6 +65,9 @@ importers:
       '@repo/editor-schema':
         specifier: workspace:*
         version: link:../../packages/editor-schema
+      '@repo/prompt-templates':
+        specifier: workspace:*
+        version: link:../../packages/prompt-templates
       '@tiptap/pm':
         specifier: ^2.26.4
         version: 2.27.2

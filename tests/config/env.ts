@@ -1,7 +1,6 @@
 export const defaultApiTestEnv = {
   DATABASE_URL: "postgres://postgres:postgres@localhost:5432/collab_editor",
-  GOOGLE_CLIENT_ID: "client-id",
-  GOOGLE_CLIENT_SECRET: "client-secret",
+  JWT_ISSUER: "collab-editor-api-test",
   NODE_ENV: "test",
   OBJECT_STORAGE_BUCKET: "collab-editor",
   OBJECT_STORAGE_ENDPOINT: "http://localhost:9000",
@@ -26,4 +25,3 @@ export function restoreTestEnv(originalEnv: NodeJS.ProcessEnv) {
     ...originalEnv
   };
 }
-

@@ -12,15 +12,17 @@ afterEach(() => {
   process.env = { ...originalEnv };
 });
 
-describe("auth callback endpoint", () => {
-  it("accepts the stub Google token and returns the issued session payload", async () => {
+describe("auth login endpoint", () => {
+  it("issues a JWT-backed session payload and cookie", async () => {
     const app = await createApiTestApp();
 
     const response = await app.inject({
       method: "POST",
-      url: "/v1/auth/callback",
+      url: "/v1/auth/login",
       payload: {
-        idToken: "stub-valid-token"
+        email: "owner@example.com",
+        imageUrl: "https://example.com/avatar.png",
+        name: "Owner Demo"
       }
     });
 
@@ -33,11 +35,9 @@ describe("auth callback endpoint", () => {
     expect(response.json()).toMatchObject({
       session: {
         user: {
-          id: "google:google-oauth-subject",
-          email: "stub-user@example.com",
-          name: "Stub User",
+          email: "owner@example.com",
           imageUrl: "https://example.com/avatar.png",
-          googleSubject: "google-oauth-subject"
+          name: "Owner Demo"
         }
       }
     });
@@ -45,35 +45,12 @@ describe("auth callback endpoint", () => {
     await app.close();
   });
 
-  it("rejects invalid Google tokens with a standard auth error", async () => {
+  it("rejects missing email with a standard request error", async () => {
     const app = await createApiTestApp();
 
     const response = await app.inject({
       method: "POST",
-      url: "/v1/auth/callback",
-      payload: {
-        idToken: "not-a-valid-token"
-      }
-    });
-
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toEqual({
-      error: {
-        code: "INVALID_GOOGLE_TOKEN",
-        message: "Google token validation is not implemented. Use stub-valid-token in tests only.",
-        statusCode: 401
-      }
-    });
-
-    await app.close();
-  });
-
-  it("rejects missing tokens before validator execution", async () => {
-    const app = await createApiTestApp();
-
-    const response = await app.inject({
-      method: "POST",
-      url: "/v1/auth/callback",
+      url: "/v1/auth/login",
       payload: {}
     });
 
@@ -81,7 +58,7 @@ describe("auth callback endpoint", () => {
     expect(response.json()).toEqual({
       error: {
         code: "BAD_REQUEST",
-        message: "Google ID token is required.",
+        message: "Email is required to create a JWT session.",
         statusCode: 400
       }
     });

@@ -12,13 +12,16 @@ import {
 import type {
   ArchiveDocumentResponse,
   CreateDocumentResponse,
+  DocumentContent,
   GetDocumentMetadataResponse,
+  GetDocumentContentResponse,
   DocumentMetadata,
   DocumentPermissionSummary,
   DocumentRole,
   DocumentSummary,
   ListDocumentsResponse,
-  RenameDocumentResponse
+  RenameDocumentResponse,
+  UpdateDocumentContentResponse
 } from "@repo/shared-types";
 import { AppError } from "../../common/errors.js";
 
@@ -29,6 +32,7 @@ type StoredMembership = {
 
 type StoredDocument = {
   archivedAt: string | null;
+  content: string;
   createdAt: string;
   id: string;
   memberships: StoredMembership[];
@@ -74,6 +78,14 @@ function toDocumentSummary(document: StoredDocument, role: DocumentRole): Docume
   };
 }
 
+function toDocumentContent(document: StoredDocument): DocumentContent {
+  return {
+    documentId: document.id,
+    text: document.content,
+    updatedAt: document.updatedAt
+  };
+}
+
 export class DocumentsService {
   private readonly documents = new Map<string, StoredDocument>();
 
@@ -96,6 +108,7 @@ export class DocumentsService {
     const document: StoredDocument = {
       id: randomUUID(),
       title,
+      content: "",
       archivedAt: null,
       createdAt: now,
       updatedAt: now,
@@ -192,6 +205,39 @@ export class DocumentsService {
     return {
       documentId: document.id,
       archivedAt
+    };
+  }
+
+  getDocumentContent(documentId: string, actor: DocumentActor): GetDocumentContentResponse {
+    const document = this.requireDocument(documentId);
+    const membership = this.getMembership(document, actor.userId);
+
+    if (!membership || !canView(membership.role)) {
+      throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have access to this document.");
+    }
+
+    return {
+      content: toDocumentContent(document)
+    };
+  }
+
+  updateDocumentContent(
+    documentId: string,
+    text: string,
+    actor: DocumentActor
+  ): UpdateDocumentContentResponse {
+    const document = this.requireDocument(documentId);
+    const membership = this.getMembership(document, actor.userId);
+
+    if (!membership || !canEdit(membership.role)) {
+      throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have permission to edit this document.");
+    }
+
+    document.content = text;
+    document.updatedAt = new Date().toISOString();
+
+    return {
+      content: toDocumentContent(document)
     };
   }
 

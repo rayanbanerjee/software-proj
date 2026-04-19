@@ -20,6 +20,11 @@ describe("workspace navigation", () => {
         summary: "List shell and launch points into the editor scaffold."
       },
       {
+        href: "/ai",
+        label: "AI Lab",
+        summary: "Prompt templates and retrieval context for AI operations."
+      },
+      {
         href: "/documents/project-kickoff",
         label: "Editor",
         summary: "Toolbar, presence, history, modal, and state shells.",

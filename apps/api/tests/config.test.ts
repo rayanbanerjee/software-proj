@@ -11,6 +11,6 @@ describe("api env parsing", () => {
 
     expect(env.PORT).toBe(4000);
     expect(env.NODE_ENV).toBe("test");
-    expect(env.GOOGLE_CLIENT_ID).toBe("client-id");
+    expect(env.JWT_ISSUER).toBe("collab-editor-api-test");
   });
 });

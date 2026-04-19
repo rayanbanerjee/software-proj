@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { applyApiTestEnv, createApiTestApp } from "./integration/harness.js";
+import {
+  applyApiTestEnv,
+  createApiTestApp,
+  createSessionHeaders
+} from "./integration/harness.js";
 
 const originalEnv = { ...process.env };
 
@@ -19,9 +23,10 @@ describe("sharing module", () => {
     const createDocumentResponse = await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "owner_user"
-      },
+      headers: createSessionHeaders(app, {
+        email: "owner@example.com",
+        userId: "owner_user"
+      }),
       payload: {
         title: "Shared spec"
       }
@@ -32,9 +37,10 @@ describe("sharing module", () => {
     const inviteResponse = await app.inject({
       method: "POST",
       url: `/v1/documents/${documentId}/invitations`,
-      headers: {
-        "x-user-id": "owner_user"
-      },
+      headers: createSessionHeaders(app, {
+        email: "owner@example.com",
+        userId: "owner_user"
+      }),
       payload: {
         email: "viewer@example.com",
         role: "viewer"
@@ -55,10 +61,10 @@ describe("sharing module", () => {
     const acceptResponse = await app.inject({
       method: "POST",
       url: "/v1/invitations/accept",
-      headers: {
-        "x-user-id": "viewer_user",
-        "x-user-email": "viewer@example.com"
-      },
+      headers: createSessionHeaders(app, {
+        email: "viewer@example.com",
+        userId: "viewer_user"
+      }),
       payload: {
         token: acceptToken
       }
@@ -75,9 +81,10 @@ describe("sharing module", () => {
     const metadataResponse = await app.inject({
       method: "GET",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "viewer_user"
-      }
+      headers: createSessionHeaders(app, {
+        email: "viewer@example.com",
+        userId: "viewer_user"
+      })
     });
 
     expect(metadataResponse.statusCode).toBe(200);
@@ -101,9 +108,10 @@ describe("sharing module", () => {
     const createDocumentResponse = await app.inject({
       method: "POST",
       url: "/v1/documents",
-      headers: {
-        "x-user-id": "owner_user"
-      },
+      headers: createSessionHeaders(app, {
+        email: "owner@example.com",
+        userId: "owner_user"
+      }),
       payload: {
         title: "Role changes"
       }
@@ -114,9 +122,10 @@ describe("sharing module", () => {
     const inviteResponse = await app.inject({
       method: "POST",
       url: `/v1/documents/${documentId}/invitations`,
-      headers: {
-        "x-user-id": "owner_user"
-      },
+      headers: createSessionHeaders(app, {
+        email: "owner@example.com",
+        userId: "owner_user"
+      }),
       payload: {
         email: "editor@example.com",
         role: "editor"
@@ -128,10 +137,10 @@ describe("sharing module", () => {
     await app.inject({
       method: "POST",
       url: "/v1/invitations/accept",
-      headers: {
-        "x-user-id": "editor_user",
-        "x-user-email": "editor@example.com"
-      },
+      headers: createSessionHeaders(app, {
+        email: "editor@example.com",
+        userId: "editor_user"
+      }),
       payload: {
         token: acceptToken
       }
@@ -140,9 +149,10 @@ describe("sharing module", () => {
     const forbiddenUpdate = await app.inject({
       method: "PATCH",
       url: `/v1/documents/${documentId}/members/owner_user`,
-      headers: {
-        "x-user-id": "editor_user"
-      },
+      headers: createSessionHeaders(app, {
+        email: "editor@example.com",
+        userId: "editor_user"
+      }),
       payload: {
         role: "viewer"
       }
@@ -160,9 +170,10 @@ describe("sharing module", () => {
     const updateResponse = await app.inject({
       method: "PATCH",
       url: `/v1/documents/${documentId}/members/editor_user`,
-      headers: {
-        "x-user-id": "owner_user"
-      },
+      headers: createSessionHeaders(app, {
+        email: "owner@example.com",
+        userId: "owner_user"
+      }),
       payload: {
         role: "commenter"
       }
@@ -179,9 +190,10 @@ describe("sharing module", () => {
     const renameResponse = await app.inject({
       method: "PATCH",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "editor_user"
-      },
+      headers: createSessionHeaders(app, {
+        email: "editor@example.com",
+        userId: "editor_user"
+      }),
       payload: {
         title: "Should be blocked"
       }
@@ -192,9 +204,10 @@ describe("sharing module", () => {
     const revokeResponse = await app.inject({
       method: "DELETE",
       url: `/v1/documents/${documentId}/members/editor_user`,
-      headers: {
-        "x-user-id": "owner_user"
-      }
+      headers: createSessionHeaders(app, {
+        email: "owner@example.com",
+        userId: "owner_user"
+      })
     });
 
     expect(revokeResponse.statusCode).toBe(200);
@@ -206,9 +219,10 @@ describe("sharing module", () => {
     const metadataResponse = await app.inject({
       method: "GET",
       url: `/v1/documents/${documentId}`,
-      headers: {
-        "x-user-id": "editor_user"
-      }
+      headers: createSessionHeaders(app, {
+        email: "editor@example.com",
+        userId: "editor_user"
+      })
     });
 
     expect(metadataResponse.statusCode).toBe(403);

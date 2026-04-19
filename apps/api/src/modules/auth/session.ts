@@ -1,9 +1,9 @@
-import { createHmac } from "node:crypto";
+import { createHash } from "node:crypto";
 
 import type { IsoDateString, UserProfile } from "@repo/shared-types";
 
 import { toUserProfile } from "./user-profile.js";
-import type { GoogleTokenClaims } from "./google-token-validator.js";
+import { signJwt, verifyJwt } from "./jwt.js";
 
 export interface AuthSessionPayload {
   issuedAt: IsoDateString;
@@ -17,19 +17,16 @@ export interface IssuedAuthSession {
 }
 
 interface AuthSessionServiceConfig {
+  issuer: string;
   isProduction: boolean;
   sessionSecret: string;
 }
 
-interface SessionTokenClaims {
-  v: 1;
-  provider: "google";
-  sub: string;
+export interface JwtLoginIdentity {
   email: string;
-  name: string | null;
-  imageUrl: string | null;
-  iat: number;
-  exp: number;
+  imageUrl?: string | null;
+  name?: string | null;
+  userId?: string;
 }
 
 export interface VerifiedAuthSession extends AuthSessionPayload {
@@ -39,11 +36,10 @@ export interface VerifiedAuthSession extends AuthSessionPayload {
 export const SESSION_COOKIE_NAME = "collab_session";
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 
-function signToken(claims: SessionTokenClaims, secret: string): string {
-  const encodedClaims = Buffer.from(JSON.stringify(claims)).toString("base64url");
-  const signature = createHmac("sha256", secret).update(encodedClaims).digest("base64url");
-
-  return `${encodedClaims}.${signature}`;
+function normalizeUserId(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const digest = createHash("sha256").update(normalizedEmail).digest("hex").slice(0, 16);
+  return `jwt:${digest}`;
 }
 
 function serializeSessionCookie(
@@ -65,51 +61,6 @@ function serializeSessionCookie(
   }
 
   return parts.join("; ");
-}
-
-function verifyToken(token: string, secret: string): SessionTokenClaims {
-  const [encodedClaims, signature] = token.split(".");
-
-  if (!encodedClaims || !signature) {
-    throw new Error("Session token format is invalid.");
-  }
-
-  const expectedSignature = createHmac("sha256", secret)
-    .update(encodedClaims)
-    .digest("base64url");
-
-  if (signature !== expectedSignature) {
-    throw new Error("Session token signature is invalid.");
-  }
-
-  let parsedClaims: unknown;
-
-  try {
-    parsedClaims = JSON.parse(Buffer.from(encodedClaims, "base64url").toString("utf8"));
-  } catch {
-    throw new Error("Session token payload is invalid.");
-  }
-
-  if (
-    !parsedClaims ||
-    typeof parsedClaims !== "object" ||
-    (parsedClaims as SessionTokenClaims).v !== 1 ||
-    (parsedClaims as SessionTokenClaims).provider !== "google" ||
-    typeof (parsedClaims as SessionTokenClaims).sub !== "string" ||
-    typeof (parsedClaims as SessionTokenClaims).email !== "string" ||
-    typeof (parsedClaims as SessionTokenClaims).iat !== "number" ||
-    typeof (parsedClaims as SessionTokenClaims).exp !== "number"
-  ) {
-    throw new Error("Session token claims are invalid.");
-  }
-
-  const claims = parsedClaims as SessionTokenClaims;
-
-  if (claims.exp * 1000 <= Date.now()) {
-    throw new Error("Session token has expired.");
-  }
-
-  return claims;
 }
 
 function parseCookies(cookieHeader: string | undefined): Map<string, string> {
@@ -135,23 +86,22 @@ function parseCookies(cookieHeader: string | undefined): Map<string, string> {
 export class AuthSessionService {
   constructor(private readonly config: AuthSessionServiceConfig) {}
 
-  issueGoogleSession(claims: GoogleTokenClaims): IssuedAuthSession {
+  issueJwtSession(identity: JwtLoginIdentity): IssuedAuthSession {
     const issuedAt = new Date();
     const expiresAt = new Date(issuedAt.getTime() + SESSION_TTL_SECONDS * 1000);
+    const normalizedEmail = identity.email.trim().toLowerCase();
     const user = toUserProfile({
-      id: `google:${claims.subject}`,
-      email: claims.email,
-      name: claims.name ?? null,
-      imageUrl: claims.picture ?? null,
-      googleSubject: claims.subject
+      id: identity.userId?.trim() || normalizeUserId(normalizedEmail),
+      email: normalizedEmail,
+      name: identity.name?.trim() || null,
+      imageUrl: identity.imageUrl?.trim() || null
     });
 
-    const token = signToken(
+    const token = signJwt(
       {
-        v: 1,
-        provider: "google",
         sub: user.id,
         email: user.email,
+        iss: this.config.issuer,
         name: user.name,
         imageUrl: user.imageUrl,
         iat: Math.floor(issuedAt.getTime() / 1000),
@@ -190,7 +140,7 @@ export class AuthSessionService {
   }
 
   verifySessionToken(token: string): VerifiedAuthSession {
-    const claims = verifyToken(token, this.config.sessionSecret);
+    const claims = verifyJwt(token, this.config.sessionSecret, this.config.issuer);
     const issuedAt = new Date(claims.iat * 1000);
     const expiresAt = new Date(claims.exp * 1000);
 
@@ -202,8 +152,7 @@ export class AuthSessionService {
         id: claims.sub,
         email: claims.email,
         name: claims.name,
-        imageUrl: claims.imageUrl,
-        googleSubject: claims.provider === "google" ? claims.sub.replace(/^google:/, "") : null
+        imageUrl: claims.imageUrl
       }
     };
   }

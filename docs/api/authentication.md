@@ -2,19 +2,20 @@
 
 ## Required API Environment Variables
 
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
 - `SESSION_SECRET`
+- `JWT_ISSUER`
 
-## `POST /v1/auth/callback`
+## `POST /v1/auth/login`
 
-Accepts a Google ID token, validates it through the auth module's shared validator abstraction, issues the initial API session, and returns the normalized session payload.
+Accepts a client-provided identity payload, issues an HMAC-signed JWT session, and returns the normalized session payload.
 
 Request body:
 
 ```json
 {
-  "idToken": "stub-valid-token"
+  "email": "owner@example.com",
+  "name": "Owner Demo",
+  "imageUrl": "https://example.com/avatar.png"
 }
 ```
 
@@ -26,11 +27,10 @@ Response:
     "issuedAt": "2026-04-02T10:00:00.000Z",
     "expiresAt": "2026-04-09T10:00:00.000Z",
     "user": {
-      "id": "google:google-oauth-subject",
-      "email": "stub-user@example.com",
-      "name": "Stub User",
-      "imageUrl": "https://example.com/avatar.png",
-      "googleSubject": "google-oauth-subject"
+      "id": "jwt:2d530b372d57f5b4",
+      "email": "owner@example.com",
+      "name": "Owner Demo",
+      "imageUrl": "https://example.com/avatar.png"
     }
   }
 }
@@ -47,8 +47,7 @@ Cookie behavior:
 
 Failure cases:
 
-- `400 BAD_REQUEST` when `idToken` is missing or blank
-- `401 INVALID_GOOGLE_TOKEN` when validation fails
+- `400 BAD_REQUEST` when `email` is missing or invalid
 
 ## `GET /v1/auth/me`
 
@@ -64,11 +63,10 @@ Response:
 ```json
 {
   "user": {
-    "id": "google:google-oauth-subject",
-    "email": "stub-user@example.com",
-    "name": "Stub User",
-    "imageUrl": "https://example.com/avatar.png",
-    "googleSubject": "google-oauth-subject"
+    "id": "jwt:2d530b372d57f5b4",
+    "email": "owner@example.com",
+    "name": "Owner Demo",
+    "imageUrl": "https://example.com/avatar.png"
   }
 }
 ```
@@ -80,7 +78,6 @@ Failure cases:
 
 ## Notes
 
-- `GOOGLE_CLIENT_ID` controls Google token audience validation
-- `SESSION_SECRET` signs the API-issued session token
-- the current implementation uses the repo's stub validator path, so `stub-valid-token` remains the local test credential until real Google verification replaces it
+- `SESSION_SECRET` signs the API-issued JWT session token
+- `JWT_ISSUER` controls the `iss` claim used during session verification
 - protected API routes now read the same signed session token from the cookie or bearer header instead of the earlier test-only identity headers

@@ -12,6 +12,11 @@ export const workspaceNavigation: readonly WorkspaceNavigationItem[] = [
     summary: "List shell and launch points into the editor scaffold."
   },
   {
+    href: "/ai",
+    label: "AI Lab",
+    summary: "Prompt templates and retrieval context for AI operations."
+  },
+  {
     href: "/documents/project-kickoff",
     label: "Editor",
     summary: "Toolbar, presence, history, modal, and state shells.",
@@ -51,9 +56,9 @@ export const authShellStates = [
   {
     state: "signed-out",
     kicker: "Signed out",
-    title: "Prompt the user to continue with Google",
+    title: "Prompt the user to start a JWT session",
     description:
-      "The callback endpoint exists now, so the shell can anchor around a concrete Google sign-in handoff instead of a generic placeholder.",
+      "The login endpoint exists now, so the shell can anchor around a concrete JWT session handoff instead of a generic placeholder.",
     points: [
       "Primary call to action for Google sign-in",
       "Brief explanation of cookie-backed session issuance",
@@ -63,9 +68,9 @@ export const authShellStates = [
   {
     state: "loading",
     kicker: "Loading",
-    title: "Wait for callback and session exchange",
+    title: "Wait for login and session exchange",
     description:
-      "This shell covers the brief state between submitting a Google token and receiving the new API-issued session payload.",
+      "This shell covers the brief state between submitting identity input and receiving the new API-issued session payload.",
     points: [
       "Session exchange progress copy",
       "Temporary protection against double submit",

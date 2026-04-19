@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@repo/editor-schema": "workspace:*",
+    "@repo/prompt-templates": "workspace:*",
     "@tiptap/pm": "^2.26.4",
     "@tiptap/react": "^2.26.4",
     "next": "^16.2.2",

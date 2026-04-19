@@ -6,21 +6,18 @@ const users = [
   {
     id: "user_demo_owner",
     email: "owner@example.com",
-    googleSubject: "google-owner",
     imageUrl: "https://example.com/avatar-owner.png",
     name: "Owner Demo"
   },
   {
     id: "user_demo_editor",
     email: "editor@example.com",
-    googleSubject: "google-editor",
     imageUrl: "https://example.com/avatar-editor.png",
     name: "Editor Demo"
   },
   {
     id: "user_demo_viewer",
     email: "viewer@example.com",
-    googleSubject: "google-viewer",
     imageUrl: "https://example.com/avatar-viewer.png",
     name: "Viewer Demo"
   }
@@ -76,7 +73,6 @@ async function seedUsers() {
       where: { email: user.email },
       create: user,
       update: {
-        googleSubject: user.googleSubject,
         imageUrl: user.imageUrl,
         name: user.name
       }
