@@ -47,13 +47,9 @@ describe("api app", () => {
     await app.close();
   });
 
-  it("registers the google token validator", async () => {
+  it("registers the auth session service", async () => {
     const app = await createApiTestApp();
 
-    await expect(app.googleTokenValidator.validateIdToken("stub-valid-token")).resolves.toMatchObject({
-      audience: "client-id",
-      email: "stub-user@example.com"
-    });
     expect(app.authSessionService).toBeDefined();
 
     await app.close();

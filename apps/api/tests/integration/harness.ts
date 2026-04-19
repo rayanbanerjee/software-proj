@@ -1,12 +1,8 @@
 import type { FastifyInstance } from "fastify";
 
 import { createApp } from "../../src/app.js";
-import type {
-  GoogleTokenClaims,
-  GoogleTokenValidator
-} from "../../src/modules/auth/google-token-validator.js";
+import type { JwtLoginIdentity } from "../../src/modules/auth/session.js";
 import { defaultApiTestEnv } from "../../../../tests/config/env.js";
-import { createTestGoogleTokenValidator } from "../helpers/google-token-validator.js";
 
 export function applyApiTestEnv(overrides: Partial<NodeJS.ProcessEnv> = {}) {
   return {
@@ -15,35 +11,28 @@ export function applyApiTestEnv(overrides: Partial<NodeJS.ProcessEnv> = {}) {
   };
 }
 
-export async function createApiTestApp(options: {
-  googleTokenValidator?: GoogleTokenValidator;
-} = {}): Promise<FastifyInstance> {
-  const { app } = await createApp({
-    googleTokenValidator: options.googleTokenValidator ?? createTestGoogleTokenValidator()
-  });
+export async function createApiTestApp(): Promise<FastifyInstance> {
+  const { app } = await createApp();
   return app;
 }
 
 export function issueTestSessionCookie(
   app: FastifyInstance,
-  overrides: Partial<GoogleTokenClaims> = {}
+  overrides: Partial<JwtLoginIdentity> = {}
 ) {
-  const claims: GoogleTokenClaims = {
-    audience: app.apiEnv.GOOGLE_CLIENT_ID,
+  const identity: JwtLoginIdentity = {
     email: "stub-user@example.com",
-    emailVerified: true,
     name: "Stub User",
-    picture: "https://example.com/avatar.png",
-    subject: "google-oauth-subject",
+    imageUrl: "https://example.com/avatar.png",
     ...overrides
   };
 
-  return app.authSessionService.issueGoogleSession(claims).cookie;
+  return app.authSessionService.issueJwtSession(identity).cookie;
 }
 
 export function createSessionHeaders(
   app: FastifyInstance,
-  overrides: Partial<GoogleTokenClaims> = {}
+  overrides: Partial<JwtLoginIdentity> = {}
 ) {
   return {
     cookie: issueTestSessionCookie(app, overrides)

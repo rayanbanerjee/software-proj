@@ -2,25 +2,20 @@
 
 ## Required API Environment Variables
 
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
 - `SESSION_SECRET`
-- `WEB_ORIGIN`
+- `JWT_ISSUER`
 
-## Required Web Environment Variables
+## `POST /v1/auth/login`
 
-- `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
-- `NEXT_PUBLIC_API_BASE_URL`
-
-## `POST /v1/auth/callback`
-
-Accepts a Google ID token from the browser, verifies it against Google with the configured `GOOGLE_CLIENT_ID`, issues the initial API session, and returns the normalized session payload.
+Accepts a client-provided identity payload, issues an HMAC-signed JWT session, and returns the normalized session payload.
 
 Request body:
 
 ```json
 {
-  "idToken": "<google-id-token>"
+  "email": "owner@example.com",
+  "name": "Owner Demo",
+  "imageUrl": "https://example.com/avatar.png"
 }
 ```
 
@@ -32,11 +27,10 @@ Response:
     "issuedAt": "2026-04-02T10:00:00.000Z",
     "expiresAt": "2026-04-09T10:00:00.000Z",
     "user": {
-      "id": "google:google-oauth-subject",
-      "email": "stub-user@example.com",
-      "name": "Stub User",
-      "imageUrl": "https://example.com/avatar.png",
-      "googleSubject": "google-oauth-subject"
+      "id": "jwt:2d530b372d57f5b4",
+      "email": "owner@example.com",
+      "name": "Owner Demo",
+      "imageUrl": "https://example.com/avatar.png"
     }
   }
 }
@@ -53,8 +47,7 @@ Cookie behavior:
 
 Failure cases:
 
-- `400 BAD_REQUEST` when `idToken` is missing or blank
-- `401 INVALID_GOOGLE_TOKEN` when validation fails
+- `400 BAD_REQUEST` when `email` is missing or invalid
 
 ## `GET /v1/auth/me`
 
@@ -70,11 +63,10 @@ Response:
 ```json
 {
   "user": {
-    "id": "google:google-oauth-subject",
-    "email": "stub-user@example.com",
-    "name": "Stub User",
-    "imageUrl": "https://example.com/avatar.png",
-    "googleSubject": "google-oauth-subject"
+    "id": "jwt:2d530b372d57f5b4",
+    "email": "owner@example.com",
+    "name": "Owner Demo",
+    "imageUrl": "https://example.com/avatar.png"
   }
 }
 ```
@@ -86,10 +78,6 @@ Failure cases:
 
 ## Notes
 
-- `GOOGLE_CLIENT_ID` controls Google token audience validation
-- `GOOGLE_CLIENT_SECRET` should be stored for Google OAuth configuration and future server-side auth flow expansion, but the current browser sign-in path exchanges a Google ID token instead of an authorization code
-- `WEB_ORIGIN` controls the allowed browser origin for the API CORS policy
-- `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is required by the web app to render the Google sign-in button
-- `NEXT_PUBLIC_API_BASE_URL` should point at the API origin that serves `/v1/auth/callback`
-- tests still use the local `stub-valid-token` helper through an injected test validator; production and development runtime now verify real Google tokens
+- `SESSION_SECRET` signs the API-issued JWT session token
+- `JWT_ISSUER` controls the `iss` claim used during session verification
 - protected API routes now read the same signed session token from the cookie or bearer header instead of the earlier test-only identity headers

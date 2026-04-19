@@ -291,7 +291,7 @@ export function createCollabServer(
     unloadImmediately: false,
     async onAuthenticate(data) {
       try {
-        const sessionContext = verifyCollabSessionToken(data.token, env.sessionSecret);
+        const sessionContext = verifyCollabSessionToken(data.token, env.sessionSecret, env.jwtIssuer);
 
         return {
           session: sessionContext.session,

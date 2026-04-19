@@ -27,18 +27,17 @@ describe("current user endpoint", () => {
       headers: createSessionHeaders(app, {
         email: "owner@example.com",
         name: "Owner Demo",
-        subject: "user_owner"
+        userId: "jwt:user_owner"
       })
     });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       user: {
-        id: "google:user_owner",
+        id: "jwt:user_owner",
         email: "owner@example.com",
         name: "Owner Demo",
-        imageUrl: "https://example.com/avatar.png",
-        googleSubject: "user_owner"
+        imageUrl: "https://example.com/avatar.png"
       }
     });
 
@@ -49,7 +48,7 @@ describe("current user endpoint", () => {
     const app = await createApiTestApp();
     const cookie = issueTestSessionCookie(app, {
       email: "bearer@example.com",
-      subject: "user_bearer"
+      userId: "jwt:user_bearer"
     });
     const token = cookie.split(";")[0]?.split("=")[1];
 
@@ -64,9 +63,8 @@ describe("current user endpoint", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       user: {
-        id: "google:user_bearer",
-        email: "bearer@example.com",
-        googleSubject: "user_bearer"
+        id: "jwt:user_bearer",
+        email: "bearer@example.com"
       }
     });
 

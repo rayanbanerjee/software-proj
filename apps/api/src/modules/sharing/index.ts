@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import type { DocumentPermissionUpdatedEvent, DocumentRole, SessionAccessLevel } from "@repo/shared-types";
 
-import { AppError } from "../../common/errors.js";
+import { authenticateRequest, requireCurrentUser } from "../auth/guard.js";
 import type { DocumentActor } from "../documents/service.js";
 import { SharingService } from "./service.js";
 
@@ -20,35 +20,26 @@ const updateRoleBodySchema = z.object({
   role: z.enum(["owner", "editor", "commenter", "viewer"])
 });
 
-function getActor(headers: Record<string, string | string[] | undefined>): DocumentActor {
-  const userIdHeader = headers["x-user-id"];
-  const userNameHeader = headers["x-user-name"];
-
-  const userId = Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader;
-  const name = Array.isArray(userNameHeader) ? userNameHeader[0] : userNameHeader;
-
-  if (!userId) {
-    throw new AppError("UNAUTHORIZED", 401, "Missing x-user-id header.");
-  }
-
+function getActor(currentUser: {
+  email: string;
+  id: string;
+  name: string | null;
+}): DocumentActor {
   return {
-    userId,
-    name: name ?? null
+    userId: currentUser.id,
+    name: currentUser.name
   };
 }
 
-function getActorWithEmail(headers: Record<string, string | string[] | undefined>) {
-  const actor = getActor(headers);
-  const emailHeader = headers["x-user-email"];
-  const email = Array.isArray(emailHeader) ? emailHeader[0] : emailHeader;
-
-  if (!email) {
-    throw new AppError("UNAUTHORIZED", 401, "Missing x-user-email header.");
-  }
-
+function getActorWithEmail(currentUser: {
+  email: string;
+  id: string;
+  name: string | null;
+}) {
+  const actor = getActor(currentUser);
   return {
     ...actor,
-    email
+    email: currentUser.email
   };
 }
 
@@ -109,8 +100,8 @@ export async function registerSharingModule(app: FastifyInstance) {
     new SharingService(app.documentsService, app.auditService, app.apiEnv.SESSION_SECRET)
   );
 
-  app.post("/v1/documents/:documentId/invitations", async (request, reply) => {
-    const actor = getActor(request.headers);
+  app.post("/v1/documents/:documentId/invitations", { preHandler: authenticateRequest }, async (request, reply) => {
+    const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string };
     const body = createInvitationBodySchema.parse(request.body);
     const response = app.sharingService.createInvitation(params.documentId, body.email, body.role, actor);
@@ -118,8 +109,8 @@ export async function registerSharingModule(app: FastifyInstance) {
     return reply.status(201).send(response);
   });
 
-  app.post("/v1/invitations/accept", async (request) => {
-    const actor = getActorWithEmail(request.headers);
+  app.post("/v1/invitations/accept", { preHandler: authenticateRequest }, async (request) => {
+    const actor = getActorWithEmail(requireCurrentUser(request));
     const body = acceptInvitationBodySchema.parse(request.body);
     const response = app.sharingService.acceptInvitation(body.token, actor);
 
@@ -136,8 +127,8 @@ export async function registerSharingModule(app: FastifyInstance) {
     return response;
   });
 
-  app.patch("/v1/documents/:documentId/members/:userId", async (request) => {
-    const actor = getActor(request.headers);
+  app.patch("/v1/documents/:documentId/members/:userId", { preHandler: authenticateRequest }, async (request) => {
+    const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string; userId: string };
     const body = updateRoleBodySchema.parse(request.body);
     const response = app.sharingService.updateRole(params.documentId, params.userId, body.role, actor);
@@ -155,8 +146,8 @@ export async function registerSharingModule(app: FastifyInstance) {
     return response;
   });
 
-  app.delete("/v1/documents/:documentId/members/:userId", async (request) => {
-    const actor = getActor(request.headers);
+  app.delete("/v1/documents/:documentId/members/:userId", { preHandler: authenticateRequest }, async (request) => {
+    const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string; userId: string };
     const response = app.sharingService.revokeAccess(params.documentId, params.userId, actor);
 

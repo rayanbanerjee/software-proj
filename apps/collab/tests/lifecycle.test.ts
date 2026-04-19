@@ -31,7 +31,7 @@ describe("collab lifecycle hooks", () => {
       presenceSessionId: "socket-1",
       reconnectSessionId: null,
       user: {
-        id: "google:user_owner"
+        id: "jwt:user_owner"
       }
     });
     expect(firstBroadcast).toMatchObject({
@@ -40,7 +40,7 @@ describe("collab lifecycle hooks", () => {
       collaborators: [
         expect.objectContaining({
           sessionId: "socket-1",
-          userId: "google:user_owner",
+          userId: "jwt:user_owner",
           connectionStatus: "active",
           isPresent: true
         })
@@ -73,7 +73,7 @@ describe("collab lifecycle hooks", () => {
       collaborators: [
         expect.objectContaining({
           sessionId: "socket-2",
-          userId: "google:user_owner",
+          userId: "jwt:user_owner",
           connectionStatus: "active"
         })
       ]

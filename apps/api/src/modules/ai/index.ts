@@ -1,18 +1,37 @@
-import type { FastifyInstance } from "fastify";
+import type { AiStreamEvent, RetrieveRagContextRequest } from "@repo/shared-types";
+import { canUseAi } from "@repo/authz";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 
 import { AppError } from "../../common/errors.js";
 import { authenticateRequest, requireCurrentUser } from "../auth/guard.js";
 import type { DocumentActor } from "../documents/service.js";
-import { MockProviderClient } from "./mock-provider-client.js";
 import { NotConfiguredProviderClient } from "./not-configured-provider.js";
 import { OpenRouterProviderClient } from "./openrouter-provider.js";
+import { listPromptTemplates, retrieveRagContext } from "./rag.js";
 import { submitAiRequestSchema } from "./schema.js";
 import { AiService } from "./service.js";
+import { StubStreamingProvider } from "./stub-streaming-provider.js";
 
 const proposalDecisionSchema = z.object({
   proposalId: z.string().trim().min(1),
   reason: z.string().trim().min(1).optional()
+});
+
+const streamAiRequestBodySchema = z.object({
+  action: z.enum(["rewrite", "summarize", "translate", "restructure"]),
+  prompt: z.string().trim().nullable(),
+  context: z.object({
+    scope: z.enum(["document", "selection"]),
+    selectedText: z.string().nullable(),
+    surroundingText: z.string().nullable()
+  }),
+  maskPersonalData: z.boolean().default(false)
+});
+
+const retrieveContextBodySchema = z.object({
+  query: z.string().trim().default(""),
+  topK: z.number().int().positive().max(10).optional()
 });
 
 function getActor(user: { id: string; name: string | null }): DocumentActor {
@@ -32,10 +51,37 @@ export async function registerAiModule(app: FastifyInstance) {
         model: app.apiEnv.OPENROUTER_MODEL
       })
     : app.apiEnv.NODE_ENV === "test"
-      ? new MockProviderClient()
+      ? new StubStreamingProvider()
       : new NotConfiguredProviderClient();
 
   app.decorate("aiService", new AiService(app.documentsService, provider));
+
+  app.get("/v1/ai/prompt-templates", { preHandler: authenticateRequest }, async () => {
+    return listPromptTemplates();
+  });
+
+  app.post("/v1/ai/context/retrieve", { preHandler: authenticateRequest }, async (request) => {
+    const currentUser = requireCurrentUser(request);
+    const body = retrieveContextBodySchema.parse(request.body) as RetrieveRagContextRequest;
+    const actor = getActor(currentUser);
+    const documents = app.documentsService.listDocuments(actor).documents;
+    const documentContents = documents.map((document) =>
+      app.documentsService.getDocumentContent(document.id, actor).content
+    );
+    const visibleDocumentIds = new Set(documents.map((document) => document.id));
+    const auditEvents = app.auditService
+      .listEvents()
+      .filter((event) => event.documentId === null || visibleDocumentIds.has(event.documentId));
+
+    return retrieveRagContext({
+      auditEvents,
+      documentContents,
+      documents,
+      query: body.query,
+      topK: body.topK,
+      user: currentUser
+    });
+  });
 
   app.post("/v1/documents/:documentId/ai/requests", { preHandler: authenticateRequest }, async (request, reply) => {
     const actor = getActor(requireCurrentUser(request));
@@ -74,4 +120,44 @@ export async function registerAiModule(app: FastifyInstance) {
 
     return app.aiService.rejectProposal(params.documentId, body.proposalId, actor);
   });
+
+  app.post(
+    "/v1/documents/:documentId/ai/stream",
+    { preHandler: authenticateRequest },
+    async (request, reply) => {
+      const currentUser = requireCurrentUser(request);
+      const params = request.params as { documentId: string };
+      const body = streamAiRequestBodySchema.parse(request.body);
+      const role = app.documentsService.getDocumentRole(params.documentId, currentUser.id);
+
+      if (!role || !canUseAi(role)) {
+        throw new AppError(
+          "DOCUMENT_FORBIDDEN",
+          403,
+          "You do not have permission to use AI for this document."
+        );
+      }
+
+      reply.hijack();
+      reply.raw.writeHead(200, {
+        "cache-control": "no-cache, no-transform",
+        connection: "keep-alive",
+        "content-type": "text/event-stream; charset=utf-8"
+      });
+
+      for await (const event of app.aiService.streamProposal({
+        ...body,
+        documentId: params.documentId
+      })) {
+        writeSseEvent(reply, event);
+      }
+
+      reply.raw.end();
+      return reply;
+    }
+  );
+}
+
+function writeSseEvent(reply: FastifyReply, event: AiStreamEvent) {
+  reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
 }

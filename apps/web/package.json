@@ -7,13 +7,13 @@
     "dev": "next dev",
     "lint": "eslint src tests next-env.d.ts next.config.ts --max-warnings=0",
     "start": "next start",
-    "test:e2e": "playwright test --config=playwright.config.mjs",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@hocuspocus/provider": "^3.4.4",
     "@repo/editor-schema": "workspace:*",
+    "@repo/prompt-templates": "workspace:*",
     "@tiptap/extension-collaboration": "^2.27.2",
     "@tiptap/extension-collaboration-cursor": "^2.26.2",
     "@tiptap/pm": "^2.26.4",

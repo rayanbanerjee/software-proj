@@ -4,14 +4,17 @@ import type {
   AcceptAiProposalResponse,
   AiAction,
   AiProposal,
+  AiStreamEvent,
   GetAiRequestStatusResponse,
   RejectAiProposalResponse,
+  StreamAiRequestRequest,
   SubmitAiRequestResponse
 } from "@repo/shared-types";
 
 import { AppError } from "../../common/errors.js";
 import type { DocumentActor, DocumentsService } from "../documents/service.js";
 import type { AiProviderClient } from "./provider.js";
+import { buildSourceText } from "./provider.js";
 import type { SubmitAiRequestInput } from "./schema.js";
 import {
   buildProposalRevisionFingerprint,
@@ -72,6 +75,66 @@ export class AiService {
     if (stale) {
       request.status = "stale";
       request.completedAt ??= new Date().toISOString();
+    }
+  }
+
+  async *streamProposal(
+    input: StreamAiRequestRequest & { documentId: string }
+  ): AsyncGenerator<AiStreamEvent> {
+    const requestId = `ai_${randomUUID()}`;
+
+    yield {
+      type: "started",
+      requestId,
+      status: "running"
+    };
+
+    if (!this.provider.streamText) {
+      const generated = await this.provider.generate({
+        action: input.action,
+        prompt: input.prompt,
+        sourceText: buildSourceText(input.context)
+      });
+      const proposal = buildStreamingProposal(input, requestId, generated.proposedText);
+
+      yield {
+        type: "completed",
+        requestId,
+        status: "succeeded",
+        proposal: {
+          ...proposal,
+          summary: generated.summary
+        }
+      };
+      return;
+    }
+
+    let proposedText = "";
+
+    try {
+      for await (const delta of this.provider.streamText(input)) {
+        proposedText += delta;
+        yield {
+          type: "delta",
+          requestId,
+          delta,
+          text: proposedText
+        };
+      }
+
+      yield {
+        type: "completed",
+        requestId,
+        status: "succeeded",
+        proposal: buildStreamingProposal(input, requestId, proposedText)
+      };
+    } catch (error) {
+      yield {
+        type: "error",
+        requestId,
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : "AI streaming failed."
+      };
     }
   }
 
@@ -236,4 +299,29 @@ export class AiService {
     });
     this.refreshStaleness(request);
   }
+}
+
+function buildStreamingProposal(
+  input: StreamAiRequestRequest & { documentId: string },
+  requestId: string,
+  proposedText: string
+): AiProposal {
+  const originalText = buildSourceText(input.context);
+
+  return {
+    proposalId: `proposal_${randomUUID()}`,
+    requestId,
+    documentId: input.documentId,
+    action: input.action,
+    originalText,
+    proposedText: proposedText.trim(),
+    summary: summarizeProposal(input.action, proposedText),
+    createdAt: new Date().toISOString(),
+    isStale: false
+  };
+}
+
+function summarizeProposal(action: AiAction, proposedText: string) {
+  const firstLine = proposedText.trim().split("\n")[0]?.trim() ?? "";
+  return `${action}: ${firstLine.slice(0, 80)}`.trim();
 }

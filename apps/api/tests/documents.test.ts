@@ -26,7 +26,7 @@ describe("documents module", () => {
       headers: createSessionHeaders(app, {
         email: "owner@example.com",
         name: "Owner Demo",
-        subject: "user_owner"
+        userId: "jwt:user_owner"
       }),
       payload: {
         title: "Project kickoff"
@@ -53,11 +53,11 @@ describe("documents module", () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
-      subject: "user_owner"
+      userId: "jwt:user_owner"
     });
     const viewerHeaders = createSessionHeaders(app, {
       email: "viewer@example.com",
-      subject: "user_viewer"
+      userId: "jwt:user_viewer"
     });
 
     await app.inject({
@@ -106,11 +106,11 @@ describe("documents module", () => {
       const app = await createApiTestApp();
       const ownerHeaders = createSessionHeaders(app, {
         email: "owner@example.com",
-        subject: "user_owner"
+        userId: "jwt:user_owner"
       });
       const otherHeaders = createSessionHeaders(app, {
         email: "other@example.com",
-        subject: "user_other"
+        userId: "jwt:user_other"
       });
 
       await app.inject({
@@ -148,7 +148,7 @@ describe("documents module", () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
-      subject: "user_owner"
+      userId: "jwt:user_owner"
     });
 
     const createResponse = await app.inject({
@@ -187,7 +187,7 @@ describe("documents module", () => {
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
       name: "Owner Demo",
-      subject: "user_owner"
+      userId: "jwt:user_owner"
     });
 
     const createResponse = await app.inject({
@@ -225,7 +225,7 @@ describe("documents module", () => {
         collaborators: [
           {
             documentId,
-            userId: "google:user_owner",
+            userId: "jwt:user_owner",
             displayName: "Owner Demo",
             role: "owner",
             accessLevel: "write",
@@ -235,7 +235,7 @@ describe("documents module", () => {
         ],
         self: {
           documentId,
-          userId: "google:user_owner",
+          userId: "jwt:user_owner",
           role: "owner",
           accessLevel: "write"
         }
@@ -249,7 +249,7 @@ describe("documents module", () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
-      subject: "user_owner"
+      userId: "jwt:user_owner"
     });
 
     const createResponse = await app.inject({
@@ -301,11 +301,11 @@ describe("documents module", () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
-      subject: "user_owner"
+      userId: "jwt:user_owner"
     });
     const otherHeaders = createSessionHeaders(app, {
       email: "other@example.com",
-      subject: "user_other"
+      userId: "jwt:user_other"
     });
 
     const createResponse = await app.inject({

@@ -555,11 +555,227 @@ ul {
   gap: 18px;
 }
 
+.auth-login-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1fr);
+  gap: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  padding: 22px;
+}
+
+.auth-login-copy {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.auth-login-copy p {
+  color: var(--text-soft);
+  line-height: 1.65;
+}
+
+.auth-login-form {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-login-field {
+  display: grid;
+  gap: 8px;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.auth-login-field input {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: rgba(255, 250, 242, 0.9);
+  color: var(--text);
+  font: inherit;
+  padding: 12px 14px;
+}
+
+.auth-login-field select,
+.auth-login-field textarea {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: rgba(255, 250, 242, 0.9);
+  color: var(--text);
+  font: inherit;
+  padding: 12px 14px;
+}
+
+.auth-login-field textarea {
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.auth-login-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.auth-login-actions button {
+  border: 1px solid rgba(191, 91, 44, 0.26);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(191, 91, 44, 0.12), rgba(63, 123, 114, 0.08)),
+    rgba(255, 250, 242, 0.92);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 10px 16px;
+}
+
+.auth-login-status {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.auth-login-status p {
+  color: var(--text-soft);
+  line-height: 1.55;
+}
+
+.auth-login-status-error {
+  border-color: rgba(176, 76, 70, 0.24);
+  background: var(--error-soft);
+}
+
+.auth-login-status-error p {
+  color: var(--error);
+}
+
+.auth-login-status-success {
+  border-color: rgba(63, 123, 114, 0.22);
+  background: rgba(63, 123, 114, 0.08);
+}
+
+.auth-login-status-success p {
+  color: var(--teal);
+}
+
+.prompt-lab-shell {
+  display: grid;
+  gap: 20px;
+}
+
+.prompt-lab-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.prompt-lab-panel,
+.prompt-template-card,
+.rag-result-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(14px);
+}
+
+.prompt-lab-panel {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+}
+
+.prompt-lab-panel-header {
+  display: grid;
+  gap: 8px;
+}
+
+.prompt-lab-panel-header h3 {
+  font-family: var(--heading-font);
+  font-size: clamp(1.3rem, 2vw, 1.8rem);
+  letter-spacing: -0.03em;
+}
+
+.prompt-lab-copy,
+.prompt-template-card p,
+.rag-result-card p,
+.rag-result-card small {
+  color: var(--text-soft);
+  line-height: 1.65;
+}
+
+.prompt-template-card,
+.rag-result-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+
+.prompt-template-header,
+.rag-result-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.prompt-template-header span,
+.rag-result-topline span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rag-query-form {
+  display: grid;
+  gap: 14px;
+}
+
+.rag-result-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rag-result-meta div {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 250, 242, 0.78);
+  padding: 10px 12px;
+}
+
+.rag-result-meta dt {
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rag-result-meta dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.prompt-lab-error {
+  color: var(--error);
+  font-weight: 700;
+}
+
 .auth-shell-points,
 .overlay-list,
 .timeline-stack,
 .presence-stack,
-.document-section-stack {
+.document-section-stack,
+.prompt-template-list,
+.rag-result-list {
   display: grid;
   gap: 14px;
 }
@@ -1058,6 +1274,8 @@ ul {
 @media (max-width: 1120px) {
   .workspace-shell,
   .document-workspace-grid,
+  .prompt-lab-grid,
+  .auth-login-panel,
   .auth-shell-grid,
   .document-card-grid {
     grid-template-columns: 1fr;
