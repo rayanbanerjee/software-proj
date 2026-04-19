@@ -37,7 +37,7 @@ Start the local stack:
 Run the web app:
 
 ```bash
-./run.sh web -- --port 3002
+./run.sh web --port 3002
 ```
 
 Useful local commands:
@@ -146,7 +146,7 @@ One service only:
 Run the web app separately:
 
 ```bash
-./run.sh web -- --port 3002
+./run.sh web --port 3002
 ```
 
 ### 4. Open the app

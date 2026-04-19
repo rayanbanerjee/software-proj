@@ -277,7 +277,14 @@ describe("editor selection helpers", () => {
       empty: false,
       from: 4,
       to: 12,
-      currentBlock: "heading-2"
+      marks: {
+        bold: false,
+        italic: false,
+        strike: false
+      },
+      currentBlock: "heading-2",
+      currentList: "none",
+      inBlockquote: false
     });
   });
 

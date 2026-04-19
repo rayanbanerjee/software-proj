@@ -85,7 +85,10 @@ describe("collab document persistence", () => {
     );
 
     const [, requestInit] = fetchMock.mock.calls[0] ?? [];
-    expect(JSON.parse(String(requestInit?.body))).toEqual({
+    expect(JSON.parse(String(requestInit?.body))).toMatchObject({
+      richText: {
+        type: "doc"
+      },
       text: "Line one\nLine two"
     });
   });

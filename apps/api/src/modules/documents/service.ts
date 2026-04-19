@@ -28,6 +28,11 @@ import type {
 } from "@repo/shared-types";
 import { AppError } from "../../common/errors.js";
 import { readJsonFile, resolveDataPath, writeJsonFile } from "../../common/file-store.js";
+import {
+  createRichTextDocumentFromPlainText,
+  isRichTextDocument,
+  type RichTextDocument
+} from "./rich-text.js";
 
 type StoredMembership = {
   role: DocumentRole;
@@ -41,11 +46,13 @@ type StoredDocument = {
   defaultRole?: DocumentRole | null;
   id: string;
   memberships: StoredMembership[];
+  richContent?: RichTextDocument | null;
   title: string;
   updatedAt: string;
 };
 
 type DocumentSnapshot = {
+  richContent: RichTextDocument | null;
   text: string;
   title: string;
   updatedAt: string;
@@ -94,6 +101,7 @@ function toDocumentSummary(document: StoredDocument, role: DocumentRole): Docume
 function toDocumentContent(document: StoredDocument): DocumentContent {
   return {
     documentId: document.id,
+    richText: document.richContent ?? null,
     text: document.content,
     updatedAt: document.updatedAt
   };
@@ -133,6 +141,12 @@ export class DocumentsService {
     const storedDocuments = readJsonFile<StoredDocument[]>(this.storagePath, []);
 
     for (const document of storedDocuments) {
+      if (!document.richContent) {
+        document.richContent = createRichTextDocumentFromPlainText(document.content);
+      } else if (!isRichTextDocument(document.richContent)) {
+        document.richContent = null;
+      }
+
       this.documents.set(document.id, document);
     }
   }
@@ -169,6 +183,7 @@ export class DocumentsService {
       id: randomUUID(),
       title,
       content: "",
+      richContent: createRichTextDocumentFromPlainText(""),
       archivedAt: null,
       createdAt: now,
       defaultRole: DEFAULT_SHARED_DOCUMENT_ROLE,
@@ -339,6 +354,7 @@ export class DocumentsService {
     }
 
     document.content = text;
+    document.richContent = createRichTextDocumentFromPlainText(text);
     document.updatedAt = new Date().toISOString();
     this.persistDocuments();
 
@@ -347,10 +363,17 @@ export class DocumentsService {
     };
   }
 
-  syncDocumentContentFromCollab(documentId: string, text: string) {
+  syncDocumentContentFromCollab(
+    documentId: string,
+    input: {
+      richContent?: RichTextDocument | null;
+      text: string;
+    }
+  ) {
     const document = this.requireDocument(documentId);
 
-    document.content = text;
+    document.content = input.text;
+    document.richContent = input.richContent ?? createRichTextDocumentFromPlainText(input.text);
     document.updatedAt = new Date().toISOString();
     this.persistDocuments();
 
@@ -371,6 +394,7 @@ export class DocumentsService {
     }
 
     return {
+      richContent: document.richContent ?? null,
       text: document.content,
       title: document.title,
       updatedAt: document.updatedAt
@@ -380,6 +404,7 @@ export class DocumentsService {
   restoreDocumentSnapshot(
     documentId: string,
     snapshot: {
+      richContent?: RichTextDocument | null;
       text: string;
       title: string;
     },
@@ -393,6 +418,7 @@ export class DocumentsService {
     }
 
     document.content = snapshot.text;
+    document.richContent = snapshot.richContent ?? createRichTextDocumentFromPlainText(snapshot.text);
     document.title = snapshot.title;
     document.updatedAt = new Date().toISOString();
     this.persistDocuments();

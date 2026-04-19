@@ -186,6 +186,99 @@ describe("exports module", () => {
     await app.close();
   });
 
+  it("renders DOCX exports from rich text content", async () => {
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+
+    const createDocumentResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Rich export doc"
+      }
+    });
+    const documentId = createDocumentResponse.json().document.id as string;
+
+    await app.inject({
+      method: "POST",
+      url: `/internal/documents/${documentId}/content-sync`,
+      headers: {
+        "x-api-token": process.env.SESSION_SECRET as string
+      },
+      payload: {
+        richText: {
+          type: "doc",
+          content: [
+            {
+              type: "heading",
+              attrs: {
+                level: 2
+              },
+              content: [
+                {
+                  type: "text",
+                  text: "Section heading"
+                }
+              ]
+            },
+            {
+              type: "paragraph",
+              content: [
+                {
+                  type: "text",
+                  marks: [
+                    {
+                      type: "bold"
+                    }
+                  ],
+                  text: "Bold text"
+                },
+                {
+                  type: "text",
+                  text: " body copy"
+                }
+              ]
+            }
+          ]
+        },
+        text: "Section heading\nBold text body copy"
+      }
+    });
+
+    const createExportResponse = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/exports`,
+      headers: ownerHeaders,
+      payload: {
+        format: "docx"
+      }
+    });
+    const exportJobId = createExportResponse.json().exportJobId as string;
+    await waitForExportJob(app, documentId, exportJobId, ownerHeaders);
+
+    const downloadResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/exports/${exportJobId}/download`,
+      headers: ownerHeaders
+    });
+    const downloadUrl = new URL(`http://localhost${downloadResponse.json().downloadUrl}`);
+    const artifactResponse = await app.inject({
+      method: "GET",
+      url: `${downloadUrl.pathname}${downloadUrl.search}`,
+      headers: ownerHeaders
+    });
+
+    expect(artifactResponse.statusCode).toBe(200);
+    expect(artifactResponse.rawPayload.toString("utf8")).toContain("Section heading");
+    expect(artifactResponse.rawPayload.toString("utf8")).toContain("<w:b/>");
+
+    await app.close();
+  });
+
   it("rejects invalid artifact tokens", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {

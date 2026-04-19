@@ -184,6 +184,15 @@ describe("versions module", () => {
     expect(contentResponse.json()).toEqual({
       content: {
         documentId,
+        richText: {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: []
+            }
+          ]
+        },
         text: "",
         updatedAt: rollbackResponse.json().rolledBackAt
       }

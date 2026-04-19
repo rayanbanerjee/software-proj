@@ -234,16 +234,19 @@ export const aiActionMenu = [
 
 export const exportOptions = [
   {
-    format: "Plain text",
-    summary: "Worker-backed text exports will queue here when export jobs land."
+    format: "txt",
+    label: "Plain text",
+    summary: "Plain text export from the current rich document structure."
   },
   {
-    format: "PDF",
-    summary: "Portable sharing output with later formatting and page rules."
+    format: "pdf",
+    label: "PDF",
+    summary: "Portable export with headings, lists, and document structure preserved."
   },
   {
-    format: "DOCX",
-    summary: "Editable handoff format for downstream document workflows."
+    format: "docx",
+    label: "DOCX",
+    summary: "Editable handoff that keeps headings and inline emphasis."
   }
 ] as const;
 

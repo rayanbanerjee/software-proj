@@ -344,6 +344,30 @@ export function BaseEditor({
     editor?.chain().focus().toggleHeading({ level }).run();
   }
 
+  function toggleBold() {
+    editor?.chain().focus().toggleBold().run();
+  }
+
+  function toggleItalic() {
+    editor?.chain().focus().toggleItalic().run();
+  }
+
+  function toggleStrike() {
+    editor?.chain().focus().toggleStrike().run();
+  }
+
+  function toggleBulletList() {
+    editor?.chain().focus().toggleBulletList().run();
+  }
+
+  function toggleOrderedList() {
+    editor?.chain().focus().toggleOrderedList().run();
+  }
+
+  function toggleBlockquote() {
+    editor?.chain().focus().toggleBlockquote().run();
+  }
+
   async function commitTitleChange() {
     const trimmedTitle = title.trim();
 
@@ -393,6 +417,30 @@ export function BaseEditor({
 
       <div className="base-editor-toolbar" aria-label="Editor block controls">
         <button
+          className={`base-editor-button${selection.marks.bold ? " base-editor-button-active" : ""}`}
+          disabled={readOnly}
+          onClick={toggleBold}
+          type="button"
+        >
+          B
+        </button>
+        <button
+          className={`base-editor-button${selection.marks.italic ? " base-editor-button-active" : ""}`}
+          disabled={readOnly}
+          onClick={toggleItalic}
+          type="button"
+        >
+          I
+        </button>
+        <button
+          className={`base-editor-button${selection.marks.strike ? " base-editor-button-active" : ""}`}
+          disabled={readOnly}
+          onClick={toggleStrike}
+          type="button"
+        >
+          S
+        </button>
+        <button
           className={`base-editor-button${selection.currentBlock === "paragraph" ? " base-editor-button-active" : ""}`}
           disabled={readOnly}
           onClick={setParagraph}
@@ -423,6 +471,30 @@ export function BaseEditor({
           type="button"
         >
           3
+        </button>
+        <button
+          className={`base-editor-button${selection.currentList === "bulletList" ? " base-editor-button-active" : ""}`}
+          disabled={readOnly}
+          onClick={toggleBulletList}
+          type="button"
+        >
+          UL
+        </button>
+        <button
+          className={`base-editor-button${selection.currentList === "orderedList" ? " base-editor-button-active" : ""}`}
+          disabled={readOnly}
+          onClick={toggleOrderedList}
+          type="button"
+        >
+          OL
+        </button>
+        <button
+          className={`base-editor-button${selection.inBlockquote ? " base-editor-button-active" : ""}`}
+          disabled={readOnly}
+          onClick={toggleBlockquote}
+          type="button"
+        >
+          "
         </button>
         <button
           className="base-editor-button"

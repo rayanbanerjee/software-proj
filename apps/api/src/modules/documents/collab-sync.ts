@@ -32,6 +32,7 @@ export async function notifyCollabDocumentContentSync(
       },
       body: JSON.stringify({
         initializeIfEmpty: options.initializeIfEmpty ?? false,
+        richText: snapshot.richContent ?? null,
         text: snapshot.text
       })
     });

@@ -3397,6 +3397,20 @@ body {
   font-weight: 700;
 }
 
+.base-editor-content ul,
+.base-editor-content ol {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.base-editor-content blockquote {
+  margin: 0;
+  padding-left: 1rem;
+  border-left: 3px solid rgba(125, 101, 72, 0.34);
+  color: #5b4a3f;
+  font-style: italic;
+}
+
 .base-editor-content .collaboration-cursor__caret {
   border-left: 4px solid;
   margin-left: -2px;

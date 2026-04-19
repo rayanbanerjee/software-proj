@@ -60,6 +60,7 @@ export interface ArchiveDocumentResponse {
 
 export interface DocumentContent {
   documentId: string;
+  richText?: Record<string, unknown> | null;
   text: string;
   updatedAt: IsoDateString;
 }
@@ -69,6 +70,7 @@ export interface GetDocumentContentResponse {
 }
 
 export interface UpdateDocumentContentRequest {
+  richText?: Record<string, unknown> | null;
   text: string;
 }
 

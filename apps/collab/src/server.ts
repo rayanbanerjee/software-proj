@@ -5,6 +5,7 @@ import { Document, Server } from "@hocuspocus/server";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { StringDecoder } from "node:string_decoder";
 import * as Y from "yjs";
+import { yXmlFragmentToProsemirrorJSON } from "y-prosemirror";
 
 import type {
   DocumentPermissionUpdatedEvent,
@@ -158,6 +159,10 @@ function extractPlainTextFromRuntimeDocument(document: Y.Doc) {
     .map((node) => xmlNodeToPlainText(node));
 
   return lines.join("\n");
+}
+
+function extractRichTextFromRuntimeDocument(document: Y.Doc) {
+  return yXmlFragmentToProsemirrorJSON(document.getXmlFragment("prosemirror"));
 }
 
 function getApiContentSyncUrl(apiInternalUrl: string, documentId: string) {
@@ -385,6 +390,7 @@ export function handleCollabRequest(
       .then(async (body) => {
         const candidate = body as {
           initializeIfEmpty?: unknown;
+          richText?: unknown;
           text?: unknown;
         };
 
@@ -528,6 +534,7 @@ export function createCollabServer(
       }
 
       const endpoint = getApiContentSyncUrl(env.apiInternalUrl, data.documentName);
+      const richText = extractRichTextFromRuntimeDocument(data.document);
       const text = extractPlainTextFromRuntimeDocument(data.document);
 
       try {
@@ -538,6 +545,7 @@ export function createCollabServer(
             "x-api-token": env.sessionSecret
           },
           body: JSON.stringify({
+            richText,
             text
           })
         });

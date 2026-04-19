@@ -475,7 +475,7 @@ export function DocumentWorkspaceShell({
           </form>
 
           {overlay === "sharing" ? <SharingModalShell /> : null}
-          {overlay === "export" ? <ExportModalShell panelState={exportPanelState} /> : null}
+          {overlay === "export" ? <ExportModalShell documentId={document.id} panelState={exportPanelState} /> : null}
         </div>
 
         <aside className="document-workspace-sidebar document-workspace-sidebar-v2">

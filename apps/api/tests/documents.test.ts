@@ -371,6 +371,23 @@ describe("documents module", () => {
         "x-api-token": process.env.SESSION_SECRET as string
       },
       payload: {
+        richText: {
+          type: "doc",
+          content: [
+            {
+              type: "heading",
+              attrs: {
+                level: 1
+              },
+              content: [
+                {
+                  type: "text",
+                  text: "Updated by collab"
+                }
+              ]
+            }
+          ]
+        },
         text: "Updated by collab"
       }
     });
@@ -394,6 +411,9 @@ describe("documents module", () => {
     expect(contentResponse.json()).toMatchObject({
       content: {
         documentId,
+        richText: {
+          type: "doc"
+        },
         text: "Updated by collab"
       }
     });

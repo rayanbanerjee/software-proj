@@ -18,10 +18,12 @@ const createDocumentSessionBodySchema = z.object({
 });
 
 const updateDocumentContentBodySchema = z.object({
+  richText: z.record(z.string(), z.unknown()).nullable().optional(),
   text: z.string()
 });
 
 const internalDocumentContentSyncBodySchema = z.object({
+  richText: z.record(z.string(), z.unknown()).nullable().optional(),
   text: z.string()
 });
 
@@ -46,7 +48,7 @@ export async function registerDocumentsModule(app: FastifyInstance) {
 
     const params = request.params as { documentId: string };
     const body = internalDocumentContentSyncBodySchema.parse(request.body);
-    const response = app.documentsService.syncDocumentContentFromCollab(params.documentId, body.text);
+    const response = app.documentsService.syncDocumentContentFromCollab(params.documentId, body);
 
     return reply.status(202).send({
       content: response.content,
