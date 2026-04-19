@@ -8,6 +8,7 @@ import { type DocumentRecord } from "../../lib/app-shell";
 import { archiveWorkspaceDocument, createWorkspaceDocument } from "../../lib/documents";
 
 interface DocumentListShellProps {
+  authRequired?: boolean;
   documents: DocumentRecord[];
 }
 
@@ -31,7 +32,7 @@ function groupDocuments(documents: DocumentRecord[]) {
   ].filter((section) => section.documents.length > 0);
 }
 
-export function DocumentListShell({ documents }: DocumentListShellProps) {
+export function DocumentListShell({ authRequired = false, documents }: DocumentListShellProps) {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
@@ -115,7 +116,9 @@ export function DocumentListShell({ documents }: DocumentListShellProps) {
           <span className="document-list-action-note">
             {documents.length > 0
               ? "Create and delete actions now use the live documents API."
-              : "Sign in first so the workspace can load or create real server-backed documents."}
+              : authRequired
+                ? "Sign in first so the workspace can load or create real server-backed documents."
+                : "No documents are available for this account yet. Create one or accept an invitation from another profile."}
           </span>
         </div>
         {errorMessage ? <p className="document-list-error">{errorMessage}</p> : null}
@@ -130,9 +133,11 @@ export function DocumentListShell({ documents }: DocumentListShellProps) {
         </section>
       ) : (
         <section className="blocked-note-card">
-          <strong>Sign in required</strong>
+          <strong>{authRequired ? "Sign in required" : "No documents yet"}</strong>
           <p>
-            No server-backed documents are available yet. Use the `Sign in` entry in the sidebar or open `/auth` to continue with Google.
+            {authRequired
+              ? "The workspace request did not include a valid session. Use the `Sign in` entry in the sidebar or open `/auth` to continue."
+              : "This account does not have any server-backed documents yet. Create a document here or accept an invitation from another profile to see shared files."}
           </p>
         </section>
       )}

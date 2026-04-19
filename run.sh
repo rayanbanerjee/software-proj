@@ -35,6 +35,12 @@ run_pnpm() {
   (cd "$ROOT_DIR" && corepack pnpm "$@")
 }
 
+run_local_script() {
+  local script_name="$1"
+  shift
+  bash "$ROOT_DIR/infrastructure/scripts/${script_name}" "$@"
+}
+
 command="${1:-help}"
 
 case "$command" in
@@ -43,15 +49,15 @@ case "$command" in
     ;;
   start)
     shift
-    "$ROOT_DIR/infrastructure/scripts/start-local.sh" "$@"
+    run_local_script "start-local.sh" "$@"
     ;;
   stop)
     shift
-    "$ROOT_DIR/infrastructure/scripts/stop-local.sh" "$@"
+    run_local_script "stop-local.sh" "$@"
     ;;
   logs)
     shift
-    "$ROOT_DIR/infrastructure/scripts/logs-local.sh" "$@"
+    run_local_script "logs-local.sh" "$@"
     ;;
   web)
     shift

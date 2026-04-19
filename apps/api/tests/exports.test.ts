@@ -232,7 +232,7 @@ describe("exports module", () => {
     await app.close();
   });
 
-  it("rejects export access for users without document access", async () => {
+  it("allows export access for other users through the default shared editor role", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
@@ -262,13 +262,11 @@ describe("exports module", () => {
       }
     });
 
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toEqual({
-      error: {
-        code: "DOCUMENT_FORBIDDEN",
-        message: "You do not have access to this document.",
-        statusCode: 403
-      }
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      exportJobId: expect.any(String),
+      requestedAt: expect.any(String),
+      status: "queued"
     });
 
     await app.close();

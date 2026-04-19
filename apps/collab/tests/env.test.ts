@@ -10,6 +10,7 @@ describe("getCollabEnv", () => {
     });
 
     expect(env).toEqual({
+      apiInternalUrl: "http://localhost:4000",
       host: "0.0.0.0",
       jwtIssuer: "collab-editor-api",
       nodeEnv: "development",
@@ -28,6 +29,7 @@ describe("getCollabEnv", () => {
     });
 
     expect(env).toEqual({
+      apiInternalUrl: "http://localhost:4000",
       host: "127.0.0.1",
       jwtIssuer: "collab-editor-api",
       nodeEnv: "test",

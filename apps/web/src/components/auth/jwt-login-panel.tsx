@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 
 type LoginState =
   | { kind: "idle" }
@@ -15,6 +16,7 @@ const defaultForm = {
 };
 
 export function JwtLoginPanel() {
+  const router = useRouter();
   const [form, setForm] = useState(defaultForm);
   const [state, setState] = useState<LoginState>({ kind: "idle" });
 
@@ -68,6 +70,8 @@ export function JwtLoginPanel() {
       kind: "success",
       message: `${outcomePrefix} ${signedInName}.`
     });
+    router.refresh();
+    router.push("/documents");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

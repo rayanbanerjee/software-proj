@@ -21,6 +21,10 @@ const updateDocumentContentBodySchema = z.object({
   text: z.string()
 });
 
+const internalDocumentContentSyncBodySchema = z.object({
+  text: z.string()
+});
+
 function getActor(user: { id: string; name: string | null }): DocumentActor {
   return {
     userId: user.id,
@@ -30,6 +34,25 @@ function getActor(user: { id: string; name: string | null }): DocumentActor {
 
 export async function registerDocumentsModule(app: FastifyInstance) {
   app.decorate("documentsService", new DocumentsService(app.apiEnv.API_DATA_DIR));
+
+  app.post("/internal/documents/:documentId/content-sync", async (request, reply) => {
+    const token = request.headers["x-api-token"];
+
+    if (token !== app.apiEnv.SESSION_SECRET) {
+      return reply.status(401).send({
+        error: "Invalid internal content sync token."
+      });
+    }
+
+    const params = request.params as { documentId: string };
+    const body = internalDocumentContentSyncBodySchema.parse(request.body);
+    const response = app.documentsService.syncDocumentContentFromCollab(params.documentId, body.text);
+
+    return reply.status(202).send({
+      content: response.content,
+      status: "accepted"
+    });
+  });
 
   app.post("/v1/documents", protectedRoute, async (request, reply) => {
     const actor = getActor(requireCurrentUser(request));

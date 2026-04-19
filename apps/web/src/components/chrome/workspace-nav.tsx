@@ -9,6 +9,7 @@ import {
 } from "../../lib/app-shell";
 
 interface WorkspaceNavProps {
+  authRequired?: boolean;
   documents: DocumentRecord[];
 }
 
@@ -16,10 +17,14 @@ const profileColors = [
   { value: "rose", label: "Rose" },
   { value: "amber", label: "Amber" },
   { value: "green", label: "Green" },
-  { value: "blue", label: "Blue" }
+  { value: "blue", label: "Blue" },
+  { value: "teal", label: "Teal" },
+  { value: "coral", label: "Coral" },
+  { value: "plum", label: "Plum" },
+  { value: "slate", label: "Slate" }
 ] as const;
 
-export function WorkspaceNav({ documents }: WorkspaceNavProps) {
+export function WorkspaceNav({ authRequired = false, documents }: WorkspaceNavProps) {
   const pathname = usePathname();
   const recentFiles = documents.slice(0, 8);
   const [fontFamily, setFontFamily] = useState("sans");
@@ -44,6 +49,14 @@ export function WorkspaceNav({ documents }: WorkspaceNavProps) {
           ? "#4ab36c"
           : profileColor === "blue"
             ? "#4f88d8"
+            : profileColor === "teal"
+              ? "#39b3aa"
+              : profileColor === "coral"
+                ? "#dc6d52"
+                : profileColor === "plum"
+                  ? "#8f62d9"
+                  : profileColor === "slate"
+                    ? "#6c7c98"
             : "#d85d66"
     );
   }, [fontFamily, fontSize, profileColor]);
@@ -87,8 +100,8 @@ export function WorkspaceNav({ documents }: WorkspaceNavProps) {
             href="/auth"
           >
             <span className="workspace-nav-link-icon" aria-hidden="true" />
-            <span>Sign in</span>
-            <small>Google account access</small>
+            <span>{authRequired ? "Sign in" : "Account"}</span>
+            <small>{authRequired ? "Session required" : "Session active"}</small>
           </Link>
         </div>
 

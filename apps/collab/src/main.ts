@@ -1,5 +1,3 @@
-import { pathToFileURL } from "node:url";
-
 import { getCollabEnv } from "./config/env.js";
 import { createCollabLogger } from "./logger.js";
 import { createCollabServer } from "./server.js";
@@ -53,10 +51,6 @@ export async function bootstrap() {
   return server;
 }
 
-const entry = process.argv[1];
-
-if (entry && import.meta.url === pathToFileURL(entry).href) {
-  bootstrap().catch(() => {
-    process.exit(1);
-  });
-}
+bootstrap().catch(() => {
+  process.exit(1);
+});

@@ -65,7 +65,7 @@ async function notifyPermissionUpdate(
   app: FastifyInstance,
   event: DocumentPermissionUpdatedEvent
 ) {
-  const endpoint = getCollabPermissionEventUrl(app.apiEnv.COLLAB_URL);
+  const endpoint = getCollabPermissionEventUrl(app.apiEnv.COLLAB_INTERNAL_URL ?? app.apiEnv.COLLAB_URL);
 
   try {
     const response = await fetch(endpoint, {

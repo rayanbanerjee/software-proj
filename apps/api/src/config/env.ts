@@ -13,6 +13,7 @@ const envSchema = z.object({
   JWT_LOGIN_PASSWORD: z.string().min(1).default("dev-password"),
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   COLLAB_URL: z.string().url(),
+  COLLAB_INTERNAL_URL: z.string().url().optional(),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(120),
   LLM_API_KEY: z.string().trim().min(1).optional(),
@@ -28,8 +29,11 @@ const envSchema = z.object({
 export type ApiEnv = z.infer<typeof envSchema>;
 
 export function parseApiEnv(source: NodeJS.ProcessEnv): ApiEnv {
+  const collabUrl = source.COLLAB_URL;
+
   return envSchema.parse({
     ...source,
+    COLLAB_INTERNAL_URL: source.COLLAB_INTERNAL_URL ?? collabUrl,
     OPENROUTER_API_KEY:
       source.OPENROUTER_API_KEY ?? source.OPENAI_API_KEY ?? source.LLM_API_KEY
   });

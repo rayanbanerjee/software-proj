@@ -44,6 +44,7 @@ export function createSignedSessionToken(
 
 export function createCollabTestHarness() {
   const env: CollabEnv = {
+    apiInternalUrl: "http://localhost:4000",
     host: "127.0.0.1",
     jwtIssuer: "collab-editor-api",
     nodeEnv: "test",

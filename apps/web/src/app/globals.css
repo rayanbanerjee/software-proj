@@ -3098,6 +3098,22 @@ body {
   background: linear-gradient(135deg, #79aaf1 0%, #4f88d8 100%);
 }
 
+.workspace-color-swatch-teal .workspace-color-swatch-dot {
+  background: linear-gradient(135deg, #6ad7cf 0%, #39b3aa 100%);
+}
+
+.workspace-color-swatch-coral .workspace-color-swatch-dot {
+  background: linear-gradient(135deg, #f39a83 0%, #dc6d52 100%);
+}
+
+.workspace-color-swatch-plum .workspace-color-swatch-dot {
+  background: linear-gradient(135deg, #bc96f1 0%, #8f62d9 100%);
+}
+
+.workspace-color-swatch-slate .workspace-color-swatch-dot {
+  background: linear-gradient(135deg, #93a3c0 0%, #6c7c98 100%);
+}
+
 .workspace-main {
   min-width: 0;
 }

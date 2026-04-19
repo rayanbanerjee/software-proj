@@ -1,6 +1,7 @@
 export const defaultApiTestEnv = {
   API_DATA_DIR: "/tmp/collab-editor-api-test",
   COLLAB_URL: "ws://localhost:4001",
+  COLLAB_INTERNAL_URL: "http://localhost:4001",
   DATABASE_URL: "postgres://postgres:postgres@localhost:5432/collab_editor",
   GOOGLE_CLIENT_ID: "test-google-client-id.apps.googleusercontent.com",
   JWT_ISSUER: "collab-editor-api-test",

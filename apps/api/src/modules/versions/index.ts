@@ -37,7 +37,7 @@ async function notifyRollbackEvent(
   app: FastifyInstance,
   event: DocumentRollbackEvent
 ) {
-  const endpoint = getCollabRollbackEventUrl(app.apiEnv.COLLAB_URL);
+  const endpoint = getCollabRollbackEventUrl(app.apiEnv.COLLAB_INTERNAL_URL ?? app.apiEnv.COLLAB_URL);
 
   try {
     const response = await fetch(endpoint, {

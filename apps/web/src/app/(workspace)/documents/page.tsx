@@ -1,17 +1,17 @@
 import { headers } from "next/headers";
 
 import { DocumentListShell } from "../../../components/documents/document-list-shell";
-import { getWorkspaceDocuments } from "../../../lib/documents";
+import { getWorkspaceDocumentsState } from "../../../lib/documents";
 
 export default async function DocumentsPage() {
   const requestHeaders = await headers();
-  const documents = await getWorkspaceDocuments({
+  const result = await getWorkspaceDocumentsState({
     cookieHeader: requestHeaders.get("cookie")
   });
 
   return (
     <div className="workspace-page-stack">
-      <DocumentListShell documents={documents} />
+      <DocumentListShell authRequired={result.authRequired} documents={result.documents} />
     </div>
   );
 }

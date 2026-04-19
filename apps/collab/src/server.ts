@@ -138,6 +138,35 @@ function isRuntimeDocumentEmpty(document: Y.Doc) {
   return document.getXmlFragment("prosemirror").length === 0;
 }
 
+function xmlNodeToPlainText(node: Y.XmlElement | Y.XmlText): string {
+  if (node instanceof Y.XmlText) {
+    return node.toString();
+  }
+
+  return node
+    .toArray()
+    .filter((child): child is Y.XmlElement | Y.XmlText => child instanceof Y.XmlElement || child instanceof Y.XmlText)
+    .map((child) => xmlNodeToPlainText(child))
+    .join("");
+}
+
+function extractPlainTextFromRuntimeDocument(document: Y.Doc) {
+  const lines = document
+    .getXmlFragment("prosemirror")
+    .toArray()
+    .filter((node): node is Y.XmlElement | Y.XmlText => node instanceof Y.XmlElement || node instanceof Y.XmlText)
+    .map((node) => xmlNodeToPlainText(node));
+
+  return lines.join("\n");
+}
+
+function getApiContentSyncUrl(apiInternalUrl: string, documentId: string) {
+  const url = new URL(apiInternalUrl);
+  url.pathname = `/internal/documents/${documentId}/content-sync`;
+  url.search = "";
+  return url.toString();
+}
+
 function matchDocumentContentSyncRoute(url: string) {
   const match = /^\/internal\/documents\/([^/]+)\/content-sync$/.exec(url);
 
@@ -496,6 +525,36 @@ export function createCollabServer(
 
       if (data.transactionOrigin === INTERNAL_CONTENT_SYNC_ORIGIN) {
         return;
+      }
+
+      const endpoint = getApiContentSyncUrl(env.apiInternalUrl, data.documentName);
+      const text = extractPlainTextFromRuntimeDocument(data.document);
+
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-api-token": env.sessionSecret
+          },
+          body: JSON.stringify({
+            text
+          })
+        });
+
+        if (!response.ok) {
+          logger.warn("collab.document.api_sync_failed", {
+            documentName: data.documentName,
+            endpoint,
+            statusCode: response.status
+          });
+        }
+      } catch (error) {
+        logger.warn("collab.document.api_sync_failed", {
+          documentName: data.documentName,
+          endpoint,
+          error: error instanceof Error ? error.message : "Unknown fetch failure."
+        });
       }
     },
     async onConnect(data) {

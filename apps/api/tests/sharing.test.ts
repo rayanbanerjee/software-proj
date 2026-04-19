@@ -223,7 +223,16 @@ describe("sharing module", () => {
       headers: editorSessionHeaders
     });
 
-    expect(metadataResponse.statusCode).toBe(403);
+    expect(metadataResponse.statusCode).toBe(200);
+    expect(metadataResponse.json()).toMatchObject({
+      document: {
+        id: documentId,
+        permissions: {
+          role: "editor",
+          canEdit: true
+        }
+      }
+    });
     expect(app.auditService.listEvents().map((event) => event.action)).toEqual([
       "sharing.invitation.created",
       "sharing.invitation.accepted",

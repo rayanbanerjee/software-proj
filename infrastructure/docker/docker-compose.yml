@@ -62,9 +62,7 @@ services:
       REDIS_URL: redis://redis:6379
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       COLLAB_URL: ${COLLAB_URL:-ws://localhost:4001}
-      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-qwen/qwen3.6-plus:free}
-      OPENROUTER_APP_NAME: ${OPENROUTER_APP_NAME:-software-proj}
-      OPENROUTER_APP_URL: ${OPENROUTER_APP_URL:-http://localhost:3000}
+      COLLAB_INTERNAL_URL: ${COLLAB_INTERNAL_URL:-http://collab:4001}
       OBJECT_STORAGE_ENDPOINT: http://minio:9000
       OBJECT_STORAGE_BUCKET: collab-editor
     ports:
@@ -89,6 +87,8 @@ services:
       NODE_ENV: development
       PORT: 4001
       HOST: 0.0.0.0
+      JWT_ISSUER: ${JWT_ISSUER:-collab-editor-api}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:4000}
     ports:
       - "4001:4001"
     depends_on:
