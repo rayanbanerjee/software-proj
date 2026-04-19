@@ -4,17 +4,18 @@ import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
 import { EditorContent, useEditor } from "@tiptap/react";
-import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { AiAction } from "@repo/shared-types";
 import {
   baseEditorExtensions,
   headingEditorExtensions,
-  minimalEditorExtensions
+  minimalEditorExtensions,
+  richTextEditorExtensions
 } from "@repo/editor-schema";
 import type * as Y from "yjs";
+
 import type { DocumentRecord } from "../lib/app-shell";
 import { getCollaboratorColors } from "../lib/collab-colors";
-
 import { getEditorModeLabel, isEditorReadOnly } from "./access";
 import {
   clearRecoveryBuffer,
@@ -28,23 +29,37 @@ import {
   writeStoredDraft,
   writeStoredDraftToIndexedDb
 } from "./local-persistence";
-import {
-  getEditorHistoryState,
-  runRedo,
-  runUndo
-} from "./history";
+import { getEditorHistoryState, runRedo, runUndo } from "./history";
 import { getSelectionSummary } from "./selection";
 
-const starterContent = `
-  <h1>Editor foundation</h1>
-  <p>
-    This base TipTap surface is mounted inside the document route so later tasks can layer
-    persistence, selection helpers, and collaboration behavior on top of a real editor.
-  </p>
-  <p>
-    The initial schema supports headings, paragraphs, and plain text content.
-  </p>
-`;
+type EditorContentValue = Parameters<NonNullable<ReturnType<typeof useEditor>>["commands"]["setContent"]>[0];
+
+const starterContent = {
+  type: "doc",
+  content: [
+    {
+      type: "heading",
+      attrs: {
+        level: 1
+      },
+      content: [
+        {
+          type: "text",
+          text: "Untitled document"
+        }
+      ]
+    },
+    {
+      type: "paragraph",
+      content: [
+        {
+          type: "text",
+          text: "Start writing here. Use headings, lists, quotes, and code blocks from the toolbar."
+        }
+      ]
+    }
+  ]
+};
 
 function editorHasMeaningfulContent(value: { getJSON: () => unknown }) {
   const json = value.getJSON() as {
@@ -60,7 +75,7 @@ function editorHasMeaningfulContent(value: { getJSON: () => unknown }) {
       .join("")
       .trim();
 
-    return textContent.length > 0 || node.type === "heading";
+    return textContent.length > 0 || node.type === "heading" || node.type === "codeBlock";
   });
 }
 
@@ -94,6 +109,57 @@ interface BaseEditorProps {
   syncState?: "online" | "offline" | "reconnecting" | "recovered";
 }
 
+function ToolbarButton(props: {
+  active?: boolean;
+  children: string;
+  disabled?: boolean;
+  onClick: () => void;
+  title: string;
+}) {
+  return (
+    <button
+      className={`base-editor-button${props.active ? " base-editor-button-active" : ""}`}
+      disabled={props.disabled}
+      onClick={props.onClick}
+      title={props.title}
+      type="button"
+    >
+      {props.children}
+    </button>
+  );
+}
+
+function buildEditorExtensions(input: {
+  collaborationDocument: Y.Doc | null;
+  collaborationProvider: HocuspocusProvider | null;
+  collaborationUser: BaseEditorProps["collaborationUser"];
+  cursorColor: string;
+}) {
+  if (!input.collaborationDocument) {
+    return [...minimalEditorExtensions];
+  }
+
+  return [
+    ...baseEditorExtensions,
+    ...headingEditorExtensions,
+    ...richTextEditorExtensions,
+    Collaboration.configure({
+      document: input.collaborationDocument
+    }),
+    ...(input.collaborationProvider && input.collaborationUser
+      ? [
+          CollaborationCursor.configure({
+            provider: input.collaborationProvider,
+            user: {
+              color: input.cursorColor,
+              name: input.collaborationUser.displayName
+            }
+          })
+        ]
+      : [])
+  ];
+}
+
 export function BaseEditor({
   accessLevel = "write",
   blameMode = false,
@@ -112,86 +178,72 @@ export function BaseEditor({
   serverStateVector = null,
   syncState = "online"
 }: BaseEditorProps) {
-  type EditorContentValue = Parameters<NonNullable<typeof editor>["commands"]["setContent"]>[0];
   const [aiMenu, setAiMenu] = useState<null | { text: string; x: number; y: number }>(null);
   const [hasHydratedDraft, setHasHydratedDraft] = useState(false);
   const [title, setTitle] = useState(initialTitle);
   const hasCollaboration = Boolean(collaborationDocument);
   const readOnly = accessLevel !== "write" || isEditorReadOnly(role);
-  const collaboratorColors = getCollaboratorColors(collaboratorSeeds);
   const currentCollaboratorColor = getCollaboratorColors([
     collaborationUser?.userId ?? collaborationUser?.sessionId ?? "local-user"
   ])[0];
+  const editorExtensions = useMemo(
+    () =>
+      buildEditorExtensions({
+        collaborationDocument,
+        collaborationProvider,
+        collaborationUser,
+        cursorColor: currentCollaboratorColor.ring
+      }),
+    [collaborationDocument, collaborationProvider, collaborationUser, currentCollaboratorColor.ring]
+  );
 
-  const editor = useEditor({
-    immediatelyRender: false,
-    editable: !readOnly,
-    editorProps: {
-      attributes: {
-        class: `base-editor-content${readOnly ? " base-editor-content-readonly" : ""}`
+  const editor = useEditor(
+    {
+      immediatelyRender: false,
+      editable: !readOnly,
+      editorProps: {
+        attributes: {
+          class: `base-editor-content${readOnly ? " base-editor-content-readonly" : ""}`
+        }
+      },
+      content: hasCollaboration ? undefined : (starterContent as never),
+      extensions: editorExtensions,
+      onUpdate({ editor: currentEditor }) {
+        if (typeof window === "undefined" || hasCollaboration) {
+          return;
+        }
+
+        const key = createLocalDraftKey(documentId);
+        const recoveryKey = createRecoveryBufferKey(documentId);
+        const content = currentEditor.getJSON();
+
+        writeStoredDraft(window.localStorage, key, content);
+        void writeStoredDraftToIndexedDb(window.indexedDB, key, content);
+        writeRecoveryBuffer(window.localStorage, recoveryKey, {
+          content,
+          pendingWrites: syncState === "online" ? 0 : 1,
+          savedAt: new Date().toISOString(),
+          sourceStateVector: serverStateVector
+        });
       }
     },
-    content: hasCollaboration ? undefined : starterContent,
-    extensions: hasCollaboration && collaborationDocument
-      ? [
-          ...baseEditorExtensions,
-          ...headingEditorExtensions,
-          Collaboration.configure({
-            document: collaborationDocument
-          }),
-          ...(collaborationProvider && collaborationUser
-            ? [
-                CollaborationCursor.configure({
-                  provider: collaborationProvider,
-                  user: {
-                    color: currentCollaboratorColor.ring,
-                    name: collaborationUser.displayName
-                  }
-                })
-              ]
-            : [])
-        ]
-      : [...minimalEditorExtensions],
-    onUpdate({ editor: currentEditor }) {
-      if (typeof window === "undefined") {
-        return;
-      }
+    [documentId, editorExtensions, hasCollaboration, readOnly, serverStateVector, syncState]
+  );
 
-      const key = createLocalDraftKey(documentId);
-      const recoveryKey = createRecoveryBufferKey(documentId);
-      const content = currentEditor.getJSON();
-
-      writeStoredDraft(
-        window.localStorage,
-        key,
-        content
-      );
-      void writeStoredDraftToIndexedDb(window.indexedDB, key, content);
-      writeRecoveryBuffer(window.localStorage, recoveryKey, {
-        content,
-        pendingWrites: syncState === "online" ? 0 : 1,
-        savedAt: new Date().toISOString(),
-        sourceStateVector: serverStateVector
-      });
-    }
-  }, [
-    collaborationDocument,
-    collaborationProvider,
-    collaborationUser,
-    currentCollaboratorColor.ring,
-    documentId,
-    hasCollaboration,
-    readOnly
-  ]);
-
-  useEffect(() => {
-    setHasHydratedDraft(false);
-  }, [documentId, hasCollaboration]);
+  const selection = getSelectionSummary(editor);
+  const history = getEditorHistoryState(editor);
+  const collaboratorCount = hasCollaboration
+    ? Math.max(1, collaboratorSeeds.length)
+    : 1;
 
   useEffect(() => {
     setTitle(initialTitle);
     setAiMenu(null);
   }, [documentId, initialTitle]);
+
+  useEffect(() => {
+    setHasHydratedDraft(false);
+  }, [documentId, hasCollaboration]);
 
   useEffect(() => {
     editor?.setEditable(!readOnly);
@@ -220,12 +272,18 @@ export function BaseEditor({
       return;
     }
 
+    if (hasCollaboration) {
+      setHasHydratedDraft(true);
+      return;
+    }
+
     const key = createLocalDraftKey(documentId);
 
     void (async () => {
       const indexedDbDraft = await readStoredDraftFromIndexedDb(window.indexedDB, key);
       const storedDraft = indexedDbDraft ?? readStoredDraft(window.localStorage, key);
-      const recoveryBuffer = readRecoveryBuffer(window.localStorage, createRecoveryBufferKey(documentId));
+      const recoveryKey = createRecoveryBufferKey(documentId);
+      const recoveryBuffer = readRecoveryBuffer(window.localStorage, recoveryKey);
       const shouldReplay = shouldReplayRecoveryBuffer({
         recoveryBuffer,
         serverStateVector,
@@ -234,12 +292,12 @@ export function BaseEditor({
 
       if (shouldReplay && recoveryBuffer) {
         editor.commands.setContent(recoveryBuffer.content as EditorContentValue);
-      } else if (storedDraft && (!hasCollaboration || !editorHasMeaningfulContent(editor))) {
+      } else if (storedDraft && !editorHasMeaningfulContent(editor)) {
         editor.commands.setContent(storedDraft as EditorContentValue);
       }
 
-      if (syncState === "recovered" && recoveryBuffer && !shouldReplay) {
-        clearRecoveryBuffer(window.localStorage, createRecoveryBufferKey(documentId));
+      if ((syncState === "recovered" || syncState === "online") && recoveryBuffer && !shouldReplay) {
+        clearRecoveryBuffer(window.localStorage, recoveryKey);
       }
 
       setHasHydratedDraft(true);
@@ -255,9 +313,6 @@ export function BaseEditor({
     onAiApplicationHandled?.(pendingAiApplication.proposalId);
   }, [editor, onAiApplicationHandled, pendingAiApplication, readOnly]);
 
-  const selection = getSelectionSummary(editor);
-  const history = getEditorHistoryState(editor);
-
   useEffect(() => {
     if (!editor) {
       return;
@@ -265,29 +320,6 @@ export function BaseEditor({
 
     const currentEditor = editor;
     const root = currentEditor.view.dom as HTMLElement;
-
-    function applyBlameStyling() {
-      const blocks = Array.from(root.children) as HTMLElement[];
-
-      blocks.forEach((block, index) => {
-        if (!blameMode) {
-          block.style.removeProperty("background");
-          block.style.removeProperty("box-shadow");
-          block.style.removeProperty("border-radius");
-          block.style.removeProperty("padding-left");
-          block.style.removeProperty("padding-right");
-          return;
-        }
-
-        const color = collaboratorColors[index % collaboratorColors.length];
-
-        block.style.background = `linear-gradient(90deg, ${color.fill} 0%, rgba(255,255,255,0) 92%)`;
-        block.style.boxShadow = `inset 4px 0 0 ${color.ring}`;
-        block.style.borderRadius = "8px";
-        block.style.paddingLeft = "12px";
-        block.style.paddingRight = "12px";
-      });
-    }
 
     function handleContextMenu(event: MouseEvent) {
       const { from, to } = currentEditor.state.selection;
@@ -310,31 +342,22 @@ export function BaseEditor({
       setAiMenu(null);
     }
 
-    function handleKeyDown(event: KeyboardEvent) {
+    function handleWindowKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setAiMenu(null);
       }
     }
 
-    function refresh() {
-      requestAnimationFrame(applyBlameStyling);
-    }
-
     root.addEventListener("contextmenu", handleContextMenu);
     window.addEventListener("click", handleWindowClick);
-    window.addEventListener("keydown", handleKeyDown);
-    currentEditor.on("update", refresh);
-    currentEditor.on("selectionUpdate", refresh);
-    refresh();
+    window.addEventListener("keydown", handleWindowKeyDown);
 
     return () => {
       root.removeEventListener("contextmenu", handleContextMenu);
       window.removeEventListener("click", handleWindowClick);
-      window.removeEventListener("keydown", handleKeyDown);
-      currentEditor.off("update", refresh);
-      currentEditor.off("selectionUpdate", refresh);
+      window.removeEventListener("keydown", handleWindowKeyDown);
     };
-  }, [blameMode, collaboratorColors, editor]);
+  }, [editor]);
 
   function setParagraph() {
     editor?.chain().focus().setParagraph().run();
@@ -366,6 +389,10 @@ export function BaseEditor({
 
   function toggleBlockquote() {
     editor?.chain().focus().toggleBlockquote().run();
+  }
+
+  function toggleCodeBlock() {
+    editor?.chain().focus().toggleCodeBlock().run();
   }
 
   async function commitTitleChange() {
@@ -415,113 +442,74 @@ export function BaseEditor({
         </small>
       </label>
 
-      <div className="base-editor-toolbar" aria-label="Editor block controls">
-        <button
-          className={`base-editor-button${selection.marks.bold ? " base-editor-button-active" : ""}`}
-          disabled={readOnly}
-          onClick={toggleBold}
-          type="button"
-        >
-          B
-        </button>
-        <button
-          className={`base-editor-button${selection.marks.italic ? " base-editor-button-active" : ""}`}
-          disabled={readOnly}
-          onClick={toggleItalic}
-          type="button"
-        >
-          I
-        </button>
-        <button
-          className={`base-editor-button${selection.marks.strike ? " base-editor-button-active" : ""}`}
-          disabled={readOnly}
-          onClick={toggleStrike}
-          type="button"
-        >
-          S
-        </button>
-        <button
-          className={`base-editor-button${selection.currentBlock === "paragraph" ? " base-editor-button-active" : ""}`}
-          disabled={readOnly}
-          onClick={setParagraph}
-          type="button"
-        >
-          P
-        </button>
-        <button
-          className={`base-editor-button${selection.currentBlock === "heading-1" ? " base-editor-button-active" : ""}`}
-          disabled={readOnly}
-          onClick={() => setHeading(1)}
-          type="button"
-        >
-          1
-        </button>
-        <button
-          className={`base-editor-button${selection.currentBlock === "heading-2" ? " base-editor-button-active" : ""}`}
-          disabled={readOnly}
-          onClick={() => setHeading(2)}
-          type="button"
-        >
-          2
-        </button>
-        <button
-          className={`base-editor-button${selection.currentBlock === "heading-3" ? " base-editor-button-active" : ""}`}
-          disabled={readOnly}
-          onClick={() => setHeading(3)}
-          type="button"
-        >
-          3
-        </button>
-        <button
-          className={`base-editor-button${selection.currentList === "bulletList" ? " base-editor-button-active" : ""}`}
-          disabled={readOnly}
-          onClick={toggleBulletList}
-          type="button"
-        >
-          UL
-        </button>
-        <button
-          className={`base-editor-button${selection.currentList === "orderedList" ? " base-editor-button-active" : ""}`}
-          disabled={readOnly}
-          onClick={toggleOrderedList}
-          type="button"
-        >
-          OL
-        </button>
-        <button
-          className={`base-editor-button${selection.inBlockquote ? " base-editor-button-active" : ""}`}
-          disabled={readOnly}
-          onClick={toggleBlockquote}
-          type="button"
-        >
-          "
-        </button>
-        <button
-          className="base-editor-button"
-          disabled={readOnly || !history.canUndo}
-          onClick={() => runUndo(editor)}
-          type="button"
-        >
-          {"<"}
-        </button>
-        <button
-          className="base-editor-button"
-          disabled={readOnly || !history.canRedo}
-          onClick={() => runRedo(editor)}
-          type="button"
-        >
-          {">"}
-        </button>
+      <div className="base-editor-toolbar" aria-label="Editor controls">
+        <div className="base-editor-toolbar-group">
+          <ToolbarButton active={selection.marks.bold} disabled={readOnly} onClick={toggleBold} title="Bold">
+            B
+          </ToolbarButton>
+          <ToolbarButton active={selection.marks.italic} disabled={readOnly} onClick={toggleItalic} title="Italic">
+            I
+          </ToolbarButton>
+          <ToolbarButton active={selection.marks.strike} disabled={readOnly} onClick={toggleStrike} title="Strike">
+            S
+          </ToolbarButton>
+        </div>
+
+        <div className="base-editor-toolbar-group">
+          <ToolbarButton active={selection.currentBlock === "paragraph"} disabled={readOnly} onClick={setParagraph} title="Paragraph">
+            P
+          </ToolbarButton>
+          <ToolbarButton active={selection.currentBlock === "heading-1"} disabled={readOnly} onClick={() => setHeading(1)} title="Heading 1">
+            H1
+          </ToolbarButton>
+          <ToolbarButton active={selection.currentBlock === "heading-2"} disabled={readOnly} onClick={() => setHeading(2)} title="Heading 2">
+            H2
+          </ToolbarButton>
+          <ToolbarButton active={selection.currentBlock === "heading-3"} disabled={readOnly} onClick={() => setHeading(3)} title="Heading 3">
+            H3
+          </ToolbarButton>
+          <ToolbarButton active={selection.currentBlock === "code-block"} disabled={readOnly} onClick={toggleCodeBlock} title="Code block">
+            {"</>"}
+          </ToolbarButton>
+        </div>
+
+        <div className="base-editor-toolbar-group">
+          <ToolbarButton active={selection.currentList === "bulletList"} disabled={readOnly} onClick={toggleBulletList} title="Bullet list">
+            UL
+          </ToolbarButton>
+          <ToolbarButton active={selection.currentList === "orderedList"} disabled={readOnly} onClick={toggleOrderedList} title="Ordered list">
+            OL
+          </ToolbarButton>
+          <ToolbarButton active={selection.inBlockquote} disabled={readOnly} onClick={toggleBlockquote} title="Blockquote">
+            "
+          </ToolbarButton>
+        </div>
+
+        <div className="base-editor-toolbar-group">
+          <ToolbarButton disabled={readOnly || !history.canUndo} onClick={() => runUndo(editor)} title="Undo">
+            {"<"}
+          </ToolbarButton>
+          <ToolbarButton disabled={readOnly || !history.canRedo} onClick={() => runRedo(editor)} title="Redo">
+            {">"}
+          </ToolbarButton>
+        </div>
+
         <div className="base-editor-statusline">
           <span>{syncState === "online" ? "live" : syncState}</span>
           <span>{blameMode ? "blame" : "writing"}</span>
+          <span>{collaboratorCount} active</span>
           <span>{selection.empty ? "caret" : `selection ${selection.from}-${selection.to}`}</span>
         </div>
       </div>
 
-      <div className="base-editor-frame">
-        <EditorContent editor={editor} />
+      <div
+        className="base-editor-frame"
+        data-blame-mode={blameMode ? "true" : "false"}
+        data-read-only={readOnly ? "true" : "false"}
+      >
+        {editor ? <EditorContent editor={editor} /> : <div className="base-editor-loading">Loading editor...</div>}
       </div>
+
       {aiMenu ? (
         <div
           className="ai-context-menu"
@@ -530,17 +518,16 @@ export function BaseEditor({
             top: aiMenu.y
           }}
         >
-          {([
-            "rewrite",
-            "summarize",
-            "translate",
-            "restructure"
-          ] as const).map((action) => (
+          {(["rewrite", "summarize", "translate", "restructure"] as const).map((action) => (
             <button
               className="ai-context-menu-item"
               key={action}
               onClick={() => {
-                const currentSelection = editor?.state.selection;
+                if (!editor) {
+                  return;
+                }
+
+                const currentSelection = editor.state.selection;
 
                 if (!currentSelection) {
                   return;

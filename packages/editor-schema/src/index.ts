@@ -1,6 +1,7 @@
 import Blockquote from "@tiptap/extension-blockquote";
 import Bold from "@tiptap/extension-bold";
 import BulletList from "@tiptap/extension-bullet-list";
+import CodeBlock from "@tiptap/extension-code-block";
 import Document from "@tiptap/extension-document";
 import HardBreak from "@tiptap/extension-hard-break";
 import Heading from "@tiptap/extension-heading";
@@ -18,6 +19,7 @@ export const editorNodeKinds = [
   "text",
   "heading",
   "blockquote",
+  "codeBlock",
   "bulletList",
   "orderedList",
   "listItem",
@@ -46,6 +48,11 @@ export const richTextEditorExtensions = [
   OrderedList,
   ListItem,
   Blockquote,
+  CodeBlock.configure({
+    HTMLAttributes: {
+      class: "editor-code-block"
+    }
+  }),
   HardBreak
 ] as const;
 

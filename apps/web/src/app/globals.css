@@ -3348,34 +3348,83 @@ body {
 }
 
 .base-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-start;
-  gap: 8px;
-  padding: 8px 22px;
+  gap: 10px;
+  padding: 12px 18px;
   border-bottom: 1px solid rgba(108, 91, 67, 0.12);
-  background: rgba(255, 250, 242, 0.28);
+  background:
+    linear-gradient(180deg, rgba(255, 251, 245, 0.96) 0%, rgba(246, 237, 225, 0.9) 100%);
+}
+
+.base-editor-toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid rgba(108, 91, 67, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .base-editor-button {
-  min-width: 34px;
-  height: 34px;
-  padding: 0;
-  border: 1px solid rgba(88, 71, 55, 0.12);
+  min-width: 40px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(88, 71, 55, 0.08);
   border-radius: 10px;
-  background: rgba(255, 250, 242, 0.74);
+  background: rgba(255, 250, 242, 0.8);
   color: #594b3f;
-  font-size: 0.82rem;
+  font-size: 0.77rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease;
 }
 
 .base-editor-statusline {
   margin-left: auto;
+  display: inline-flex;
+  gap: 8px;
   align-items: center;
   color: #88786b;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.72rem;
+  text-transform: lowercase;
+}
+
+.base-editor-statusline span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(123, 104, 82, 0.08);
+  border: 1px solid rgba(123, 104, 82, 0.08);
 }
 
 .base-editor-frame {
   min-height: 410px;
-  padding: 14px 24px 18px;
-  background: transparent;
+  padding: 22px 28px 24px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 244, 230, 0.55) 0%, rgba(255, 244, 230, 0) 38%),
+    linear-gradient(180deg, rgba(255, 252, 248, 0.96) 0%, rgba(248, 241, 232, 0.96) 100%);
+}
+
+.base-editor-frame[data-read-only="true"] {
+  background:
+    linear-gradient(180deg, rgba(249, 246, 241, 0.98) 0%, rgba(240, 234, 226, 0.98) 100%);
+}
+
+.base-editor-frame[data-blame-mode="true"] .base-editor-content > * {
+  padding-left: 14px;
+  padding-right: 14px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(203, 123, 72, 0.12) 0%, rgba(203, 123, 72, 0) 88%);
+  box-shadow: inset 4px 0 0 rgba(180, 99, 47, 0.58);
 }
 
 .base-editor-content {
@@ -3387,6 +3436,16 @@ body {
   font-family: var(--editor-font-family);
   font-size: calc(var(--editor-font-size) * 0.56);
   line-height: 1.6;
+  padding-bottom: 24px;
+}
+
+.base-editor-loading {
+  display: grid;
+  place-items: center;
+  min-height: 340px;
+  color: #7a6d60;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.82rem;
 }
 
 .base-editor-content h1,
@@ -3405,10 +3464,32 @@ body {
 
 .base-editor-content blockquote {
   margin: 0;
-  padding-left: 1rem;
+  padding: 10px 14px;
   border-left: 3px solid rgba(125, 101, 72, 0.34);
+  border-radius: 0 14px 14px 0;
+  background: rgba(124, 102, 79, 0.06);
   color: #5b4a3f;
   font-style: italic;
+}
+
+.base-editor-content pre {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(51, 43, 34, 0.1);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(39, 33, 27, 0.98) 0%, rgba(28, 24, 20, 0.98) 100%);
+  color: #f8efe3;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  overflow-x: auto;
+}
+
+.base-editor-content pre code {
+  display: block;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.92em;
+  line-height: 1.7;
+  white-space: pre;
 }
 
 .base-editor-content .collaboration-cursor__caret {

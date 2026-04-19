@@ -18,7 +18,7 @@ export interface EditorSelectionSummary {
     italic: boolean;
     strike: boolean;
   };
-  currentBlock: "paragraph" | "heading-1" | "heading-2" | "heading-3" | "unknown";
+  currentBlock: "code-block" | "paragraph" | "heading-1" | "heading-2" | "heading-3" | "unknown";
   currentList: "bulletList" | "none" | "orderedList";
   inBlockquote: boolean;
 }
@@ -38,6 +38,10 @@ export function getCurrentBlock(editor: MinimalEditorLike | null): EditorSelecti
 
   if (editor.isActive("heading", { level: 3 })) {
     return "heading-3";
+  }
+
+  if (editor.isActive("codeBlock")) {
+    return "code-block";
   }
 
   if (editor.isActive("paragraph")) {

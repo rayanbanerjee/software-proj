@@ -293,4 +293,24 @@ describe("editor selection helpers", () => {
     expect(hasExpandedSelection(null)).toBe(false);
     expect(getCurrentBlock(null)).toBe("unknown");
   });
+
+  it("detects code block mode when the selection is inside a code block", () => {
+    const codeEditor = {
+      state: {
+        selection: {
+          empty: true,
+          from: 1,
+          to: 1
+        }
+      },
+      isActive(name: string) {
+        return name === "codeBlock";
+      }
+    };
+
+    expect(getCurrentBlock(codeEditor)).toBe("code-block");
+    expect(getSelectionSummary(codeEditor)).toMatchObject({
+      currentBlock: "code-block"
+    });
+  });
 });
