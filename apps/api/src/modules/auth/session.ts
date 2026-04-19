@@ -22,6 +22,12 @@ interface AuthSessionServiceConfig {
   sessionSecret: string;
 }
 
+interface LocalAuthUserRecord {
+  username: string;
+  passwordHash: string;
+  userId: string;
+}
+
 export interface JwtLoginIdentity {
   email: string;
   imageUrl?: string | null;
@@ -29,6 +35,12 @@ export interface JwtLoginIdentity {
   subject?: string;
   userId?: string;
 }
+
+export type LocalAuthResult =
+  | { kind: "authenticated"; identity: JwtLoginIdentity; username: string }
+  | { kind: "created"; identity: JwtLoginIdentity; username: string }
+  | { kind: "user_not_found" }
+  | { kind: "invalid_password" };
 
 export interface VerifiedAuthSession extends AuthSessionPayload {
   token: string;
@@ -38,9 +50,25 @@ export const SESSION_COOKIE_NAME = "collab_session";
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 function normalizeUserId(email: string) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const digest = createHash("sha256").update(normalizedEmail).digest("hex").slice(0, 16);
+  const normalizedValue = email.trim().toLowerCase();
+  const digest = createHash("sha256").update(normalizedValue).digest("hex").slice(0, 16);
   return `jwt:${digest}`;
+}
+
+function normalizeUsername(username: string) {
+  return username.trim().toLowerCase();
+}
+
+function hashPassword(password: string) {
+  return createHash("sha256").update(password).digest("hex");
+}
+
+function toLocalIdentity(username: string, userId: string): JwtLoginIdentity {
+  return {
+    email: `${username}@local.test`,
+    name: username,
+    userId
+  };
 }
 
 function serializeSessionCookie(
@@ -85,7 +113,49 @@ function parseCookies(cookieHeader: string | undefined): Map<string, string> {
 }
 
 export class AuthSessionService {
+  private readonly localUsers = new Map<string, LocalAuthUserRecord>();
+
   constructor(private readonly config: AuthSessionServiceConfig) {}
+
+  authenticateLocalUser(input: {
+    username: string;
+    password: string;
+    createUserIfMissing?: boolean;
+  }): LocalAuthResult {
+    const username = normalizeUsername(input.username);
+    const passwordHash = hashPassword(input.password);
+    const existingUser = this.localUsers.get(username);
+
+    if (!existingUser) {
+      if (!input.createUserIfMissing) {
+        return { kind: "user_not_found" };
+      }
+
+      const createdUser: LocalAuthUserRecord = {
+        username,
+        passwordHash,
+        userId: normalizeUserId(username)
+      };
+
+      this.localUsers.set(username, createdUser);
+
+      return {
+        kind: "created",
+        username,
+        identity: toLocalIdentity(createdUser.username, createdUser.userId)
+      };
+    }
+
+    if (existingUser.passwordHash !== passwordHash) {
+      return { kind: "invalid_password" };
+    }
+
+    return {
+      kind: "authenticated",
+      username,
+      identity: toLocalIdentity(existingUser.username, existingUser.userId)
+    };
+  }
 
   issueJwtSession(identity: JwtLoginIdentity): IssuedAuthSession {
     const issuedAt = new Date();

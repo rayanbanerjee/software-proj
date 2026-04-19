@@ -6,10 +6,10 @@ export default function AuthPage() {
     <div className="workspace-page-stack">
       <section className="page-intro-card">
         <span className="workspace-kicker">WEB-004</span>
-        <h2>JWT authentication</h2>
+        <h2>Local account sign-in</h2>
         <p>
-          The app now issues its own JWT-backed session cookie from the API instead of relying on
-          the old Google callback stub.
+          The app now issues its own JWT-backed session cookie from a local username and password
+          flow instead of relying on the older Google callback stub.
         </p>
       </section>
 

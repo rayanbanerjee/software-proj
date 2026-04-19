@@ -23,19 +23,19 @@ describe("auth integration flow", () => {
       method: "POST",
       url: "/v1/auth/login",
       payload: {
-        email: "stub-user@example.com",
-        imageUrl: "https://example.com/avatar.png",
-        name: "Stub User",
-        userId: "jwt:stub-user"
+        password: "dev-password",
+        username: "stub-user",
+        createUserIfMissing: true
       }
     });
 
     expect(loginResponse.statusCode).toBe(200);
     expect(loginResponse.json()).toMatchObject({
+      outcome: "created",
       session: {
         user: {
-          id: "jwt:stub-user",
-          email: "stub-user@example.com"
+          id: expect.stringMatching(/^jwt:/),
+          email: "stub-user@local.test"
         }
       }
     });
@@ -52,10 +52,10 @@ describe("auth integration flow", () => {
     expect(meWithCookie.statusCode).toBe(200);
     expect(meWithCookie.json()).toEqual({
       user: {
-        id: "jwt:stub-user",
-        email: "stub-user@example.com",
-        name: "Stub User",
-        imageUrl: "https://example.com/avatar.png"
+        id: expect.stringMatching(/^jwt:/),
+        email: "stub-user@local.test",
+        name: "stub-user",
+        imageUrl: null
       }
     });
 

@@ -60,11 +60,11 @@ services:
       PORT: 4000
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/collab_editor
       REDIS_URL: redis://redis:6379
-      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3002}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       COLLAB_URL: ${COLLAB_URL:-ws://localhost:4001}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-qwen/qwen3.6-plus:free}
       OPENROUTER_APP_NAME: ${OPENROUTER_APP_NAME:-software-proj}
-      OPENROUTER_APP_URL: ${OPENROUTER_APP_URL:-http://localhost:3002}
+      OPENROUTER_APP_URL: ${OPENROUTER_APP_URL:-http://localhost:3000}
       OBJECT_STORAGE_ENDPOINT: http://minio:9000
       OBJECT_STORAGE_BUCKET: collab-editor
     ports:

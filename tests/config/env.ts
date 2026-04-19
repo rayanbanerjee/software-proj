@@ -2,6 +2,7 @@ export const defaultApiTestEnv = {
   COLLAB_URL: "ws://localhost:4001",
   DATABASE_URL: "postgres://postgres:postgres@localhost:5432/collab_editor",
   JWT_ISSUER: "collab-editor-api-test",
+  JWT_LOGIN_PASSWORD: "dev-password",
   NODE_ENV: "test",
   OBJECT_STORAGE_BUCKET: "collab-editor",
   OBJECT_STORAGE_ENDPOINT: "http://localhost:9000",

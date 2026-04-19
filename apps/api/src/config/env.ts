@@ -7,6 +7,7 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1),
   SESSION_SECRET: z.string().min(1),
   JWT_ISSUER: z.string().min(1).default("collab-editor-api"),
+  JWT_LOGIN_PASSWORD: z.string().min(1).default("dev-password"),
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   COLLAB_URL: z.string().url(),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),

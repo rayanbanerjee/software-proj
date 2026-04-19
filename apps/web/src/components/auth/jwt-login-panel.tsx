@@ -6,12 +6,12 @@ type LoginState =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "error"; message: string }
+  | { kind: "create_prompt"; message: string }
   | { kind: "success"; message: string };
 
 const defaultForm = {
-  email: "owner@example.com",
-  imageUrl: "",
-  name: "Owner Demo"
+  username: "owner",
+  password: "dev-password"
 };
 
 export function JwtLoginPanel() {
@@ -23,40 +23,59 @@ export function JwtLoginPanel() {
     []
   );
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setState({ kind: "loading" });
+  async function submitLogin(createUserIfMissing = false) {
+    const response = await fetch(`${apiBaseUrl}/v1/auth/login`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        username: form.username,
+        password: form.password,
+        createUserIfMissing
+      })
+    });
 
-    try {
-      const response = await fetch(`${apiBaseUrl}/v1/auth/login`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json"
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          email: form.email,
-          imageUrl: form.imageUrl.trim() || null,
-          name: form.name.trim() || null
-        })
-      });
+    const payload = (await response.json().catch(() => null)) as
+      | {
+          error?: { code?: string; message?: string };
+          outcome?: "authenticated" | "created";
+          session?: { user?: { name?: string | null } };
+        }
+      | null;
 
-      const payload = (await response.json().catch(() => null)) as
-        | { error?: { message?: string }; session?: { user?: { email?: string } } }
-        | null;
-
-      if (!response.ok) {
+    if (!response.ok) {
+      if (payload?.error?.code === "AUTH_USER_NOT_FOUND") {
         setState({
-          kind: "error",
-          message: payload?.error?.message ?? "JWT login failed."
+          kind: "create_prompt",
+          message: payload.error.message ?? "Username does not exist."
         });
         return;
       }
 
       setState({
-        kind: "success",
-        message: `Signed in as ${payload?.session?.user?.email ?? form.email}.`
+        kind: "error",
+        message: payload?.error?.message ?? "JWT login failed."
       });
+      return;
+    }
+
+    const signedInName = payload?.session?.user?.name ?? form.username;
+    const outcomePrefix = payload?.outcome === "created" ? "Created and signed in as" : "Signed in as";
+
+    setState({
+      kind: "success",
+      message: `${outcomePrefix} ${signedInName}.`
+    });
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setState({ kind: "loading" });
+
+    try {
+      await submitLogin();
     } catch (error) {
       setState({
         kind: "error",
@@ -65,56 +84,71 @@ export function JwtLoginPanel() {
     }
   }
 
+  async function handleCreateUser() {
+    setState({ kind: "loading" });
+
+    try {
+      await submitLogin(true);
+    } catch (error) {
+      setState({
+        kind: "error",
+        message: error instanceof Error ? error.message : "User creation failed."
+      });
+    }
+  }
+
   return (
     <section className="auth-login-panel">
       <div className="auth-login-copy">
         <span className="auth-shell-kicker">JWT AUTH</span>
-        <h2>Sign in with a JWT-backed session</h2>
+        <h2>Sign in with username and password</h2>
         <p>
-          This branch now issues app-owned JWT sessions directly instead of relying on the older
-          Google callback stub.
+          Enter an existing username to sign in. If the username does not exist, the app will offer
+          to create it with the same password.
         </p>
       </div>
 
       <form className="auth-login-form" onSubmit={handleSubmit}>
         <label className="auth-login-field">
-          <span>Email</span>
+          <span>Username</span>
           <input
-            autoComplete="email"
-            onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-            type="email"
-            value={form.email}
-          />
-        </label>
-
-        <label className="auth-login-field">
-          <span>Name</span>
-          <input
-            autoComplete="name"
-            onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+            autoComplete="username"
+            onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))}
             type="text"
-            value={form.name}
+            value={form.username}
           />
         </label>
 
         <label className="auth-login-field">
-          <span>Image URL</span>
+          <span>Password</span>
           <input
-            onChange={(event) => setForm((current) => ({ ...current, imageUrl: event.target.value }))}
-            placeholder="https://example.com/avatar.png"
-            type="url"
-            value={form.imageUrl}
+            autoComplete="current-password"
+            onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+            type="password"
+            value={form.password}
           />
         </label>
 
         <div className="auth-login-actions">
           <button disabled={state.kind === "loading"} type="submit">
-            {state.kind === "loading" ? "Signing in..." : "Issue JWT session"}
+            {state.kind === "loading" ? "Checking..." : "Sign in"}
           </button>
         </div>
 
         <div className={`auth-login-status auth-login-status-${state.kind}`}>
-          {state.kind === "idle" && <p>Submit the form to receive the signed session cookie.</p>}
+          {state.kind === "idle" && (
+            <p>Enter a username and password. If the username is missing, you will be asked whether to create it.</p>
+          )}
+          {state.kind === "create_prompt" && (
+            <div className="auth-create-prompt">
+              <p>{state.message} Create a new user with this password?</p>
+              <div className="auth-login-actions">
+                <button onClick={handleCreateUser} type="button">
+                  Create user
+                </button>
+              </div>
+            </div>
+          )}
           {state.kind === "error" && <p>{state.message}</p>}
           {state.kind === "success" && <p>{state.message}</p>}
         </div>
