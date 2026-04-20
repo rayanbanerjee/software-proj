@@ -37,7 +37,7 @@ Response:
 
 Notes:
 
-- requires `x-user-id`
+- requires an authenticated JWT session
 - only members with share permission can create invitations
 - invitations cannot assign the `owner` role
 
@@ -55,8 +55,7 @@ Request body:
 
 Notes:
 
-- requires `x-user-id`
-- requires `x-user-email`
+- requires an authenticated JWT session
 - invitation email must match the current user email
 
 ### `PATCH /v1/documents/:documentId/members/:userId`
@@ -73,7 +72,7 @@ Request body:
 
 Notes:
 
-- requires `x-user-id`
+- requires an authenticated JWT session
 - only owners can change member roles
 - this endpoint cannot promote a user to `owner`
 - successful role changes also push a `document.permission.updated` event into the collab service
@@ -84,7 +83,7 @@ Revokes access for an existing document member.
 
 Notes:
 
-- requires `x-user-id`
+- requires an authenticated JWT session
 - only owners can revoke access
 - revocation also closes any pending invitations for that document in the in-memory implementation
 - revocation pushes a `document.permission.updated` event with `accessLevel: none` into the collab service

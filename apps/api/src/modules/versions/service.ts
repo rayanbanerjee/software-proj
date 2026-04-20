@@ -15,7 +15,106 @@ import type { DocumentActor, DocumentsService } from "../documents/service.js";
 
 type StoredRevision = RevisionDetail & {
   parentRevisionId: string | null;
+  snapshotText: string;
+  title: string;
 };
+
+type DiffChangeKind = RevisionDiffResponse["changes"][number]["kind"];
+
+function normalizeLines(value: string) {
+  const normalized = value.replace(/\r\n/g, "\n");
+
+  if (normalized.length === 0) {
+    return [] as string[];
+  }
+
+  return normalized.split("\n");
+}
+
+function summarizeChangeCount(kind: DiffChangeKind, count: number) {
+  const noun = count === 1 ? "line" : "lines";
+  return `${count} ${noun} ${kind}`;
+}
+
+function buildLineDiffChanges(
+  source: string,
+  target: string
+): RevisionDiffResponse["changes"] {
+  const sourceLines = normalizeLines(source);
+  const targetLines = normalizeLines(target);
+  const maxLength = Math.max(sourceLines.length, targetLines.length);
+  const changes: RevisionDiffResponse["changes"] = [];
+
+  for (let index = 0; index < maxLength; index += 1) {
+    const sourceLine = sourceLines[index];
+    const targetLine = targetLines[index];
+
+    if (sourceLine === targetLine) {
+      continue;
+    }
+
+    if (sourceLine === undefined) {
+      changes.push({
+        field: "content",
+        kind: "added",
+        description: `Line ${index + 1} added: ${targetLine ?? ""}`
+      });
+      continue;
+    }
+
+    if (targetLine === undefined) {
+      changes.push({
+        field: "content",
+        kind: "removed",
+        description: `Line ${index + 1} removed: ${sourceLine}`
+      });
+      continue;
+    }
+
+    changes.push({
+      field: "content",
+      kind: "modified",
+      description: `Line ${index + 1} changed from "${sourceLine}" to "${targetLine}"`
+    });
+  }
+
+  return changes;
+}
+
+function summarizeDiff(changes: RevisionDiffResponse["changes"]) {
+  if (changes.length === 0) {
+    return "No content changes.";
+  }
+
+  const counts = changes.reduce<Record<DiffChangeKind, number>>(
+    (accumulator, change) => {
+      accumulator[change.kind] += 1;
+      return accumulator;
+    },
+    {
+      added: 0,
+      removed: 0,
+      modified: 0
+    }
+  );
+  const parts = (Object.entries(counts) as Array<[DiffChangeKind, number]>)
+    .filter(([, count]) => count > 0)
+    .map(([kind, count]) => summarizeChangeCount(kind, count));
+
+  return parts.join(", ");
+}
+
+function formatDiffSummary(
+  summary: string,
+  fromLabel: string,
+  toLabel: string
+) {
+  const prefix = summary === "No content changes."
+    ? "No content changes"
+    : summary;
+
+  return `${prefix} between ${fromLabel} and ${toLabel}.`;
+}
 
 export class VersionsService {
   readonly moduleName = "versions";
@@ -48,6 +147,7 @@ export class VersionsService {
     const {
       metadata
     } = this.ensureAccessibleDocument(documentId, actor);
+    const snapshot = this.documentsService.getDocumentSnapshot(documentId, actor);
     const baseline: StoredRevision = {
       revisionId: `rev_${randomUUID()}`,
       documentId,
@@ -56,7 +156,9 @@ export class VersionsService {
       createdAt: metadata.updatedAt,
       snapshotId: `snap_${randomUUID()}`,
       contentType: "application/vnd.collab.document+json",
-      parentRevisionId: null
+      parentRevisionId: null,
+      snapshotText: snapshot.text,
+      title: snapshot.title
     };
 
     this.revisionsByDocument.set(documentId, [baseline]);
@@ -119,23 +221,23 @@ export class VersionsService {
     const compareToRevision = compareToRevisionId
       ? this.requireRevision(documentId, compareToRevisionId)
       : null;
+    const currentSnapshot = compareToRevision
+      ? null
+      : this.documentsService.getDocumentSnapshot(documentId, actor);
+    const targetText = compareToRevision
+      ? compareToRevision.snapshotText
+      : currentSnapshot?.text ?? "";
+    const changes = buildLineDiffChanges(revision.snapshotText, targetText);
+    const summary = summarizeDiff(changes);
 
     return {
       documentId,
       revisionId: revision.revisionId,
       compareToRevisionId: compareToRevision?.revisionId ?? null,
       summary: compareToRevision
-        ? `Stub diff between ${revision.label} and ${compareToRevision.label}.`
-        : `Stub diff for ${revision.label} against the current head.`,
-      changes: [
-        {
-          field: "content",
-          kind: "stub",
-          description: compareToRevision
-            ? "Detailed diff generation is not wired yet, but the comparison target is validated."
-            : "Detailed diff generation is not wired yet."
-        }
-      ]
+        ? formatDiffSummary(summary, revision.label, compareToRevision.label)
+        : formatDiffSummary(summary, revision.label, "the current head"),
+      changes
     };
   }
 
@@ -154,7 +256,15 @@ export class VersionsService {
 
     const revisions = this.ensureRevisionHistory(documentId, actor);
     const targetRevision = this.requireRevision(documentId, revisionId);
-    const rolledBackAt = new Date().toISOString();
+    const restoredSnapshot = this.documentsService.restoreDocumentSnapshot(
+      documentId,
+      {
+        text: targetRevision.snapshotText,
+        title: targetRevision.title
+      },
+      actor
+    );
+    const rolledBackAt = restoredSnapshot.updatedAt;
     const rollbackRevision: StoredRevision = {
       revisionId: `rev_${randomUUID()}`,
       documentId,
@@ -163,7 +273,9 @@ export class VersionsService {
       createdAt: rolledBackAt,
       snapshotId: targetRevision.snapshotId,
       contentType: targetRevision.contentType,
-      parentRevisionId: targetRevision.revisionId
+      parentRevisionId: targetRevision.revisionId,
+      snapshotText: restoredSnapshot.text,
+      title: restoredSnapshot.title
     };
 
     revisions.push(rollbackRevision);

@@ -5,6 +5,12 @@ import { getExportPanelState } from "../src/lib/export-panel-state";
 describe("export panel state", () => {
   it("returns an idle state when no export job is selected", async () => {
     await expect(getExportPanelState("doc-1")).resolves.toMatchObject({
+      entries: expect.arrayContaining([
+        expect.objectContaining({
+          format: "txt",
+          label: "Plain text"
+        })
+      ]),
       mode: "idle",
       job: null
     });

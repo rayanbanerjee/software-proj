@@ -12,6 +12,22 @@ interface PresenceShellProps {
   writerSlots?: WriterSlotSnapshotEvent | null;
 }
 
+export function getPresenceEmptyStateCopy(
+  connectionStatus: PresenceShellProps["connectionStatus"]
+) {
+  switch (connectionStatus) {
+    case "connected":
+      return "No active collaborators";
+    case "connecting":
+    case "idle":
+      return "Connecting presence...";
+    case "disconnected":
+    case "error":
+    default:
+      return "Presence unavailable right now";
+  }
+}
+
 export function PresenceShell({
   collaborators,
   connectionStatus = "idle",
@@ -37,11 +53,7 @@ export function PresenceShell({
 
       <div className="presence-ring-row">
         {entries.length === 0 ? (
-          <span className="presence-empty-copy">
-            {connectionStatus === "connected"
-              ? "No active collaborators"
-              : "Presence unavailable while offline"}
-          </span>
+          <span className="presence-empty-copy">{getPresenceEmptyStateCopy(connectionStatus)}</span>
         ) : entries.map((collaborator) => {
           const isSelf = selfSessionId === collaborator.sessionId;
           const color = getCollaboratorColor(collaborator.userId || collaborator.sessionId);

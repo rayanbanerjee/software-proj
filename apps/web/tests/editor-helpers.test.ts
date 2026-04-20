@@ -277,7 +277,14 @@ describe("editor selection helpers", () => {
       empty: false,
       from: 4,
       to: 12,
-      currentBlock: "heading-2"
+      marks: {
+        bold: false,
+        italic: false,
+        strike: false
+      },
+      currentBlock: "heading-2",
+      currentList: "none",
+      inBlockquote: false
     });
   });
 
@@ -285,5 +292,25 @@ describe("editor selection helpers", () => {
     expect(hasExpandedSelection(baseEditor)).toBe(true);
     expect(hasExpandedSelection(null)).toBe(false);
     expect(getCurrentBlock(null)).toBe("unknown");
+  });
+
+  it("detects code block mode when the selection is inside a code block", () => {
+    const codeEditor = {
+      state: {
+        selection: {
+          empty: true,
+          from: 1,
+          to: 1
+        }
+      },
+      isActive(name: string) {
+        return name === "codeBlock";
+      }
+    };
+
+    expect(getCurrentBlock(codeEditor)).toBe("code-block");
+    expect(getSelectionSummary(codeEditor)).toMatchObject({
+      currentBlock: "code-block"
+    });
   });
 });

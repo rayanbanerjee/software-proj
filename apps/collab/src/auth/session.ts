@@ -6,11 +6,15 @@ import type { SessionAccessLevel } from "@repo/shared-types";
 
 import type { CollabEnv } from "../config/env.js";
 
+interface JwtHeader {
+  alg: "HS256";
+  typ: "JWT";
+}
+
 interface SessionTokenClaims {
-  v: 1;
-  provider: "google";
   sub: string;
   email: string;
+  iss: string;
   name: string | null;
   imageUrl: string | null;
   iat: number;
@@ -30,56 +34,75 @@ export interface CollabSessionContext {
   user: UserProfile;
 }
 
-function verifyToken(token: string, secret: string): SessionTokenClaims {
-  const [encodedClaims, signature] = token.split(".");
+function decodeBase64Url(value: string) {
+  return Buffer.from(value, "base64url").toString("utf8");
+}
 
-  if (!encodedClaims || !signature) {
+function signPart(value: string, secret: string) {
+  return createHmac("sha256", secret).update(value).digest("base64url");
+}
+
+function verifyToken(token: string, secret: string, issuer: string): SessionTokenClaims {
+  const [encodedHeader, encodedPayload, providedSignature] = token.split(".");
+
+  if (!encodedHeader || !encodedPayload || !providedSignature) {
     throw new Error("Session token format is invalid.");
   }
 
-  const expectedSignature = createHmac("sha256", secret)
-    .update(encodedClaims)
-    .digest("base64url");
+  const signingInput = `${encodedHeader}.${encodedPayload}`;
+  const expectedSignature = signPart(signingInput, secret);
 
-  if (signature !== expectedSignature) {
+  if (providedSignature !== expectedSignature) {
     throw new Error("Session token signature is invalid.");
   }
 
-  let parsedClaims: unknown;
+  let header: unknown;
+  let claims: unknown;
 
   try {
-    parsedClaims = JSON.parse(Buffer.from(encodedClaims, "base64url").toString("utf8"));
+    header = JSON.parse(decodeBase64Url(encodedHeader));
+    claims = JSON.parse(decodeBase64Url(encodedPayload));
   } catch {
     throw new Error("Session token payload is invalid.");
   }
 
   if (
-    !parsedClaims ||
-    typeof parsedClaims !== "object" ||
-    (parsedClaims as SessionTokenClaims).v !== 1 ||
-    (parsedClaims as SessionTokenClaims).provider !== "google" ||
-    typeof (parsedClaims as SessionTokenClaims).sub !== "string" ||
-    typeof (parsedClaims as SessionTokenClaims).email !== "string" ||
-    typeof (parsedClaims as SessionTokenClaims).iat !== "number" ||
-    typeof (parsedClaims as SessionTokenClaims).exp !== "number"
+    !header ||
+    typeof header !== "object" ||
+    (header as JwtHeader).alg !== "HS256" ||
+    (header as JwtHeader).typ !== "JWT"
+  ) {
+    throw new Error("Session token header is invalid.");
+  }
+
+  if (
+    !claims ||
+    typeof claims !== "object" ||
+    typeof (claims as SessionTokenClaims).iss !== "string" ||
+    typeof (claims as SessionTokenClaims).sub !== "string" ||
+    typeof (claims as SessionTokenClaims).email !== "string" ||
+    typeof (claims as SessionTokenClaims).iat !== "number" ||
+    typeof (claims as SessionTokenClaims).exp !== "number" ||
+    (claims as SessionTokenClaims).iss !== issuer
   ) {
     throw new Error("Session token claims are invalid.");
   }
 
-  const claims = parsedClaims as SessionTokenClaims;
+  const parsedClaims = claims as SessionTokenClaims;
 
-  if (claims.exp * 1000 <= Date.now()) {
+  if (parsedClaims.exp * 1000 <= Date.now()) {
     throw new Error("Session token has expired.");
   }
 
-  return claims;
+  return parsedClaims;
 }
 
 export function verifyCollabSessionToken(
   token: string,
-  sessionSecret: string
+  sessionSecret: string,
+  issuer: string
 ): CollabSessionContext {
-  const claims = verifyToken(token, sessionSecret);
+  const claims = verifyToken(token, sessionSecret, issuer);
 
   return {
     session: {
@@ -91,15 +114,14 @@ export function verifyCollabSessionToken(
       id: claims.sub,
       email: claims.email,
       name: claims.name,
-      imageUrl: claims.imageUrl,
-      googleSubject: claims.sub.replace(/^google:/, "")
+      imageUrl: claims.imageUrl
     }
   };
 }
 
 export function requireCollabSession(
   requestParameters: URLSearchParams,
-  env: Pick<CollabEnv, "sessionSecret">
+  env: Pick<CollabEnv, "jwtIssuer" | "sessionSecret">
 ): CollabSessionContext {
   const token = requestParameters.get("token");
 
@@ -107,5 +129,5 @@ export function requireCollabSession(
     throw new Error("Missing session token.");
   }
 
-  return verifyCollabSessionToken(token, env.sessionSecret);
+  return verifyCollabSessionToken(token, env.sessionSecret, env.jwtIssuer);
 }

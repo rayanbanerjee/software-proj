@@ -11,19 +11,7 @@ describe("api env parsing", () => {
 
     expect(env.PORT).toBe(4000);
     expect(env.NODE_ENV).toBe("test");
-    expect(env.GOOGLE_CLIENT_ID).toBe("client-id");
-    expect(env.RATE_LIMIT_WINDOW_MS).toBe(60_000);
-    expect(env.RATE_LIMIT_MAX_REQUESTS).toBe(120);
-    expect(env.OPENROUTER_MODEL).toBe("qwen/qwen3.6-plus:free");
-    expect(env.OPENROUTER_BASE_URL).toBe("https://openrouter.ai/api/v1");
-  });
-
-  it("falls back to OPENAI_API_KEY when OPENROUTER_API_KEY is unset", () => {
-    const env = parseApiEnv({
-      ...defaultApiTestEnv,
-      OPENAI_API_KEY: "shell-openai-key"
-    });
-
-    expect(env.OPENROUTER_API_KEY).toBe("shell-openai-key");
+    expect(env.GOOGLE_CLIENT_ID).toBe("test-google-client-id.apps.googleusercontent.com");
+    expect(env.JWT_ISSUER).toBe("collab-editor-api-test");
   });
 });

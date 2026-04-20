@@ -20,10 +20,13 @@ export function createSignedSessionToken(
   overrides: Partial<Record<string, unknown>> = {}
 ) {
   const nowSeconds = Math.floor(Date.now() / 1000);
+  const header = {
+    alg: "HS256",
+    typ: "JWT"
+  };
   const claims = {
-    v: 1,
-    provider: "google",
-    sub: "google:user_owner",
+    iss: "collab-editor-api",
+    sub: "jwt:user_owner",
     email: "owner@example.com",
     name: "Owner Demo",
     imageUrl: "https://example.com/avatar.png",
@@ -31,15 +34,19 @@ export function createSignedSessionToken(
     exp: nowSeconds + 3600,
     ...overrides
   };
+  const encodedHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
   const encodedClaims = Buffer.from(JSON.stringify(claims)).toString("base64url");
-  const signature = createHmac("sha256", secret).update(encodedClaims).digest("base64url");
+  const signingInput = `${encodedHeader}.${encodedClaims}`;
+  const signature = createHmac("sha256", secret).update(signingInput).digest("base64url");
 
-  return `${encodedClaims}.${signature}`;
+  return `${signingInput}.${signature}`;
 }
 
 export function createCollabTestHarness() {
   const env: CollabEnv = {
+    apiInternalUrl: "http://localhost:4000",
     host: "127.0.0.1",
+    jwtIssuer: "collab-editor-api",
     nodeEnv: "test",
     port: 4100,
     sessionSecret: "secret"

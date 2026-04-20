@@ -1,7 +1,7 @@
 import type { Job } from "bullmq";
 
-import { renderDocxStub } from "../renderers/docx";
-import { renderPdfStub } from "../renderers/pdf";
+import { renderDocx } from "../renderers/docx";
+import { renderPdf } from "../renderers/pdf";
 import { renderPlainText } from "../renderers/plain-text";
 import type {
   ExportJobPayload,
@@ -28,14 +28,14 @@ export async function processExportJob(
   }
 
   if (job.data.format === "pdf") {
-    renderPdfStub({
+    renderPdf({
       title,
       content
     });
   }
 
   if (job.data.format === "docx") {
-    renderDocxStub({
+    renderDocx({
       title,
       content
     });

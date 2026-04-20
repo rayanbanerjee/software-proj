@@ -9,6 +9,7 @@ import type {
 } from "@repo/shared-types";
 
 import { AppError } from "../../common/errors.js";
+import { readJsonFile, resolveDataPath, writeJsonFile } from "../../common/file-store.js";
 
 type CommentActor = {
   name: string | null;
@@ -21,6 +22,24 @@ export class CommentsService {
   readonly moduleName = "comments";
 
   private readonly commentsByDocument = new Map<string, StoredComment[]>();
+  private readonly storagePath: string;
+
+  constructor(dataDir: string) {
+    this.storagePath = resolveDataPath(dataDir, "comments.json");
+
+    const storedComments = readJsonFile<Record<string, StoredComment[]>>(this.storagePath, {});
+
+    for (const [documentId, comments] of Object.entries(storedComments)) {
+      this.commentsByDocument.set(documentId, comments);
+    }
+  }
+
+  private persistComments() {
+    writeJsonFile(
+      this.storagePath,
+      Object.fromEntries(this.commentsByDocument.entries())
+    );
+  }
 
   listComments(documentId: string): ListCommentsResponse {
     return {
@@ -51,6 +70,7 @@ export class CommentsService {
     const existingComments = this.commentsByDocument.get(documentId) ?? [];
 
     this.commentsByDocument.set(documentId, [...existingComments, comment]);
+    this.persistComments();
 
     return {
       comment

@@ -13,7 +13,14 @@ export interface EditorSelectionSummary {
   empty: boolean;
   from: number;
   to: number;
-  currentBlock: "paragraph" | "heading-1" | "heading-2" | "heading-3" | "unknown";
+  marks: {
+    bold: boolean;
+    italic: boolean;
+    strike: boolean;
+  };
+  currentBlock: "code-block" | "paragraph" | "heading-1" | "heading-2" | "heading-3" | "unknown";
+  currentList: "bulletList" | "none" | "orderedList";
+  inBlockquote: boolean;
 }
 
 export function getCurrentBlock(editor: MinimalEditorLike | null): EditorSelectionSummary["currentBlock"] {
@@ -33,6 +40,10 @@ export function getCurrentBlock(editor: MinimalEditorLike | null): EditorSelecti
     return "heading-3";
   }
 
+  if (editor.isActive("codeBlock")) {
+    return "code-block";
+  }
+
   if (editor.isActive("paragraph")) {
     return "paragraph";
   }
@@ -46,7 +57,14 @@ export function getSelectionSummary(editor: MinimalEditorLike | null): EditorSel
       empty: true,
       from: 0,
       to: 0,
-      currentBlock: "unknown"
+      marks: {
+        bold: false,
+        italic: false,
+        strike: false
+      },
+      currentBlock: "unknown",
+      currentList: "none",
+      inBlockquote: false
     };
   }
 
@@ -54,7 +72,18 @@ export function getSelectionSummary(editor: MinimalEditorLike | null): EditorSel
     empty: editor.state.selection.empty,
     from: editor.state.selection.from,
     to: editor.state.selection.to,
-    currentBlock: getCurrentBlock(editor)
+    marks: {
+      bold: editor.isActive("bold"),
+      italic: editor.isActive("italic"),
+      strike: editor.isActive("strike")
+    },
+    currentBlock: getCurrentBlock(editor),
+    currentList: editor.isActive("bulletList")
+      ? "bulletList"
+      : editor.isActive("orderedList")
+        ? "orderedList"
+        : "none",
+    inBlockquote: editor.isActive("blockquote")
   };
 }
 

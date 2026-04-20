@@ -13,7 +13,6 @@ describe("user profile mapping", () => {
 
     expect(profile).toEqual({
       email: "user@example.com",
-      googleSubject: "google-subject",
       id: "user_123",
       imageUrl: "https://example.com/avatar.png",
       name: "User Example"

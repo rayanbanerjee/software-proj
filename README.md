@@ -12,6 +12,50 @@ Collaborative document editor with realtime Yjs/Hocuspocus sync, Google sign-in,
 - `infrastructure/*`: Docker and local helper scripts
 - `docs/*`: ADRs, API docs, specs, task tracking, diagrams
 
+## Quick start
+
+Install dependencies:
+
+```bash
+corepack enable
+corepack pnpm install
+```
+
+Copy the local env templates:
+
+```bash
+cp apps/api/.env.example apps/api/.env.local
+cp apps/web/.env.example apps/web/.env.local
+```
+
+Start the local stack:
+
+```bash
+./run.sh start
+```
+
+Run the web app:
+
+```bash
+./run.sh web --port 3002
+```
+
+Useful local commands:
+
+```bash
+./run.sh check
+./run.sh test
+./run.sh test:backend
+./run.sh test:frontend
+./run.sh e2e:install
+./run.sh test:e2e
+./run.sh logs api
+./run.sh stop
+```
+
+For the full environment and testing guide, see [local-setup.md](/Users/rayan.banerjee/courses/software%20project/docs/process/local-setup.md).
+For the confirmed backend and frontend testing coverage, see [testing-guide.md](/Users/rayan.banerjee/courses/software%20project/docs/process/testing-guide.md).
+
 ## Prerequisites
 
 - Node.js `>= 22`
@@ -19,19 +63,6 @@ Collaborative document editor with realtime Yjs/Hocuspocus sync, Google sign-in,
 - Docker Desktop running for local services
 - Google OAuth client for browser sign-in
 - OpenRouter API key if you want real AI responses instead of config errors
-
-Use the repo Node version:
-
-```bash
-cat .nvmrc
-```
-
-Then install dependencies:
-
-```bash
-corepack enable
-corepack pnpm install
-```
 
 ## Environment setup
 
@@ -48,7 +79,6 @@ cp apps/api/.env.example apps/api/.env.local
 Minimum important values:
 
 - `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
 - `SESSION_SECRET`
 - `WEB_ORIGIN=http://localhost:3002`
 - `COLLAB_URL=ws://localhost:4001`
@@ -90,25 +120,25 @@ docker info
 This builds and starts Postgres, Redis, MinIO, API, collab, and worker:
 
 ```bash
-bash infrastructure/scripts/start-local.sh
+./run.sh start
 ```
 
 Stop the stack:
 
 ```bash
-bash infrastructure/scripts/stop-local.sh
+./run.sh stop
 ```
 
 View logs:
 
 ```bash
-bash infrastructure/scripts/logs-local.sh
+./run.sh logs
 ```
 
 One service only:
 
 ```bash
-bash infrastructure/scripts/logs-local.sh api
+./run.sh logs api
 ```
 
 ### 3. Start the web app
@@ -116,7 +146,7 @@ bash infrastructure/scripts/logs-local.sh api
 Run the web app separately:
 
 ```bash
-corepack pnpm --filter @repo/web dev -- --port 3002
+./run.sh web --port 3002
 ```
 
 ### 4. Open the app
@@ -134,7 +164,7 @@ corepack pnpm --filter @repo/web dev -- --port 3002
 Recommended smoke test:
 
 1. Open `http://localhost:3002/auth`
-2. Sign in with Google
+2. Sign in with a local account or with Google when configured
 3. Go to `/documents`
 4. Create a document manually with `New document`
 5. Open the same document in two tabs
@@ -147,8 +177,7 @@ Recommended smoke test:
 ## Development notes
 
 - no starter documents are created automatically anymore
-- in local development, cross-account document visibility is relaxed to simplify collaboration testing
-- metadata and comments are still API-memory-backed in the current prototype
+- API document metadata, comments, export jobs, and export artifacts are persisted under `API_DATA_DIR`
 - realtime Yjs content is persisted by the collab service locally
 
 ## Database and Prisma
@@ -167,28 +196,25 @@ corepack pnpm --filter @repo/api prisma:generate
 
 ## Validation
 
-Lint:
+Repository-wide checks:
 
 ```bash
-corepack pnpm lint
+./run.sh check
+./run.sh test
 ```
 
-Typecheck:
+Backend testing:
 
 ```bash
-corepack pnpm typecheck
+./run.sh test:backend
 ```
 
-Tests:
+Frontend testing:
 
 ```bash
-corepack pnpm test
-```
-
-Docs pipeline:
-
-```bash
-node scripts/check-docs.mjs
+./run.sh test:frontend
+./run.sh e2e:install
+./run.sh test:e2e
 ```
 
 Regenerate Mermaid diagram images:
@@ -204,3 +230,4 @@ Process guidance lives in:
 - [documentation-pipeline.md](/Users/rayan.banerjee/courses/software%20project/docs/process/documentation-pipeline.md)
 - [CONTRIBUTING.md](/Users/rayan.banerjee/courses/software%20project/CONTRIBUTING.md)
 - [git-conventions.md](/Users/rayan.banerjee/courses/software%20project/docs/process/git-conventions.md)
+- [local-setup.md](/Users/rayan.banerjee/courses/software%20project/docs/process/local-setup.md)

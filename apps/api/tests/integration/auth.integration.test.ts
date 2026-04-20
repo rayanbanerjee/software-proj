@@ -16,28 +16,31 @@ afterEach(() => {
 });
 
 describe("auth integration flow", () => {
-  it("covers callback, cookie-backed auth, and bearer reuse in one flow", async () => {
+  it("covers login, cookie-backed auth, and bearer reuse in one flow", async () => {
     const app = await createApiTestApp();
 
-    const callbackResponse = await app.inject({
+    const loginResponse = await app.inject({
       method: "POST",
-      url: "/v1/auth/callback",
+      url: "/v1/auth/login",
       payload: {
-        idToken: "stub-valid-token"
+        password: "dev-password",
+        username: "stub-user",
+        createUserIfMissing: true
       }
     });
 
-    expect(callbackResponse.statusCode).toBe(200);
-    expect(callbackResponse.json()).toMatchObject({
+    expect(loginResponse.statusCode).toBe(200);
+    expect(loginResponse.json()).toMatchObject({
+      outcome: "created",
       session: {
         user: {
-          id: "google:google-oauth-subject",
-          email: "stub-user@example.com"
+          id: expect.stringMatching(/^jwt:/),
+          email: "stub-user@local.test"
         }
       }
     });
 
-    const sessionCookie = callbackResponse.headers["set-cookie"] as string;
+    const sessionCookie = loginResponse.headers["set-cookie"] as string;
     const meWithCookie = await app.inject({
       method: "GET",
       url: "/v1/auth/me",
@@ -49,11 +52,10 @@ describe("auth integration flow", () => {
     expect(meWithCookie.statusCode).toBe(200);
     expect(meWithCookie.json()).toEqual({
       user: {
-        id: "google:google-oauth-subject",
-        email: "stub-user@example.com",
-        name: "Stub User",
-        imageUrl: "https://example.com/avatar.png",
-        googleSubject: "google-oauth-subject"
+        id: expect.stringMatching(/^jwt:/),
+        email: "stub-user@local.test",
+        name: "stub-user",
+        imageUrl: null
       }
     });
 

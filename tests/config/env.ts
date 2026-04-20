@@ -1,19 +1,18 @@
 export const defaultApiTestEnv = {
+  API_DATA_DIR: "/tmp/collab-editor-api-test",
+  COLLAB_URL: "ws://localhost:4001",
+  COLLAB_INTERNAL_URL: "http://localhost:4001",
   DATABASE_URL: "postgres://postgres:postgres@localhost:5432/collab_editor",
-  GOOGLE_CLIENT_ID: "client-id",
-  GOOGLE_CLIENT_SECRET: "client-secret",
-  WEB_ORIGIN: "http://localhost:3002",
+  GOOGLE_CLIENT_ID: "test-google-client-id.apps.googleusercontent.com",
+  JWT_ISSUER: "collab-editor-api-test",
+  JWT_LOGIN_PASSWORD: "dev-password",
   NODE_ENV: "test",
   OBJECT_STORAGE_BUCKET: "collab-editor",
   OBJECT_STORAGE_ENDPOINT: "http://localhost:9000",
   PORT: "4000",
   REDIS_URL: "redis://localhost:6379",
   SESSION_SECRET: "secret",
-  COLLAB_URL: "ws://localhost:4001",
-  RATE_LIMIT_WINDOW_MS: "60000",
-  RATE_LIMIT_MAX_REQUESTS: "120",
-  OPENROUTER_MODEL: "qwen/qwen3.6-plus:free",
-  OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1"
+  WEB_ORIGIN: "http://localhost:3000"
 } as const;
 
 export function applyTestEnv(

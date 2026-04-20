@@ -21,4 +21,13 @@ describe("mock AI provider", () => {
 
     expect(res.result).toContain("[REWRITE]");
   });
+
+  it("defaults translation output to English when no target language is provided", async () => {
+    const res = await runMockAi({
+      operation: "translate",
+      text: "Bonjour"
+    });
+
+    expect(res.result).toContain("[TRANSLATED TO ENGLISH]");
+  });
 });

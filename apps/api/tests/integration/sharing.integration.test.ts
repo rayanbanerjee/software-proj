@@ -21,15 +21,15 @@ describe("sharing integration flow", () => {
     const app = await createApiTestApp();
     const ownerSessionHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
-      subject: "owner_user"
+      userId: "owner_user"
     });
     const editorSessionHeaders = createSessionHeaders(app, {
       email: "editor@example.com",
-      subject: "editor_user"
+      userId: "editor_user"
     });
     const viewerSessionHeaders = createSessionHeaders(app, {
       email: "viewer@example.com",
-      subject: "viewer_user"
+      userId: "viewer_user"
     });
 
     const documentResponse = await app.inject({
@@ -46,10 +46,7 @@ describe("sharing integration flow", () => {
     const editorInvite = await app.inject({
       method: "POST",
       url: `/v1/documents/${documentId}/invitations`,
-      headers: {
-        ...ownerSessionHeaders,
-        "x-user-id": "google:owner_user"
-      },
+      headers: ownerSessionHeaders,
       payload: {
         email: "editor@example.com",
         role: "editor"
@@ -59,10 +56,7 @@ describe("sharing integration flow", () => {
     const viewerInvite = await app.inject({
       method: "POST",
       url: `/v1/documents/${documentId}/invitations`,
-      headers: {
-        ...ownerSessionHeaders,
-        "x-user-id": "google:owner_user"
-      },
+      headers: ownerSessionHeaders,
       payload: {
         email: "viewer@example.com",
         role: "viewer"
@@ -72,11 +66,7 @@ describe("sharing integration flow", () => {
     await app.inject({
       method: "POST",
       url: "/v1/invitations/accept",
-      headers: {
-        ...editorSessionHeaders,
-        "x-user-id": "google:editor_user",
-        "x-user-email": "editor@example.com"
-      },
+      headers: editorSessionHeaders,
       payload: {
         token: editorInvite.json().acceptToken
       }
@@ -85,11 +75,7 @@ describe("sharing integration flow", () => {
     await app.inject({
       method: "POST",
       url: "/v1/invitations/accept",
-      headers: {
-        ...viewerSessionHeaders,
-        "x-user-id": "google:viewer_user",
-        "x-user-email": "viewer@example.com"
-      },
+      headers: viewerSessionHeaders,
       payload: {
         token: viewerInvite.json().acceptToken
       }
@@ -116,10 +102,7 @@ describe("sharing integration flow", () => {
     const editorInviteAttempt = await app.inject({
       method: "POST",
       url: `/v1/documents/${documentId}/invitations`,
-      headers: {
-        ...editorSessionHeaders,
-        "x-user-id": "google:editor_user"
-      },
+      headers: editorSessionHeaders,
       payload: {
         email: "third@example.com",
         role: "viewer"

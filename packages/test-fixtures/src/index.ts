@@ -127,7 +127,6 @@ export function makeDocumentMetadata(
 export function makeUserFixture(
   overrides: Partial<{
     email: string;
-    googleSubject: string | null;
     id: string;
     imageUrl: string | null;
     name: string | null;
@@ -135,7 +134,6 @@ export function makeUserFixture(
 ) {
   return {
     email: "user@example.com",
-    googleSubject: "google-subject",
     id: "user_123",
     imageUrl: "https://example.com/avatar.png",
     name: "User Example",

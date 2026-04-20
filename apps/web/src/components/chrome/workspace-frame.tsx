@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 
-import { getWorkspaceDocuments } from "../../lib/documents";
+import { getWorkspaceDocumentsState } from "../../lib/documents";
 import { WorkspaceActivityRail } from "./workspace-activity-rail";
 import { WorkspaceNav } from "./workspace-nav";
 
@@ -11,7 +11,7 @@ export async function WorkspaceFrame({
   children: React.ReactNode;
 }>) {
   const requestHeaders = await headers();
-  const documents = await getWorkspaceDocuments({
+  const result = await getWorkspaceDocumentsState({
     cookieHeader: requestHeaders.get("cookie")
   });
 
@@ -25,7 +25,7 @@ export async function WorkspaceFrame({
           <Link className="workspace-brand-mark" href="/documents">Notes</Link>
         </div>
 
-        <WorkspaceNav documents={documents} />
+        <WorkspaceNav authRequired={result.authRequired} documents={result.documents} />
       </aside>
 
       <div className="workspace-main">

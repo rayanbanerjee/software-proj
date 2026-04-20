@@ -3,20 +3,25 @@ import { z } from "zod";
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
+  API_DATA_DIR: z.string().trim().min(1).default("apps/api/.data"),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
-  GOOGLE_CLIENT_ID: z.string().min(1),
-  GOOGLE_CLIENT_SECRET: z.string().min(1),
+  GOOGLE_CLIENT_ID: z.string().trim().min(1).optional(),
+  GOOGLE_JWKS_URL: z.string().trim().url().default("https://www.googleapis.com/oauth2/v3/certs"),
   SESSION_SECRET: z.string().min(1),
+  JWT_ISSUER: z.string().min(1).default("collab-editor-api"),
+  JWT_LOGIN_PASSWORD: z.string().min(1).default("dev-password"),
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   COLLAB_URL: z.string().url(),
+  COLLAB_INTERNAL_URL: z.string().url().optional(),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(120),
+  LLM_API_KEY: z.string().trim().min(1).optional(),
   OPENROUTER_API_KEY: z.string().trim().min(1).optional(),
   OPENROUTER_MODEL: z.string().trim().min(1).default("qwen/qwen3.6-plus:free"),
-  OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api/v1"),
+  OPENROUTER_BASE_URL: z.string().trim().url().default("https://openrouter.ai/api/v1"),
   OPENROUTER_APP_NAME: z.string().trim().min(1).optional(),
-  OPENROUTER_APP_URL: z.string().url().optional(),
+  OPENROUTER_APP_URL: z.string().trim().url().optional(),
   OBJECT_STORAGE_ENDPOINT: z.string().min(1),
   OBJECT_STORAGE_BUCKET: z.string().min(1)
 });
@@ -24,8 +29,12 @@ const envSchema = z.object({
 export type ApiEnv = z.infer<typeof envSchema>;
 
 export function parseApiEnv(source: NodeJS.ProcessEnv): ApiEnv {
+  const collabUrl = source.COLLAB_URL;
+
   return envSchema.parse({
     ...source,
-    OPENROUTER_API_KEY: source.OPENROUTER_API_KEY ?? source.OPENAI_API_KEY
+    COLLAB_INTERNAL_URL: source.COLLAB_INTERNAL_URL ?? collabUrl,
+    OPENROUTER_API_KEY:
+      source.OPENROUTER_API_KEY ?? source.OPENAI_API_KEY ?? source.LLM_API_KEY
   });
 }

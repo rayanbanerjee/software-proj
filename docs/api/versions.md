@@ -78,7 +78,7 @@ Response:
 
 ## `GET /v1/documents/:documentId/versions/:revisionId/diff`
 
-Returns a stub diff payload for a revision.
+Returns a line-based content diff payload for a revision.
 
 Authentication:
 
@@ -96,12 +96,12 @@ Response:
   "documentId": "doc_uuid",
   "revisionId": "rev_uuid",
   "compareToRevisionId": null,
-  "summary": "Stub diff for Initial snapshot: Project kickoff against the current head.",
+  "summary": "2 lines modified, 1 line added between Initial snapshot: Project kickoff and the current head.",
   "changes": [
     {
       "field": "content",
-      "kind": "stub",
-      "description": "Detailed diff generation is not wired yet."
+      "kind": "modified",
+      "description": "Line 1 changed from \"old value\" to \"new value\""
     }
   ]
 }
@@ -112,5 +112,5 @@ Response:
 - the current implementation keeps revisions in-memory and seeds a baseline revision on first access
 - only document owners can perform rollback in the current permission model
 - rollback creates a new head revision and does not delete older history
-- diff responses currently validate the comparison target and return a placeholder summary
-- successful rollback requests now also notify the collab service, which rebroadcasts a `document.rollback` stateless event to active clients
+- diff responses compare stored revision snapshots against either another stored revision or the current document head
+- successful rollback requests now also notify the collab service, which rebroadcasts a `document.rollback` stateless event including the restored source revision id

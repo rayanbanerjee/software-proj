@@ -24,7 +24,8 @@ export const promptTemplates: Record<AiAction, PromptTemplateDefinition> = {
   translate: {
     action: "translate",
     version: aiPromptTemplateVersion,
-    systemPrompt: "Translate the provided text while preserving tone, structure, and meaning."
+    systemPrompt:
+      "Translate the provided text into English by default while preserving tone, structure, and meaning. If the request names a different target language, use that language instead."
   },
   restructure: {
     action: "restructure",

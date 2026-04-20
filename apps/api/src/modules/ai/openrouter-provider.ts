@@ -1,6 +1,12 @@
 import type { AiAction } from "@repo/shared-types";
 
-import type { AiProviderClient, AiProviderGenerateInput, AiProviderGenerateOutput } from "./provider.js";
+import type {
+  AiProviderClient,
+  AiProviderGenerateInput,
+  AiProviderGenerateOutput,
+  AiProviderInput
+} from "./provider.js";
+import { buildPromptPayload, buildSystemPrompt } from "./provider.js";
 
 interface OpenRouterProviderOptions {
   apiKey: string;
@@ -23,18 +29,28 @@ interface OpenRouterChatResponse {
 
 type OpenRouterMessageContent = string | Array<{ text?: string; type?: string }>;
 
-const actionInstructions: Record<AiAction, string> = {
+const actionInstructions: Record<Exclude<AiAction, "translate">, string> = {
   rewrite: "Rewrite the source text while preserving meaning and improving clarity.",
   summarize: "Summarize the source text concisely.",
-  translate: "Translate the source text while preserving intent and meaning.",
   restructure: "Restructure the source text into a clearer organization."
 };
 
+function getActionInstruction(input: AiProviderGenerateInput): string {
+  if (input.action === "translate") {
+    const targetLanguage = input.prompt?.trim() || "English";
+    return `Translate the source text into ${targetLanguage} while preserving intent, tone, and meaning.`;
+  }
+
+  return actionInstructions[input.action];
+}
+
 function buildUserMessage(input: AiProviderGenerateInput) {
-  const prompt = input.prompt ? `Additional instruction: ${input.prompt}\n\n` : "";
+  const prompt = input.action !== "translate" && input.prompt
+    ? `Additional instruction: ${input.prompt}\n\n`
+    : "";
 
   return [
-    `Task: ${actionInstructions[input.action]}`,
+    `Task: ${getActionInstruction(input)}`,
     prompt,
     "Return a JSON object with exactly these keys:",
     '- "proposedText": string',
@@ -127,4 +143,110 @@ export class OpenRouterProviderClient implements AiProviderClient {
 
     return parseJsonResponse(content);
   }
+
+  async *streamText(input: AiProviderInput): AsyncIterable<string> {
+    const response = await fetch(`${this.options.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.options.apiKey}`,
+        "Content-Type": "application/json",
+        ...(this.options.appUrl ? { "HTTP-Referer": this.options.appUrl } : {}),
+        ...(this.options.appName ? { "X-Title": this.options.appName } : {})
+      },
+      body: JSON.stringify({
+        model: this.options.model,
+        stream: true,
+        messages: [
+          {
+            role: "system",
+            content: buildSystemPrompt(input.action)
+          },
+          {
+            role: "user",
+            content: buildPromptPayload(input)
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || "OpenRouter request failed.");
+    }
+
+    if (!response.body) {
+      throw new Error("OpenRouter response did not include a stream.");
+    }
+
+    const decoder = new TextDecoder();
+    const reader = response.body.getReader();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+
+        if (!line.startsWith("data:")) {
+          continue;
+        }
+
+        const payload = line.slice("data:".length).trim();
+
+        if (!payload || payload === "[DONE]") {
+          continue;
+        }
+
+        let parsed: unknown;
+
+        try {
+          parsed = JSON.parse(payload);
+        } catch {
+          continue;
+        }
+
+        const delta = extractDeltaText(parsed);
+
+        if (delta) {
+          yield delta;
+        }
+      }
+    }
+  }
+}
+
+function extractDeltaText(payload: unknown) {
+  if (!payload || typeof payload !== "object") {
+    return "";
+  }
+
+  const choices = (payload as { choices?: unknown }).choices;
+
+  if (!Array.isArray(choices) || choices.length === 0) {
+    return "";
+  }
+
+  const firstChoice = choices[0];
+
+  if (!firstChoice || typeof firstChoice !== "object") {
+    return "";
+  }
+
+  const delta = (firstChoice as { delta?: unknown }).delta;
+
+  if (!delta || typeof delta !== "object") {
+    return "";
+  }
+
+  const content = (delta as { content?: unknown }).content;
+  return typeof content === "string" ? content : "";
 }

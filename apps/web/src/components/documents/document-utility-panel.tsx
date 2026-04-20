@@ -37,7 +37,7 @@ function getActionLabel(action: AiAction) {
     case "summarize":
       return "Summarize";
     case "translate":
-      return "Translate";
+      return "Translate to English";
     case "restructure":
       return "Tone adjustment";
   }
@@ -132,7 +132,9 @@ export function DocumentUtilityPanel({
           <p>{aiState.selectedText}</p>
           <span className="comment-ai-status">
             {aiState.requestStatus === "running" || aiState.requestStatus === "queued"
-              ? "Generating proposal..."
+              ? aiState.proposal?.proposedText
+                ? "Streaming proposal..."
+                : "Generating proposal..."
               : aiState.requestStatus === "failed"
                 ? aiState.errorMessage ?? "AI request failed."
                 : aiState.requestStatus === "succeeded"
@@ -145,10 +147,12 @@ export function DocumentUtilityPanel({
                 <strong>Proposal</strong>
                 <p>{aiState.proposal.proposedText}</p>
               </div>
-              <div className="comment-ai-actions">
-                <button onClick={onRejectProposal} type="button">Dismiss</button>
-                <button onClick={onAcceptProposal} type="button">Apply</button>
-              </div>
+              {aiState.requestStatus === "succeeded" ? (
+                <div className="comment-ai-actions">
+                  <button onClick={onRejectProposal} type="button">Dismiss</button>
+                  <button onClick={onAcceptProposal} type="button">Apply</button>
+                </div>
+              ) : null}
             </>
           ) : null}
         </article>

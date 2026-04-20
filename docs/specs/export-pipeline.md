@@ -12,7 +12,7 @@ This pipeline follows an asynchronous job model aligned with the system architec
 
 1. User requests export via API  
 2. API creates an export job and returns a job ID  
-3. Worker processes the export job asynchronously  
+3. The process-local export worker processes the export job asynchronously  
 4. User polls export status endpoint  
 5. When ready, user retrieves a secure download URL  
 
@@ -36,8 +36,8 @@ This pipeline follows an asynchronous job model aligned with the system architec
 
 ```json
 {
-  "exportId": "exp_...",
-  "status": "pending"
+  "exportJobId": "exp_...",
+  "status": "queued"
 }
 ```
 
@@ -51,10 +51,15 @@ This pipeline follows an asynchronous job model aligned with the system architec
 
 ```json
 {
-  "exportId": "exp_...",
-  "documentId": "doc1",
-  "format": "pdf",
-  "status": "pending" | "completed" | "failed"
+  "job": {
+    "exportJobId": "exp_...",
+    "documentId": "doc1",
+    "format": "pdf",
+    "status": "queued" | "running" | "succeeded" | "failed",
+    "requestedAt": "2026-04-19T10:00:00.000Z",
+    "completedAt": "2026-04-19T10:00:02.000Z",
+    "downloadUrl": null
+  }
 }
 ```
 
@@ -87,7 +92,7 @@ The background worker is responsible for processing export jobs.
 
 - receive export job payload  
 - select appropriate renderer based on format  
-- generate export artifact (stubbed for now)  
+- generate and persist the export artifact  
 - update job status  
 
 ---
@@ -101,32 +106,30 @@ The system supports multiple export formats via dedicated renderers:
 - converts document content to `.txt`  
 - preserves text structure with minimal formatting  
 
-### PDF Renderer (Stub)
+### PDF Renderer
 
-- returns placeholder content  
-- simulates PDF generation  
+- generates a valid PDF file
+- writes the rendered artifact into the export storage bucket
 
-### DOCX Renderer (Stub)
+### DOCX Renderer
 
-- returns placeholder content  
-- simulates DOCX generation  
+- generates a valid DOCX file
+- writes the rendered artifact into the export storage bucket
 
 ---
 
-## Data Model (Current Stub)
+## Data Model
 
-Export jobs are currently stored in-memory:
+Export jobs are persisted under the API data directory:
 
 ```ts
 {
-  exportId: string;
+  exportJobId: string;
   documentId: string;
   format: "txt" | "pdf" | "docx";
-  status: "pending" | "completed" | "failed";
+  status: "queued" | "running" | "succeeded" | "failed";
 }
 ```
-
-This will later be replaced by persistent storage (e.g., database).
 
 ---
 
@@ -134,17 +137,12 @@ This will later be replaced by persistent storage (e.g., database).
 
 The download endpoint returns a time-limited signed URL.
 
-### Current behavior (stub)
+### Current behavior
 
-- token generated using hash(documentId + exportId + expiry)  
-- expiry time set to 15 minutes  
-- no validation yet  
-
-### Future improvements
-
-- validate token on download endpoint  
-- integrate with object storage signed URLs (e.g., S3)  
-- enforce access control based on user permissions  
+- token generated using an HMAC over `documentId`, `exportId`, and expiry
+- expiry time set to 15 minutes
+- artifact endpoint validates the token and streams the stored file
+- authenticated access is still required on the artifact endpoint
 
 ---
 
@@ -174,16 +172,13 @@ The download endpoint returns a time-limited signed URL.
 
 - asynchronous export processing avoids blocking user requests  
 - renderer abstraction allows adding new formats easily  
-- stubbed implementations enable early integration without infrastructure dependencies  
+- local filesystem-backed object storage keeps the export contract real without adding more infrastructure dependencies  
 - secure download flow separates artifact generation from retrieval  
 
 ---
 
 ## Future Work
 
-- integrate export jobs with persistent database storage  
-- connect worker to real job queue (BullMQ)  
-- generate actual PDF and DOCX files  
-- upload artifacts to object storage  
-- implement authenticated download endpoints  
-- support large document exports and streaming  
+- integrate export jobs with durable database storage  
+- move the process-local export worker onto the shared queue infrastructure  
+- replace the local filesystem bucket with external object storage  

@@ -1,5 +1,7 @@
 export interface CollabEnv {
+  apiInternalUrl: string;
   host: string;
+  jwtIssuer: string;
   nodeEnv: "development" | "test" | "production";
   port: number;
   sessionSecret: string;
@@ -37,7 +39,9 @@ function requireValue(name: string, value: string | undefined): string {
 
 export function getCollabEnv(source: NodeJS.ProcessEnv = process.env): CollabEnv {
   return {
+    apiInternalUrl: source.API_INTERNAL_URL?.trim() || "http://localhost:4000",
     host: source.HOST?.trim() || "0.0.0.0",
+    jwtIssuer: requireValue("JWT_ISSUER", source.JWT_ISSUER),
     nodeEnv: parseNodeEnv(source.NODE_ENV),
     port: parseInteger("PORT", source.PORT, 4001),
     sessionSecret: requireValue("SESSION_SECRET", source.SESSION_SECRET)

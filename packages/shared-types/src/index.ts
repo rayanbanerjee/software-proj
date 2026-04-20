@@ -58,6 +58,26 @@ export interface ArchiveDocumentResponse {
   archivedAt: IsoDateString;
 }
 
+export interface DocumentContent {
+  documentId: string;
+  richText?: Record<string, unknown> | null;
+  text: string;
+  updatedAt: IsoDateString;
+}
+
+export interface GetDocumentContentResponse {
+  content: DocumentContent;
+}
+
+export interface UpdateDocumentContentRequest {
+  richText?: Record<string, unknown> | null;
+  text: string;
+}
+
+export interface UpdateDocumentContentResponse {
+  content: DocumentContent;
+}
+
 export interface SharedMembership {
   userId: string;
   role: DocumentRole;
@@ -219,6 +239,7 @@ export interface DocumentRollbackEvent {
   type: "document.rollback";
   documentId: string;
   revisionId: string;
+  restoredFromRevisionId: string;
   rolledBackAt: IsoDateString;
   triggeredByUserId: string;
 }
@@ -262,6 +283,13 @@ export interface AiRequestContext {
 
 export interface SubmitAiRequestRequest {
   documentId: string;
+  action: AiAction;
+  prompt: string | null;
+  context: AiRequestContext;
+  maskPersonalData: boolean;
+}
+
+export interface StreamAiRequestRequest {
   action: AiAction;
   prompt: string | null;
   context: AiRequestContext;
@@ -314,6 +342,69 @@ export interface RejectAiProposalResponse {
   rejectedAt: IsoDateString;
 }
 
+export type AiStreamEvent =
+  | {
+      type: "started";
+      requestId: string;
+      status: "running";
+    }
+  | {
+      type: "delta";
+      requestId: string;
+      delta: string;
+      text: string;
+    }
+  | {
+      type: "completed";
+      requestId: string;
+      status: "succeeded";
+      proposal: AiProposal;
+    }
+  | {
+      type: "error";
+      requestId: string;
+      status: "failed";
+      errorMessage: string;
+    };
+
+export interface PromptTemplateSummary {
+  action: AiAction;
+  title: string;
+  systemPrompt: string;
+  version: string;
+}
+
+export interface ListPromptTemplatesResponse {
+  templates: PromptTemplateSummary[];
+}
+
+export type RetrievalSourceType =
+  | "document_title"
+  | "document_content"
+  | "document_role"
+  | "audit_event"
+  | "prompt_template";
+
+export interface RagContextChunk {
+  id: string;
+  sourceType: RetrievalSourceType;
+  sourceLabel: string;
+  documentId: string | null;
+  text: string;
+  score: number;
+  rationale: string;
+}
+
+export interface RetrieveRagContextRequest {
+  query: string;
+  topK?: number;
+}
+
+export interface RetrieveRagContextResponse {
+  query: string;
+  chunks: RagContextChunk[];
+}
+
 export interface RevisionSummary {
   revisionId: string;
   documentId: string;
@@ -342,7 +433,7 @@ export interface RevisionDiffResponse {
   summary: string;
   changes: Array<{
     field: "content";
-    kind: "stub";
+    kind: "added" | "removed" | "modified";
     description: string;
   }>;
 }
@@ -390,7 +481,6 @@ export interface UserProfile {
   email: string;
   name: string | null;
   imageUrl: string | null;
-  googleSubject: string | null;
 }
 
 export interface GetCurrentUserResponse {

@@ -1,4 +1,4 @@
-import type { FastifyRequest } from "fastify";
+import type { RouteShorthandOptions, FastifyRequest } from "fastify";
 
 import { AppError } from "../../common/errors.js";
 
@@ -17,6 +17,10 @@ export async function authenticateRequest(request: FastifyRequest) {
     throw new AppError("UNAUTHORIZED", 401, "Invalid session token.");
   }
 }
+
+export const protectedRoute: RouteShorthandOptions = {
+  preHandler: authenticateRequest
+};
 
 export function requireCurrentUser(request: FastifyRequest) {
   if (!request.currentUser) {

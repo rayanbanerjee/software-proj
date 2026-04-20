@@ -5,6 +5,7 @@ import Fastify from "fastify";
 
 import { registerErrorHandling } from "./common/error-handler.js";
 import { createAppLogger, type AppLogger } from "./common/logger.js";
+import { registerRateLimiting } from "./common/rate-limit.js";
 import { registerRequestLogging } from "./common/request-logging.js";
 import { parseApiEnv } from "./config/env.js";
 import { registerAiModule } from "./modules/ai/index.js";
@@ -16,11 +17,9 @@ import { registerExportsModule } from "./modules/exports/index.js";
 import { registerHealthRoutes } from "./modules/health/routes.js";
 import { registerSharingModule } from "./modules/sharing/index.js";
 import { registerVersionsModule } from "./modules/versions/index.js";
-import type { GoogleTokenValidator } from "./modules/auth/google-token-validator.js";
 
 interface CreateAppOptions {
   appLogger?: AppLogger;
-  googleTokenValidator?: GoogleTokenValidator;
   logger?: boolean;
 }
 
@@ -94,7 +93,6 @@ export async function createApp(options: CreateAppOptions = {}) {
 
   app.decorate("apiEnv", env);
   app.decorate("appLogger", appLogger);
-  app.decorate("googleTokenValidatorOverride", options.googleTokenValidator);
 
   await app.register(cors, {
     credentials: true,
@@ -103,6 +101,7 @@ export async function createApp(options: CreateAppOptions = {}) {
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
   });
   registerErrorHandling(app);
+  registerRateLimiting(app);
   registerRequestLogging(app);
   await registerAuditModule(app);
   await registerAuthModule(app);

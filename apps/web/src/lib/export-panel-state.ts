@@ -6,6 +6,7 @@ export type ExportPanelState =
   | {
       entries: Array<{
         format: string;
+        label: string;
         summary: string;
       }>;
       job: null;
@@ -15,6 +16,7 @@ export type ExportPanelState =
   | {
       entries: Array<{
         format: string;
+        label: string;
         summary: string;
       }>;
       job: {
@@ -31,6 +33,7 @@ export type ExportPanelState =
 function getFallbackEntries() {
   return exportOptions.map((item) => ({
     format: item.format,
+    label: item.label,
     summary: item.summary
   }));
 }

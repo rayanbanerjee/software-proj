@@ -1,18 +1,19 @@
 import { AuthShellStates } from "../../../components/auth/auth-shell-states";
-import { GoogleSignInPanel } from "../../../components/auth/google-sign-in-panel";
+import { JwtLoginPanel } from "../../../components/auth/jwt-login-panel";
 
 export default function AuthPage() {
   return (
     <div className="workspace-page-stack">
       <section className="page-intro-card">
         <span className="workspace-kicker">WEB-004</span>
-        <h2>Authentication</h2>
+        <h2>Local account sign-in</h2>
         <p>
-          Use Google sign-in to mint the API session cookie, then fall back to the shell states below for loading and signed-in UX previews.
+          The app now issues its own JWT-backed session cookie from a local username and password
+          flow instead of relying on the older Google callback stub.
         </p>
       </section>
 
-      <GoogleSignInPanel />
+      <JwtLoginPanel />
       <AuthShellStates />
     </div>
   );

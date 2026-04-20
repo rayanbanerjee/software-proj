@@ -29,7 +29,7 @@ Response:
 ```json
 {
   "requestId": "air_uuid",
-  "status": "succeeded",
+  "status": "queued",
   "queuedAt": "2026-04-02T18:30:00.000Z"
 }
 ```
@@ -63,7 +63,7 @@ Response:
 
 ## `POST /v1/documents/:documentId/ai/proposals/accept`
 
-Applies a proposal decision placeholder and returns the application timestamp.
+Applies the proposal to the stored document content and returns the application timestamp.
 
 Request:
 
@@ -110,6 +110,6 @@ Response:
 - if `OPENROUTER_API_KEY` is absent, the API falls back to the local mock provider path for development and tests
 - optional `OPENROUTER_APP_URL` and `OPENROUTER_APP_NAME` values are forwarded as `HTTP-Referer` and `X-Title`
 - the default model is `qwen/qwen3.6-plus:free` unless `OPENROUTER_MODEL` is overridden
-- request state is stored in memory
-- accepted proposals do not yet mutate document content
+- request state is persisted under the local API data directory and resumes queued work after restart
+- accepted proposals mutate the stored document content using the snapshot captured when the request was created
 - stale proposals are rejected with `AI_PROPOSAL_STALE` when their stored revision fingerprint no longer matches the latest known document fingerprint

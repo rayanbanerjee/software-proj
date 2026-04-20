@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type {
   AiAction,
   AiProposal,
   AiRequestStatus,
+  AiStreamEvent,
   CommentRecord,
   CollaboratorPresenceSummary,
-  GetAiRequestStatusResponse,
-  SubmitAiRequestResponse
 } from "@repo/shared-types";
 
 import type {
@@ -20,6 +19,7 @@ import type {
 } from "../../lib/app-shell";
 import type { ExportPanelState } from "../../lib/export-panel-state";
 import type { VersionHistoryEntry } from "../../lib/version-history";
+import { consumeSseBuffer } from "../../lib/ai-stream";
 import { BaseEditor } from "../../editor/base-editor";
 import {
   createDocumentComment,
@@ -88,6 +88,7 @@ export function DocumentWorkspaceShell({
     };
     text: string;
   }>(null);
+  const aiStreamAbortRef = useRef<AbortController | null>(null);
   const collab = useDocumentCollab(realtimeDocumentId);
   const apiDocumentId = realtimeDocumentId ?? null;
   const editorInstanceKey = `${document.id}:${realtimeDocumentId ?? "fallback"}`;
@@ -109,6 +110,12 @@ export function DocumentWorkspaceShell({
     setDocumentTitle(document.title);
     setRenameErrorMessage(null);
   }, [document.id, document.title]);
+
+  useEffect(() => {
+    return () => {
+      aiStreamAbortRef.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     if (!apiDocumentId) {
@@ -176,6 +183,9 @@ export function DocumentWorkspaceShell({
     }
 
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+    aiStreamAbortRef.current?.abort();
+    const abortController = new AbortController();
+    aiStreamAbortRef.current = abortController;
 
     setAiState({
       action: payload.action,
@@ -190,10 +200,10 @@ export function DocumentWorkspaceShell({
     });
 
     try {
-      const response = await fetch(`${apiBaseUrl}/v1/documents/${apiDocumentId}/ai/requests`, {
+      const response = await fetch(`${apiBaseUrl}/v1/documents/${apiDocumentId}/ai/stream`, {
         body: JSON.stringify({
           action: payload.action,
-          prompt: null,
+          prompt: payload.action === "translate" ? "English" : null,
           context: {
             scope: "selection",
             selectedText: payload.selectedText,
@@ -205,7 +215,8 @@ export function DocumentWorkspaceShell({
         headers: {
           "content-type": "application/json"
         },
-        method: "POST"
+        method: "POST",
+        signal: abortController.signal
       });
 
       if (!response.ok) {
@@ -213,48 +224,48 @@ export function DocumentWorkspaceShell({
         throw new Error(errorPayload?.error?.message ?? "AI request failed.");
       }
 
-      const request = await response.json() as SubmitAiRequestResponse;
-      let statusPayload: GetAiRequestStatusResponse | null = null;
+      if (!response.body) {
+        throw new Error("AI streaming is unavailable.");
+      }
 
-      for (let attempt = 0; attempt < 8; attempt += 1) {
-        const statusResponse = await fetch(
-          `${apiBaseUrl}/v1/documents/${apiDocumentId}/ai/requests/${request.requestId}`,
-          {
-            credentials: "include"
-          }
-        );
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-        if (!statusResponse.ok) {
-          throw new Error("Failed to load AI proposal.");
-        }
+      while (true) {
+        const { done, value } = await reader.read();
 
-        statusPayload = await statusResponse.json() as GetAiRequestStatusResponse;
-
-        if (statusPayload.status !== "queued" && statusPayload.status !== "running") {
+        if (done) {
           break;
         }
 
-        await new Promise((resolve) => {
-          window.setTimeout(resolve, 400);
-        });
-      }
+        buffer += decoder.decode(value, { stream: true });
+        const consumed = consumeSseBuffer(buffer);
+        buffer = consumed.remainder;
 
-      if (!statusPayload) {
-        throw new Error("Failed to load AI proposal.");
-      }
-
-      setAiState({
-        action: payload.action,
-        errorMessage: statusPayload.errorMessage,
-        proposal: statusPayload.proposal,
-        requestStatus: statusPayload.status,
-        selectedText: payload.selectedText,
-        selection: {
-          from: payload.from,
-          to: payload.to
+        for (const event of consumed.events) {
+          applyAiStreamEvent(event, payload);
         }
-      });
+      }
+
+      const trailing = decoder.decode();
+
+      if (trailing) {
+        buffer += trailing;
+      }
+
+      if (buffer.trim()) {
+        const consumed = consumeSseBuffer(`${buffer}\n\n`);
+
+        for (const event of consumed.events) {
+          applyAiStreamEvent(event, payload);
+        }
+      }
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+
       setAiState({
         action: payload.action,
         errorMessage: error instanceof Error ? error.message : "AI request failed.",
@@ -266,7 +277,88 @@ export function DocumentWorkspaceShell({
           to: payload.to
         }
       });
+    } finally {
+      if (aiStreamAbortRef.current === abortController) {
+        aiStreamAbortRef.current = null;
+      }
     }
+  }
+
+  function applyAiStreamEvent(
+    event: AiStreamEvent,
+    payload: {
+      action: AiAction;
+      from: number;
+      selectedText: string;
+      to: number;
+    }
+  ) {
+    if (event.type === "started") {
+      setAiState({
+        action: payload.action,
+        errorMessage: null,
+        proposal: null,
+        requestStatus: "running",
+        selectedText: payload.selectedText,
+        selection: {
+          from: payload.from,
+          to: payload.to
+        }
+      });
+      return;
+    }
+
+    if (event.type === "delta") {
+      setAiState({
+        action: payload.action,
+        errorMessage: null,
+        proposal: {
+          action: payload.action,
+          createdAt: new Date().toISOString(),
+          documentId: apiDocumentId ?? document.id,
+          isStale: false,
+          originalText: payload.selectedText,
+          proposalId: `streaming-${event.requestId}`,
+          proposedText: event.text,
+          requestId: event.requestId,
+          summary: "Streaming suggestion in progress."
+        },
+        requestStatus: "running",
+        selectedText: payload.selectedText,
+        selection: {
+          from: payload.from,
+          to: payload.to
+        }
+      });
+      return;
+    }
+
+    if (event.type === "completed") {
+      setAiState({
+        action: payload.action,
+        errorMessage: null,
+        proposal: event.proposal,
+        requestStatus: "succeeded",
+        selectedText: payload.selectedText,
+        selection: {
+          from: payload.from,
+          to: payload.to
+        }
+      });
+      return;
+    }
+
+    setAiState({
+      action: payload.action,
+      errorMessage: event.errorMessage,
+      proposal: null,
+      requestStatus: "failed",
+      selectedText: payload.selectedText,
+      selection: {
+        from: payload.from,
+        to: payload.to
+      }
+    });
   }
 
   async function acceptAiProposal() {
@@ -296,11 +388,8 @@ export function DocumentWorkspaceShell({
       return;
     }
 
-    setPendingAiApplication({
-      proposalId: aiState.proposal.proposalId,
-      selection: aiState.selection,
-      text: aiState.proposal.proposedText
-    });
+    setPendingAiApplication(null);
+    setAiState(null);
   }
 
   async function rejectAiProposal() {
@@ -418,7 +507,13 @@ export function DocumentWorkspaceShell({
           {collab.lastRollbackEvent ? (
             <div className="offline-banner" role="status">
               <strong>Rollback event</strong>
-              <span>Revision {collab.lastRollbackEvent.revisionId} was broadcast to active collaborators.</span>
+              <span>
+                Revision {collab.lastRollbackEvent.revisionId} restored
+                {" "}
+                {collab.lastRollbackEvent.restoredFromRevisionId}
+                {" "}
+                and was broadcast to active collaborators.
+              </span>
             </div>
           ) : null}
           {renameErrorMessage ? (
@@ -472,7 +567,7 @@ export function DocumentWorkspaceShell({
           </form>
 
           {overlay === "sharing" ? <SharingModalShell /> : null}
-          {overlay === "export" ? <ExportModalShell panelState={exportPanelState} /> : null}
+          {overlay === "export" ? <ExportModalShell documentId={document.id} panelState={exportPanelState} /> : null}
         </div>
 
         <aside className="document-workspace-sidebar document-workspace-sidebar-v2">

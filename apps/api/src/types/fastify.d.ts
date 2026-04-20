@@ -2,7 +2,7 @@ import type { UserProfile } from "@repo/shared-types";
 import type { AppLogger } from "../common/logger.js";
 import type { AiService } from "../modules/ai/service.js";
 import type { AuditService } from "../modules/audit/service.js";
-import type { GoogleTokenValidator } from "../modules/auth/google-token-validator.js";
+import type { GoogleIdTokenVerifier } from "../modules/auth/google-id-token.js";
 import type { AuthSessionService, VerifiedAuthSession } from "../modules/auth/session.js";
 import type { CommentsService } from "../modules/comments/service.js";
 import type { DocumentsService } from "../modules/documents/service.js";
@@ -21,8 +21,7 @@ declare module "fastify" {
     commentsService: CommentsService;
     documentsService: DocumentsService;
     exportsService: ExportsService;
-    googleTokenValidator: GoogleTokenValidator;
-    googleTokenValidatorOverride?: GoogleTokenValidator;
+    googleIdTokenVerifier: GoogleIdTokenVerifier | null;
     sharingService: SharingService;
     versionsService: VersionsService;
   }

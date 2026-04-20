@@ -12,6 +12,17 @@ import type {
 
 import { getDocumentRecord, type DocumentRecord } from "./app-shell";
 
+export type WorkspaceDocumentsState = {
+  authRequired: boolean;
+  documents: DocumentRecord[];
+};
+
+export type WorkspaceDocumentRecordState = {
+  authRequired: boolean;
+  document: DocumentRecord;
+  isMissing: boolean;
+};
+
 function formatRelativeTimestamp(isoDate: string, now: Date) {
   const timestamp = Date.parse(isoDate);
 
@@ -212,14 +223,14 @@ export async function createDocumentComment(
   return payload.comment;
 }
 
-export async function getWorkspaceDocuments(
+export async function getWorkspaceDocumentsState(
   options: {
     apiBaseUrl?: string;
     cookieHeader?: string | null;
     fetchImpl?: typeof fetch;
     now?: Date;
   } = {}
-): Promise<DocumentRecord[]> {
+): Promise<WorkspaceDocumentsState> {
   const apiBaseUrl = options.apiBaseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
   const fetchImpl = options.fetchImpl ?? fetch;
   const now = options.now ?? new Date();
@@ -235,19 +246,43 @@ export async function getWorkspaceDocuments(
     });
 
     if (!response.ok) {
-      return [];
+      return {
+        authRequired: response.status === 401,
+        documents: []
+      };
     }
 
     const payload = (await response.json()) as ListDocumentsResponse;
 
     if (!Array.isArray(payload.documents) || payload.documents.length === 0) {
-      return [];
+      return {
+        authRequired: false,
+        documents: []
+      };
     }
 
-    return payload.documents.map((document) => mapSummaryToRecord(document, now));
+    return {
+      authRequired: false,
+      documents: payload.documents.map((document) => mapSummaryToRecord(document, now))
+    };
   } catch {
-    return [];
+    return {
+      authRequired: false,
+      documents: []
+    };
   }
+}
+
+export async function getWorkspaceDocuments(
+  options: {
+    apiBaseUrl?: string;
+    cookieHeader?: string | null;
+    fetchImpl?: typeof fetch;
+    now?: Date;
+  } = {}
+): Promise<DocumentRecord[]> {
+  const result = await getWorkspaceDocumentsState(options);
+  return result.documents;
 }
 
 export async function getWorkspaceDocumentRecord(
@@ -258,7 +293,7 @@ export async function getWorkspaceDocumentRecord(
     fetchImpl?: typeof fetch;
     now?: Date;
   } = {}
-): Promise<{ document: DocumentRecord; isMissing: boolean }> {
+): Promise<WorkspaceDocumentRecordState> {
   const apiBaseUrl = options.apiBaseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
   const fetchImpl = options.fetchImpl ?? fetch;
   const now = options.now ?? new Date();
@@ -274,7 +309,16 @@ export async function getWorkspaceDocumentRecord(
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        return {
+          authRequired: true,
+          document: getDocumentRecord(documentId),
+          isMissing: true
+        };
+      }
+
       return {
+        authRequired: false,
         document: getDocumentRecord(documentId),
         isMissing: true
       };
@@ -282,11 +326,13 @@ export async function getWorkspaceDocumentRecord(
 
     const payload = (await response.json()) as GetDocumentMetadataResponse;
     return {
+      authRequired: false,
       document: mapMetadataToRecord(payload.document, now),
       isMissing: false
     };
   } catch {
     return {
+      authRequired: false,
       document: getDocumentRecord(documentId),
       isMissing: true
     };
