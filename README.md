@@ -191,23 +191,10 @@ Docs pipeline:
 node scripts/check-docs.mjs
 ```
 
-## AI1220 document build
-
-Assignment sources:
-
-- [AI1220_system_design_document.md](/Users/rayan.banerjee/courses/software%20project/AI1220_system_design_document.md)
-- [AI1220_system_design_document.tex](/Users/rayan.banerjee/courses/software%20project/AI1220_system_design_document.tex)
-
 Regenerate Mermaid diagram images:
 
 ```bash
 node scripts/render-ai1220-diagrams.mjs
-```
-
-Rebuild the LaTeX PDF:
-
-```bash
-xelatex -interaction=nonstopmode -halt-on-error -jobname=AI1220_system_design_document_tex -output-directory=dist AI1220_system_design_document.tex
 ```
 
 ## Documentation workflow
