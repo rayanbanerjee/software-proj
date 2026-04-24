@@ -7,7 +7,9 @@ describe("presence manager", () => {
     const presence = new PresenceManager();
 
     presence.upsertConnection("doc-1", "socket-1", {
+      accessLevel: "write",
       displayName: "Owner Demo",
+      role: "owner",
       user: {
         id: "google:user_owner",
         name: "Owner Demo"
@@ -23,7 +25,9 @@ describe("presence manager", () => {
         connectionStatus: "active",
         displayName: "Owner Demo",
         documentId: "doc-1",
+        accessLevel: "write",
         isPresent: true,
+        role: "owner",
         sessionId: "socket-1",
         userId: "google:user_owner"
       })
@@ -151,5 +155,43 @@ describe("presence manager", () => {
       }
     ]);
     expect(presence.getSnapshot("doc-1")).toEqual([]);
+  });
+
+  it("can refresh a pruned connection from the live websocket context", () => {
+    const presence = new PresenceManager();
+
+    presence.upsertConnection("doc-1", "socket-1", {
+      accessLevel: "write",
+      displayName: "Editor Demo",
+      role: "editor",
+      user: {
+        id: "google:user_editor",
+        name: "Editor Demo"
+      }
+    });
+
+    const [snapshot] = presence.getSnapshot("doc-1");
+    presence.pruneStaleConnections(Date.parse(snapshot.lastSeenAt) + 60_000, 45_000);
+    expect(presence.getSnapshot("doc-1")).toEqual([]);
+
+    presence.refreshConnection("doc-1", "socket-1", {
+      accessLevel: "write",
+      displayName: "Editor Demo",
+      role: "editor",
+      user: {
+        id: "google:user_editor",
+        name: "Editor Demo"
+      }
+    });
+
+    expect(presence.getSnapshot("doc-1")).toEqual([
+      expect.objectContaining({
+        accessLevel: "write",
+        connectionStatus: "active",
+        role: "editor",
+        sessionId: "socket-1",
+        userId: "google:user_editor"
+      })
+    ]);
   });
 });

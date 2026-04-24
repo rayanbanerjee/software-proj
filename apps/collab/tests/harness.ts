@@ -42,7 +42,10 @@ export function createSignedSessionToken(
   return `${signingInput}.${signature}`;
 }
 
-export function createCollabTestHarness() {
+export function createCollabTestHarness(options: {
+  accessLevel?: "read" | "write";
+  role?: "owner" | "editor" | "commenter" | "viewer";
+} = {}) {
   const env: CollabEnv = {
     apiInternalUrl: "http://localhost:4000",
     host: "127.0.0.1",
@@ -76,7 +79,37 @@ export function createCollabTestHarness() {
       });
     }
   };
-  const server = createCollabServer(env, logger);
+  const accessRequests: Array<{
+    body: unknown;
+    headers: HeadersInit | undefined;
+    url: string;
+  }> = [];
+
+  const fetchMock = async (input: string | URL | Request, init?: RequestInit) => {
+    const body = init?.body ? JSON.parse(String(init.body)) : null;
+
+    accessRequests.push({
+      body,
+      headers: init?.headers,
+      url: String(input)
+    });
+
+    return new Response(JSON.stringify({
+      accessLevel: options.accessLevel ?? "write",
+      documentId: "doc-1",
+      role: options.role ?? "owner",
+      userId: typeof body?.userId === "string" ? body.userId : "google:user_owner"
+    }), {
+      headers: {
+        "content-type": "application/json"
+      },
+      status: 200
+    });
+  };
+
+  const server = createCollabServer(env, logger, {
+    accessFetch: fetchMock
+  });
 
   function createDocument(name: string): MockDocument {
     return {
@@ -124,6 +157,7 @@ export function createCollabTestHarness() {
     env,
     errorLogs,
     infoLogs,
+    accessRequests,
     server,
     createHookPayload,
     createSignedSessionTokenForTest(overrides: Partial<Record<string, unknown>> = {}) {

@@ -8,11 +8,15 @@ import type { DocumentActor } from "../documents/service.js";
 import { SharingService } from "./service.js";
 
 const createInvitationBodySchema = z.object({
-  email: z.string().trim().email(),
+  invitee: z.string().trim().min(1),
   role: z.enum(["owner", "editor", "commenter", "viewer"])
 });
 
 const acceptInvitationBodySchema = z.object({
+  token: z.string().trim().min(1)
+});
+
+const rejectInvitationBodySchema = z.object({
   token: z.string().trim().min(1)
 });
 
@@ -41,6 +45,11 @@ function getActorWithEmail(currentUser: {
     ...actor,
     email: currentUser.email
   };
+}
+
+function normalizeInvitee(value: string) {
+  const trimmed = value.trim().toLowerCase();
+  return trimmed.includes("@") ? trimmed : `${trimmed}@local.test`;
 }
 
 function getCollabPermissionEventUrl(collabUrl: string) {
@@ -97,22 +106,42 @@ async function notifyPermissionUpdate(
 export async function registerSharingModule(app: FastifyInstance) {
   app.decorate(
     "sharingService",
-    new SharingService(app.documentsService, app.auditService, app.apiEnv.SESSION_SECRET)
+    new SharingService(app.prisma, app.documentsService, app.auditService, app.apiEnv.SESSION_SECRET)
   );
 
   app.post("/v1/documents/:documentId/invitations", protectedRoute, async (request, reply) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string };
     const body = createInvitationBodySchema.parse(request.body);
-    const response = app.sharingService.createInvitation(params.documentId, body.email, body.role, actor);
+    const response = await app.sharingService.createInvitation(
+      params.documentId,
+      normalizeInvitee(body.invitee),
+      body.role,
+      actor
+    );
 
     return reply.status(201).send(response);
+  });
+
+  app.get("/v1/documents/:documentId/sharing", protectedRoute, async (request) => {
+    const actor = getActor(requireCurrentUser(request));
+    const params = request.params as { documentId: string };
+
+    return {
+      sharing: await app.sharingService.listDocumentSharing(params.documentId, actor)
+    };
+  });
+
+  app.get("/v1/invitations", protectedRoute, async (request) => {
+    const actor = getActorWithEmail(requireCurrentUser(request));
+
+    return await app.sharingService.listPendingInvitations(actor);
   });
 
   app.post("/v1/invitations/accept", protectedRoute, async (request) => {
     const actor = getActorWithEmail(requireCurrentUser(request));
     const body = acceptInvitationBodySchema.parse(request.body);
-    const response = app.sharingService.acceptInvitation(body.token, actor);
+    const response = await app.sharingService.acceptInvitation(body.token, actor);
 
     await notifyPermissionUpdate(app, {
       type: "document.permission.updated",
@@ -127,11 +156,18 @@ export async function registerSharingModule(app: FastifyInstance) {
     return response;
   });
 
+  app.post("/v1/invitations/reject", protectedRoute, async (request) => {
+    const actor = getActorWithEmail(requireCurrentUser(request));
+    const body = rejectInvitationBodySchema.parse(request.body);
+
+    return await app.sharingService.rejectInvitation(body.token, actor);
+  });
+
   app.patch("/v1/documents/:documentId/members/:userId", protectedRoute, async (request) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string; userId: string };
     const body = updateRoleBodySchema.parse(request.body);
-    const response = app.sharingService.updateRole(params.documentId, params.userId, body.role, actor);
+    const response = await app.sharingService.updateRole(params.documentId, params.userId, body.role, actor);
 
     await notifyPermissionUpdate(app, {
       type: "document.permission.updated",
@@ -149,7 +185,7 @@ export async function registerSharingModule(app: FastifyInstance) {
   app.delete("/v1/documents/:documentId/members/:userId", protectedRoute, async (request) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string; userId: string };
-    const response = app.sharingService.revokeAccess(params.documentId, params.userId, actor);
+    const response = await app.sharingService.revokeAccess(params.documentId, params.userId, actor);
 
     await notifyPermissionUpdate(app, {
       type: "document.permission.updated",

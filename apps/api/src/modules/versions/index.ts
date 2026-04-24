@@ -67,7 +67,7 @@ async function notifyRollbackEvent(
 }
 
 export async function registerVersionsModule(app: FastifyInstance) {
-  app.decorate("versionsService", new VersionsService(app.documentsService));
+  app.decorate("versionsService", new VersionsService(app.prisma, app.documentsService));
 
   app.get(
     "/v1/documents/:documentId/versions",
@@ -76,7 +76,7 @@ export async function registerVersionsModule(app: FastifyInstance) {
       const actor = getActor(requireCurrentUser(request));
       const params = request.params as { documentId: string };
 
-      return app.versionsService.listRevisions(params.documentId, actor);
+      return await app.versionsService.listRevisions(params.documentId, actor);
     }
   );
 
@@ -87,7 +87,7 @@ export async function registerVersionsModule(app: FastifyInstance) {
       const actor = getActor(requireCurrentUser(request));
       const params = request.params as { documentId: string; revisionId: string };
 
-      return app.versionsService.getRevisionDetail(params.documentId, params.revisionId, actor);
+      return await app.versionsService.getRevisionDetail(params.documentId, params.revisionId, actor);
     }
   );
 
@@ -99,7 +99,7 @@ export async function registerVersionsModule(app: FastifyInstance) {
       const params = request.params as { documentId: string; revisionId: string };
       const query = revisionDiffQuerySchema.parse(request.query ?? {});
 
-      return app.versionsService.getRevisionDiff(
+      return await app.versionsService.getRevisionDiff(
         params.documentId,
         params.revisionId,
         query.compareToRevisionId ?? null,
@@ -115,7 +115,7 @@ export async function registerVersionsModule(app: FastifyInstance) {
       const actor = getActor(requireCurrentUser(request));
       const params = request.params as { documentId: string };
       const body = rollbackRevisionBodySchema.parse(request.body);
-      const rollback = app.versionsService.rollbackRevision(params.documentId, body.revisionId, actor);
+      const rollback = await app.versionsService.rollbackRevision(params.documentId, body.revisionId, actor);
       await notifyCollabDocumentContentSync(app, params.documentId, actor);
 
       await notifyRollbackEvent(app, {

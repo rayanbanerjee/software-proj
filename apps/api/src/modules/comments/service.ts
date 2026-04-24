@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { PrismaClient } from "@prisma/client";
 
 import { canComment } from "@repo/authz";
 import type {
@@ -9,71 +10,78 @@ import type {
 } from "@repo/shared-types";
 
 import { AppError } from "../../common/errors.js";
-import { readJsonFile, resolveDataPath, writeJsonFile } from "../../common/file-store.js";
+import { ensureUser } from "../../common/user-store.js";
 
 type CommentActor = {
+  email?: string | null;
   name: string | null;
   userId: string;
 };
 
-type StoredComment = CommentRecord;
-
 export class CommentsService {
   readonly moduleName = "comments";
 
-  private readonly commentsByDocument = new Map<string, StoredComment[]>();
-  private readonly storagePath: string;
+  constructor(private readonly prisma: PrismaClient) {}
 
-  constructor(dataDir: string) {
-    this.storagePath = resolveDataPath(dataDir, "comments.json");
+  async listComments(documentId: string): Promise<ListCommentsResponse> {
+    const comments = await this.prisma.comment.findMany({
+      where: {
+        documentId
+      },
+      orderBy: {
+        createdAt: "asc"
+      }
+    });
 
-    const storedComments = readJsonFile<Record<string, StoredComment[]>>(this.storagePath, {});
-
-    for (const [documentId, comments] of Object.entries(storedComments)) {
-      this.commentsByDocument.set(documentId, comments);
-    }
-  }
-
-  private persistComments() {
-    writeJsonFile(
-      this.storagePath,
-      Object.fromEntries(this.commentsByDocument.entries())
-    );
-  }
-
-  listComments(documentId: string): ListCommentsResponse {
     return {
-      comments: [...(this.commentsByDocument.get(documentId) ?? [])]
+      comments: comments.map((comment): CommentRecord => ({
+        id: comment.id,
+        documentId: comment.documentId,
+        authorUserId: comment.authorUserId,
+        authorName: comment.authorName,
+        body: comment.body,
+        createdAt: comment.createdAt.toISOString(),
+        updatedAt: comment.updatedAt.toISOString()
+      }))
     };
   }
 
-  createComment(
+  async createComment(
     documentId: string,
     actor: CommentActor,
     role: DocumentRole,
     body: string
-  ): CreateCommentResponse {
+  ): Promise<CreateCommentResponse> {
     if (!canComment(role)) {
       throw new AppError("COMMENTS_FORBIDDEN", 403, "You do not have permission to comment on this document.");
     }
 
-    const timestamp = new Date().toISOString();
-    const comment: StoredComment = {
-      id: randomUUID(),
-      documentId,
-      authorUserId: actor.userId,
-      authorName: actor.name,
-      body,
-      createdAt: timestamp,
-      updatedAt: timestamp
-    };
-    const existingComments = this.commentsByDocument.get(documentId) ?? [];
+    await ensureUser(this.prisma, {
+      email: actor.email ?? `${actor.userId}@local.test`,
+      id: actor.userId,
+      name: actor.name
+    });
 
-    this.commentsByDocument.set(documentId, [...existingComments, comment]);
-    this.persistComments();
+    const comment = await this.prisma.comment.create({
+      data: {
+        id: randomUUID(),
+        documentId,
+        authorUserId: actor.userId,
+        authorName: actor.name,
+        body
+      }
+    });
 
     return {
-      comment
+      comment: {
+        id: comment.id,
+        documentId: comment.documentId,
+        authorUserId: comment.authorUserId,
+        authorName: comment.authorName,
+        body: comment.body,
+        createdAt: comment.createdAt.toISOString(),
+        updatedAt: comment.updatedAt.toISOString()
+      }
     };
   }
 }

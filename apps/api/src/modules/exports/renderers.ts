@@ -155,11 +155,21 @@ function renderPlainTextArtifact(input: RenderArtifactInput): RenderArtifactResu
   };
 }
 
+const pdfPage = {
+  bottom: 54,
+  height: 792,
+  left: 50,
+  right: 50,
+  top: 780,
+  width: 612
+} as const;
+
 function getPdfBlockStyle(block: RichTextBlock, isTitle: boolean) {
   if (isTitle) {
     return {
       font: "/F2",
       size: 18,
+      spacingAfter: 8,
       spacing: 26
     };
   }
@@ -168,6 +178,7 @@ function getPdfBlockStyle(block: RichTextBlock, isTitle: boolean) {
     return {
       font: "/F2",
       size: block.level === 1 ? 16 : block.level === 2 ? 14 : 13,
+      spacingAfter: 4,
       spacing: block.level === 1 ? 24 : 20
     };
   }
@@ -176,6 +187,7 @@ function getPdfBlockStyle(block: RichTextBlock, isTitle: boolean) {
     return {
       font: "/F3",
       size: 12,
+      spacingAfter: 3,
       spacing: 18
     };
   }
@@ -183,15 +195,73 @@ function getPdfBlockStyle(block: RichTextBlock, isTitle: boolean) {
   return {
     font: "/F1",
     size: 12,
+    spacingAfter: 3,
     spacing: 18
   };
+}
+
+function getApproximateCharacterWidth(fontSize: number) {
+  return fontSize * 0.52;
+}
+
+function wrapPdfText(text: string, maxWidth: number, fontSize: number) {
+  const maxCharacters = Math.max(12, Math.floor(maxWidth / getApproximateCharacterWidth(fontSize)));
+  const sourceLines = text.length > 0 ? text.split("\n") : [""];
+  const wrappedLines: string[] = [];
+
+  for (const sourceLine of sourceLines) {
+    if (sourceLine.length <= maxCharacters) {
+      wrappedLines.push(sourceLine);
+      continue;
+    }
+
+    const words = sourceLine.split(/(\s+)/).filter((part) => part.length > 0);
+    let currentLine = "";
+
+    for (const word of words) {
+      if (word.trim().length === 0) {
+        if (currentLine.length > 0 && currentLine.length < maxCharacters) {
+          currentLine += " ";
+        }
+        continue;
+      }
+
+      if (word.length > maxCharacters) {
+        if (currentLine.length > 0) {
+          wrappedLines.push(currentLine.trimEnd());
+          currentLine = "";
+        }
+
+        for (let index = 0; index < word.length; index += maxCharacters) {
+          wrappedLines.push(word.slice(index, index + maxCharacters));
+        }
+
+        continue;
+      }
+
+      const candidate = currentLine.length > 0 ? `${currentLine}${word}` : word;
+
+      if (candidate.length > maxCharacters && currentLine.length > 0) {
+        wrappedLines.push(currentLine.trimEnd());
+        currentLine = word;
+      } else {
+        currentLine = candidate;
+      }
+    }
+
+    if (currentLine.length > 0) {
+      wrappedLines.push(currentLine.trimEnd());
+    }
+  }
+
+  return wrappedLines;
 }
 
 function renderPdfArtifact(input: RenderArtifactInput): RenderArtifactResult {
   const title = input.title?.trim() || "Untitled document";
   const blocks = getDocumentBlocks(input);
-  let yPosition = 780;
-  const textCommands = ["BT"];
+  const pages: string[][] = [[]];
+  let yPosition = pdfPage.top;
   const titledBlocks: Array<{ isTitle: boolean; text: string; block: RichTextBlock | null }> = [
     {
       isTitle: true,
@@ -205,6 +275,15 @@ function renderPdfArtifact(input: RenderArtifactInput): RenderArtifactResult {
     }))
   ];
 
+  function currentPage() {
+    return pages[pages.length - 1] as string[];
+  }
+
+  function addPage() {
+    pages.push([]);
+    yPosition = pdfPage.top;
+  }
+
   for (const entry of titledBlocks) {
     const style = entry.isTitle || !entry.block
       ? getPdfBlockStyle({
@@ -215,28 +294,48 @@ function renderPdfArtifact(input: RenderArtifactInput): RenderArtifactResult {
           spans: []
         }, true)
       : getPdfBlockStyle(entry.block, false);
-    const lines = entry.text.split("\n");
+    const xPosition = pdfPage.left + ((entry.block?.indent ?? 0) * 16);
+    const maxWidth = pdfPage.width - pdfPage.right - xPosition;
+    const lines = wrapPdfText(entry.text, maxWidth, style.size);
 
     for (const line of lines) {
-      textCommands.push(`${style.font} ${style.size} Tf`);
-      textCommands.push(`1 0 0 1 ${50 + ((entry.block?.indent ?? 0) * 16)} ${yPosition} Tm (${escapePdfText(line)}) Tj`);
+      if (yPosition - style.spacing < pdfPage.bottom) {
+        addPage();
+      }
+
+      currentPage().push(`${style.font} ${style.size} Tf`);
+      currentPage().push(`1 0 0 1 ${xPosition} ${yPosition} Tm (${escapePdfText(line)}) Tj`);
       yPosition -= style.spacing;
     }
 
-    yPosition -= entry.isTitle ? 6 : 0;
+    yPosition -= style.spacingAfter;
   }
 
-  textCommands.push("ET");
+  const pageStreams = pages.map((pageCommands) => ["BT", ...pageCommands, "ET"].join("\n"));
+  const pageObjectStart = 6;
+  const contentObjectStart = pageObjectStart + pageStreams.length;
+  const pageObjects = pageStreams.map((_, index) => {
+    const pageObjectNumber = pageObjectStart + index;
+    const contentObjectNumber = contentObjectStart + index;
 
-  const stream = textCommands.join("\n");
+    return `${pageObjectNumber} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pdfPage.width} ${pdfPage.height}] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents ${contentObjectNumber} 0 R >>\nendobj`;
+  });
+  const contentObjects = pageStreams.map((stream, index) => {
+    const contentObjectNumber = contentObjectStart + index;
+
+    return `${contentObjectNumber} 0 obj\n<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}\nendstream\nendobj`;
+  });
+  const pageKids = pageStreams
+    .map((_, index) => `${pageObjectStart + index} 0 R`)
+    .join(" ");
   const objects = [
     "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj",
-    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj",
-    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R >> >> /Contents 7 0 R >>\nendobj",
-    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj",
-    "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj",
-    "6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>\nendobj",
-    `7 0 obj\n<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}\nendstream\nendobj`
+    `2 0 obj\n<< /Type /Pages /Kids [${pageKids}] /Count ${pageStreams.length} >>\nendobj`,
+    "3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj",
+    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj",
+    "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>\nendobj",
+    ...pageObjects,
+    ...contentObjects
   ];
   let pdf = "%PDF-1.4\n";
   const offsets = [0];

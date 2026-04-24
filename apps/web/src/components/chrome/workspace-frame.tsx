@@ -2,7 +2,6 @@ import Link from "next/link";
 import { headers } from "next/headers";
 
 import { getWorkspaceDocumentsState } from "../../lib/documents";
-import { WorkspaceActivityRail } from "./workspace-activity-rail";
 import { WorkspaceNav } from "./workspace-nav";
 
 export async function WorkspaceFrame({
@@ -17,11 +16,9 @@ export async function WorkspaceFrame({
 
   return (
     <div className="workspace-shell">
-      <WorkspaceActivityRail />
-
       <aside className="workspace-sidebar">
         <div className="workspace-brand-block">
-          <span className="workspace-brand-badge">Workspace</span>
+          <span className="workspace-brand-badge">Documents</span>
           <Link className="workspace-brand-mark" href="/documents">Notes</Link>
         </div>
 

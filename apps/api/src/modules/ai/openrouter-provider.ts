@@ -10,10 +10,13 @@ import { buildPromptPayload, buildSystemPrompt } from "./provider.js";
 
 interface OpenRouterProviderOptions {
   apiKey: string;
+  allowFallbacks?: boolean;
   appName?: string | null;
   appUrl?: string | null;
   baseUrl: string;
   model: string;
+  providers?: string[];
+  streamModel?: string;
 }
 
 interface OpenRouterChatResponse {
@@ -94,12 +97,76 @@ function parseJsonResponse(content: string): AiProviderGenerateOutput {
   };
 }
 
+function toOpenRouterErrorMessage(status: number, payload: { error?: { message?: string } } | null) {
+  const rawMessage = payload?.error?.message?.trim();
+
+  if (!rawMessage) {
+    return `OpenRouter request failed with status ${status}.`;
+  }
+
+  if (status === 401 && rawMessage.toLowerCase() === "user not found.") {
+    return "AI provider authentication failed. The configured OpenRouter API key is invalid or belongs to a deleted account.";
+  }
+
+  return rawMessage;
+}
+
+function readStreamError(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const error = (payload as { error?: unknown }).error;
+
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+
+  const code = typeof (error as { code?: unknown }).code === "number"
+    ? (error as { code: number }).code
+    : null;
+  const message = typeof (error as { message?: unknown }).message === "string"
+    ? (error as { message: string }).message.trim()
+    : null;
+
+  if (!message) {
+    return null;
+  }
+
+  if (code === 401 && message.toLowerCase() === "user not found.") {
+    return "AI provider authentication failed. The configured OpenRouter API key is invalid or belongs to a deleted account.";
+  }
+
+  return message;
+}
+
 export class OpenRouterProviderClient implements AiProviderClient {
   readonly name = "openrouter";
 
   constructor(private readonly options: OpenRouterProviderOptions) {}
 
+  private buildProviderRouting() {
+    const order = this.options.providers?.filter((provider) => provider.trim().length > 0) ?? [];
+
+    if (order.length === 0 && this.options.allowFallbacks !== false) {
+      return undefined;
+    }
+
+    return {
+      ...(order.length > 0 ? { order } : {}),
+      allow_fallbacks: this.options.allowFallbacks ?? true
+    };
+  }
+
+  private buildStreamingProviderRouting() {
+    return {
+      ...(this.buildProviderRouting() ?? {}),
+      require_parameters: true
+    };
+  }
+
   async generate(input: AiProviderGenerateInput): Promise<AiProviderGenerateOutput> {
+    const provider = this.buildProviderRouting();
     const response = await fetch(`${this.options.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
@@ -110,6 +177,7 @@ export class OpenRouterProviderClient implements AiProviderClient {
       },
       body: JSON.stringify({
         model: this.options.model,
+        ...(provider ? { provider } : {}),
         response_format: {
           type: "json_object"
         },
@@ -131,8 +199,7 @@ export class OpenRouterProviderClient implements AiProviderClient {
     const payload = (await response.json()) as OpenRouterChatResponse;
 
     if (!response.ok) {
-      const message = payload.error?.message?.trim() || `OpenRouter request failed with status ${response.status}.`;
-      throw new Error(message);
+      throw new Error(toOpenRouterErrorMessage(response.status, payload));
     }
 
     const content = readContent(payload.choices?.[0]?.message?.content);
@@ -145,6 +212,7 @@ export class OpenRouterProviderClient implements AiProviderClient {
   }
 
   async *streamText(input: AiProviderInput): AsyncIterable<string> {
+    const provider = this.buildStreamingProviderRouting();
     const response = await fetch(`${this.options.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
@@ -154,7 +222,8 @@ export class OpenRouterProviderClient implements AiProviderClient {
         ...(this.options.appName ? { "X-Title": this.options.appName } : {})
       },
       body: JSON.stringify({
-        model: this.options.model,
+        model: this.options.streamModel ?? this.options.model,
+        provider,
         stream: true,
         messages: [
           {
@@ -170,8 +239,20 @@ export class OpenRouterProviderClient implements AiProviderClient {
     });
 
     if (!response.ok) {
-      const message = await response.text();
-      throw new Error(message || "OpenRouter request failed.");
+      const rawBody = await response.text();
+      let payload: OpenRouterChatResponse | null = null;
+
+      try {
+        payload = JSON.parse(rawBody) as OpenRouterChatResponse;
+      } catch {
+        payload = null;
+      }
+
+      throw new Error(
+        payload
+          ? toOpenRouterErrorMessage(response.status, payload)
+          : rawBody || "OpenRouter request failed."
+      );
     }
 
     if (!response.body) {
@@ -212,6 +293,12 @@ export class OpenRouterProviderClient implements AiProviderClient {
           parsed = JSON.parse(payload);
         } catch {
           continue;
+        }
+
+        const streamError = readStreamError(parsed);
+
+        if (streamError) {
+          throw new Error(streamError);
         }
 
         const delta = extractDeltaText(parsed);

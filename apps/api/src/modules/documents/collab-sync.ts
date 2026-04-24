@@ -21,7 +21,7 @@ export async function notifyCollabDocumentContentSync(
   } = {}
 ) {
   const endpoint = getCollabContentSyncUrl(app.apiEnv.COLLAB_INTERNAL_URL ?? app.apiEnv.COLLAB_URL, documentId);
-  const snapshot = app.documentsService.getDocumentSnapshot(documentId, actor);
+  const snapshot = await app.documentsService.getDocumentSnapshot(documentId, actor);
 
   try {
     const response = await fetch(endpoint, {

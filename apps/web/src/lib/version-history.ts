@@ -1,11 +1,34 @@
-import type { ListRevisionsResponse, RevisionSummary } from "@repo/shared-types";
+import type {
+  ListRevisionsResponse,
+  RevisionDiffResponse,
+  RevisionSummary
+} from "@repo/shared-types";
 
 export type VersionHistoryEntry = {
+  authorLabel: string;
+  changeDescription: string;
+  changeDetails: string[];
   key: string;
   label: string;
   summary: string;
   when: string;
 };
+
+function formatActorLabel(value: string | null) {
+  if (!value) {
+    return "Unknown author";
+  }
+
+  if (value.startsWith("jwt:")) {
+    return "You";
+  }
+
+  if (value.includes("@")) {
+    return value.split("@")[0] ?? value;
+  }
+
+  return value;
+}
 
 function formatRelativeTimestamp(isoDate: string, now: Date) {
   const timestamp = Date.parse(isoDate);
@@ -38,12 +61,21 @@ function formatRelativeTimestamp(isoDate: string, now: Date) {
 
 export function mapRevisionSummaryToHistoryEntry(
   revision: RevisionSummary,
-  now: Date
+  now: Date,
+  diff?: RevisionDiffResponse | null
 ): VersionHistoryEntry {
+  const authorLabel = formatActorLabel(revision.authorUserId);
+  const changeDetails = diff?.changes.map((change) => change.description).slice(0, 4) ?? [];
+  const changeDescription = changeDetails[0]
+    ?? `Revision ${revision.revisionId.slice(0, 9)} captured by ${authorLabel}.`;
+
   return {
+    authorLabel,
+    changeDescription,
+    changeDetails,
     key: revision.revisionId,
     label: revision.label,
-    summary: `Revision ${revision.revisionId.slice(0, 9)} captured by ${revision.authorUserId}.`,
+    summary: `Changed by ${authorLabel}. ${changeDescription}`,
     when: formatRelativeTimestamp(revision.createdAt, now)
   };
 }
@@ -53,6 +85,7 @@ export async function getVersionHistoryEntries(
   options: {
     apiBaseUrl?: string;
     cookieHeader?: string | null;
+    credentials?: RequestCredentials;
     fetchImpl?: typeof fetch;
     now?: Date;
   } = {}
@@ -65,6 +98,7 @@ export async function getVersionHistoryEntries(
   try {
     const response = await fetchImpl(`${apiBaseUrl}/v1/documents/${documentId}/versions`, {
       cache: "no-store",
+      credentials: options.credentials ?? "include",
       headers: options.cookieHeader
         ? {
             cookie: options.cookieHeader
@@ -82,7 +116,40 @@ export async function getVersionHistoryEntries(
       return [];
     }
 
-    return payload.revisions.map((revision) => mapRevisionSummaryToHistoryEntry(revision, now));
+    const diffs = await Promise.all(
+      payload.revisions.map(async (revision, index) => {
+        const compareToRevisionId = payload.revisions[index + 1]?.revisionId;
+        const diffUrl = new URL(`${apiBaseUrl}/v1/documents/${documentId}/versions/${revision.revisionId}/diff`);
+
+        if (compareToRevisionId) {
+          diffUrl.searchParams.set("compareToRevisionId", compareToRevisionId);
+        }
+
+        try {
+          const diffResponse = await fetchImpl(diffUrl.toString(), {
+            cache: "no-store",
+            credentials: options.credentials ?? "include",
+            headers: options.cookieHeader
+              ? {
+                  cookie: options.cookieHeader
+                }
+              : undefined
+          });
+
+          if (!diffResponse.ok) {
+            return null;
+          }
+
+          return (await diffResponse.json()) as RevisionDiffResponse;
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    return payload.revisions.map((revision, index) =>
+      mapRevisionSummaryToHistoryEntry(revision, now, diffs[index])
+    );
   } catch {
     return [];
   }

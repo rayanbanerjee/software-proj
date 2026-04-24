@@ -81,6 +81,13 @@ export interface UpdateDocumentContentResponse {
 export interface SharedMembership {
   userId: string;
   role: DocumentRole;
+  displayName?: string | null;
+}
+
+export interface DocumentSharingSummary {
+  documentId: string;
+  invitations: InvitationSummary[];
+  members: SharedMembership[];
 }
 
 export interface InvitationSummary {
@@ -106,6 +113,10 @@ export interface CreateInvitationResponse {
   acceptUrl: string;
 }
 
+export interface ListDocumentSharingResponse {
+  sharing: DocumentSharingSummary;
+}
+
 export interface AcceptInvitationRequest {
   token: string;
 }
@@ -114,6 +125,24 @@ export interface AcceptInvitationResponse {
   invitation: InvitationSummary;
   membership: SharedMembership;
   acceptedAt: IsoDateString;
+}
+
+export interface PendingInvitation {
+  invitation: InvitationSummary;
+  token: string;
+}
+
+export interface ListPendingInvitationsResponse {
+  invitations: PendingInvitation[];
+}
+
+export interface RejectInvitationRequest {
+  token: string;
+}
+
+export interface RejectInvitationResponse {
+  invitation: InvitationSummary;
+  rejectedAt: IsoDateString;
 }
 
 export interface UpdateDocumentRoleRequest {
@@ -223,6 +252,8 @@ export interface CollaboratorPresenceSummary {
   documentId: string;
   userId: string;
   displayName: string | null;
+  role?: DocumentRole;
+  accessLevel?: SessionAccessLevel;
   isPresent: boolean;
   lastSeenAt: IsoDateString;
   connectionStatus: SessionConnectionStatus;
@@ -416,6 +447,9 @@ export interface RevisionSummary {
 export interface RevisionDetail extends RevisionSummary {
   snapshotId: string;
   contentType: string;
+  parentRevisionId?: string | null;
+  snapshotText?: string;
+  title?: string;
 }
 
 export interface ListRevisionsResponse {

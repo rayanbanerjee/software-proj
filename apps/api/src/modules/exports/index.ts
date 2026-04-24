@@ -19,7 +19,7 @@ function getActor(user: { id: string; name: string | null }): DocumentActor {
 }
 
 export async function registerExportsModule(app: FastifyInstance) {
-  const exportsService = new ExportsService(app.documentsService, {
+  const exportsService = new ExportsService(app.prisma, app.documentsService, {
     dataDir: app.apiEnv.API_DATA_DIR,
     bucketName: app.apiEnv.OBJECT_STORAGE_BUCKET,
     sessionSecret: app.apiEnv.SESSION_SECRET

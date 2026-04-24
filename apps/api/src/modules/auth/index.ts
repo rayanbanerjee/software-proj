@@ -16,16 +16,16 @@ const authCallbackBodySchema = z
     message: "Google ID token is required."
   });
 
-const authLoginBodySchema = z.object({
+const authCredentialsBodySchema = z.object({
   username: z.string().trim().min(3).max(32).regex(/^[a-zA-Z0-9._-]+$/),
-  password: z.string().min(1),
-  createUserIfMissing: z.boolean().optional().default(false)
+  password: z.string().min(1)
 });
 
 export async function registerAuthModule(app: FastifyInstance) {
   const authSessionService = new AuthSessionService({
     issuer: app.apiEnv.JWT_ISSUER,
     isProduction: app.apiEnv.NODE_ENV === "production",
+    prisma: app.prisma,
     sessionSecret: app.apiEnv.SESSION_SECRET
   });
   const googleIdTokenVerifier = app.apiEnv.GOOGLE_CLIENT_ID
@@ -73,14 +73,37 @@ export async function registerAuthModule(app: FastifyInstance) {
     }
   });
 
-  app.post("/v1/auth/login", async (request, reply) => {
-    const parseResult = authLoginBodySchema.safeParse(request.body);
+  app.post("/v1/auth/signup", async (request, reply) => {
+    const parseResult = authCredentialsBodySchema.safeParse(request.body);
 
     if (!parseResult.success) {
       throw new AppError("BAD_REQUEST", 400, "Username and password are required.");
     }
 
-    const authResult = app.authSessionService.authenticateLocalUser(parseResult.data);
+    const signupResult = await app.authSessionService.registerLocalUser(parseResult.data);
+
+    if (signupResult.kind === "user_exists") {
+      throw new AppError("AUTH_USER_EXISTS", 409, "Username already exists.");
+    }
+
+    const issuedSession = app.authSessionService.issueJwtSession(signupResult.identity);
+
+    reply.header("set-cookie", issuedSession.cookie);
+
+    return reply.status(201).send({
+      outcome: signupResult.kind,
+      session: issuedSession.session
+    });
+  });
+
+  app.post("/v1/auth/login", async (request, reply) => {
+    const parseResult = authCredentialsBodySchema.safeParse(request.body);
+
+    if (!parseResult.success) {
+      throw new AppError("BAD_REQUEST", 400, "Username and password are required.");
+    }
+
+    const authResult = await app.authSessionService.authenticateLocalUser(parseResult.data);
 
     if (authResult.kind === "user_not_found") {
       throw new AppError("AUTH_USER_NOT_FOUND", 404, "Username does not exist.");

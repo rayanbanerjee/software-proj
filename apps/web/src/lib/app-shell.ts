@@ -23,9 +23,9 @@ export const workspaceNavigation: readonly WorkspaceNavigationItem[] = [
     matchPrefix: "/documents/"
   },
   {
-    href: "/auth",
+    href: "/auth/sign-in",
     label: "Auth",
-    summary: "Signed-out, loading, and signed-in shell previews."
+    summary: "Dedicated sign-in and sign-up routes for local account access."
   }
 ] as const;
 
@@ -58,11 +58,11 @@ export const authShellStates = [
     kicker: "Signed out",
     title: "Prompt the user to start a JWT session",
     description:
-      "The login endpoint exists now, so the shell can anchor around a concrete JWT session handoff and optional Google callback flow.",
+      "The login endpoint creates a local account session backed by the API cookie.",
     points: [
-      "Primary call to action for Google sign-in",
-      "Brief explanation of cookie-backed session issuance",
-      "Support link for account access issues"
+      "Username and password sign-in",
+      "Cookie-backed session issuance",
+      "Account access from the workspace sidebar"
     ]
   },
   {

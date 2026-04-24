@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { PrismaClient } from "@prisma/client";
 
 import { canRollback, canView } from "@repo/authz";
 import type {
@@ -11,6 +12,7 @@ import type {
 } from "@repo/shared-types";
 
 import { AppError } from "../../common/errors.js";
+import { ensureUser } from "../../common/user-store.js";
 import type { DocumentActor, DocumentsService } from "../documents/service.js";
 
 type StoredRevision = RevisionDetail & {
@@ -116,15 +118,42 @@ function formatDiffSummary(
   return `${prefix} between ${fromLabel} and ${toLabel}.`;
 }
 
+function toStoredRevision(record: {
+  authorUserId: string;
+  contentType: string;
+  createdAt: Date;
+  documentId: string;
+  label: string;
+  parentRevisionId: string | null;
+  revisionId: string;
+  snapshotId: string;
+  snapshotText: string;
+  title: string;
+}): StoredRevision {
+  return {
+    revisionId: record.revisionId,
+    documentId: record.documentId,
+    label: record.label,
+    authorUserId: record.authorUserId,
+    createdAt: record.createdAt.toISOString(),
+    snapshotId: record.snapshotId,
+    contentType: record.contentType,
+    parentRevisionId: record.parentRevisionId,
+    snapshotText: record.snapshotText,
+    title: record.title
+  };
+}
+
 export class VersionsService {
   readonly moduleName = "versions";
 
-  private readonly revisionsByDocument = new Map<string, StoredRevision[]>();
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly documentsService: DocumentsService
+  ) {}
 
-  constructor(private readonly documentsService: DocumentsService) {}
-
-  private ensureAccessibleDocument(documentId: string, actor: DocumentActor) {
-    const metadata = this.documentsService.getDocumentMetadata(documentId, actor);
+  private async ensureAccessibleDocument(documentId: string, actor: DocumentActor) {
+    const metadata = await this.documentsService.getDocumentMetadata(documentId, actor);
     const role = metadata.document.permissions.role;
 
     if (!canView(role)) {
@@ -137,33 +166,42 @@ export class VersionsService {
     };
   }
 
-  private ensureRevisionHistory(documentId: string, actor: DocumentActor): StoredRevision[] {
-    const existing = this.revisionsByDocument.get(documentId);
+  private async ensureRevisionHistory(documentId: string, actor: DocumentActor): Promise<void> {
+    const revisionCount = await this.prisma.revision.count({
+      where: {
+        documentId
+      }
+    });
 
-    if (existing) {
-      return existing;
+    if (revisionCount > 0) {
+      return;
     }
 
     const {
       metadata
-    } = this.ensureAccessibleDocument(documentId, actor);
-    const snapshot = this.documentsService.getDocumentSnapshot(documentId, actor);
-    const baseline: StoredRevision = {
-      revisionId: `rev_${randomUUID()}`,
-      documentId,
-      label: `Initial snapshot: ${metadata.title}`,
-      authorUserId: actor.userId,
-      createdAt: metadata.updatedAt,
-      snapshotId: `snap_${randomUUID()}`,
-      contentType: "application/vnd.collab.document+json",
-      parentRevisionId: null,
-      snapshotText: snapshot.text,
-      title: snapshot.title
-    };
+    } = await this.ensureAccessibleDocument(documentId, actor);
+    const snapshot = await this.documentsService.getDocumentSnapshot(documentId, actor);
 
-    this.revisionsByDocument.set(documentId, [baseline]);
+    await ensureUser(this.prisma, {
+      email: `${actor.userId}@local.test`,
+      id: actor.userId,
+      name: actor.name
+    });
 
-    return this.revisionsByDocument.get(documentId) ?? [baseline];
+    await this.prisma.revision.create({
+      data: {
+        revisionId: `rev_${randomUUID()}`,
+        documentId,
+        label: `Initial snapshot: ${metadata.title}`,
+        authorUserId: actor.userId,
+        createdAt: new Date(metadata.updatedAt),
+        snapshotId: `snap_${randomUUID()}`,
+        contentType: "application/vnd.collab.document+json",
+        parentRevisionId: null,
+        snapshotText: snapshot.text,
+        title: snapshot.title
+      }
+    });
   }
 
   private toSummary(revision: StoredRevision): RevisionSummary {
@@ -176,54 +214,129 @@ export class VersionsService {
     };
   }
 
-  private requireRevision(documentId: string, revisionId: string): StoredRevision {
-    const revisions = this.revisionsByDocument.get(documentId);
-    const revision = revisions?.find((entry) => entry.revisionId === revisionId);
+  private async requireRevision(documentId: string, revisionId: string): Promise<StoredRevision> {
+    const revision = await this.prisma.revision.findUnique({
+      where: {
+        revisionId
+      }
+    });
 
-    if (!revision) {
+    if (!revision || revision.documentId !== documentId) {
       throw new AppError("REVISION_NOT_FOUND", 404, "Revision not found.");
     }
 
-    return revision;
+    return toStoredRevision(revision);
   }
 
-  listRevisions(documentId: string, actor: DocumentActor): ListRevisionsResponse {
-    this.ensureAccessibleDocument(documentId, actor);
-    const revisions = this.ensureRevisionHistory(documentId, actor)
-      .slice()
-      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-      .map((revision) => this.toSummary(revision));
+  async captureRevision(
+    documentId: string,
+    input: {
+      actor?: DocumentActor | null;
+      label?: string;
+    } = {}
+  ) {
+    const document = await this.prisma.document.findUnique({
+      where: {
+        id: documentId
+      },
+      select: {
+        content: true,
+        ownerUserId: true,
+        richContent: true,
+        title: true,
+        updatedAt: true
+      }
+    });
+
+    if (!document) {
+      throw new AppError("DOCUMENT_NOT_FOUND", 404, "Document not found.");
+    }
+
+    const latestRevision = await this.prisma.revision.findFirst({
+      where: {
+        documentId
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+
+    if (
+      latestRevision
+      && latestRevision.snapshotText === document.content
+      && latestRevision.title === document.title
+    ) {
+      return null;
+    }
+
+    const authorUserId = input.actor?.userId ?? document.ownerUserId;
+    await ensureUser(this.prisma, {
+      email: `${authorUserId}@local.test`,
+      id: authorUserId,
+      name: input.actor?.name ?? null
+    });
+
+    const created = await this.prisma.revision.create({
+      data: {
+        revisionId: `rev_${randomUUID()}`,
+        documentId,
+        label: input.label?.trim() || `Edit: ${document.title}`,
+        authorUserId,
+        createdAt: document.updatedAt,
+        snapshotId: `snap_${randomUUID()}`,
+        contentType: "application/vnd.collab.document+json",
+        parentRevisionId: latestRevision?.revisionId ?? null,
+        snapshotText: document.content,
+        title: document.title
+      }
+    });
+
+    return this.toSummary(toStoredRevision(created));
+  }
+
+  async listRevisions(documentId: string, actor: DocumentActor): Promise<ListRevisionsResponse> {
+    await this.ensureAccessibleDocument(documentId, actor);
+    await this.ensureRevisionHistory(documentId, actor);
+
+    const revisions = await this.prisma.revision.findMany({
+      where: {
+        documentId
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
 
     return {
-      revisions
+      revisions: revisions.map((revision) => this.toSummary(toStoredRevision(revision)))
     };
   }
 
-  getRevisionDetail(documentId: string, revisionId: string, actor: DocumentActor): GetRevisionDetailResponse {
-    this.ensureAccessibleDocument(documentId, actor);
-    this.ensureRevisionHistory(documentId, actor);
+  async getRevisionDetail(documentId: string, revisionId: string, actor: DocumentActor): Promise<GetRevisionDetailResponse> {
+    await this.ensureAccessibleDocument(documentId, actor);
+    await this.ensureRevisionHistory(documentId, actor);
 
     return {
-      revision: this.requireRevision(documentId, revisionId)
+      revision: await this.requireRevision(documentId, revisionId)
     };
   }
 
-  getRevisionDiff(
+  async getRevisionDiff(
     documentId: string,
     revisionId: string,
     compareToRevisionId: string | null,
     actor: DocumentActor
-  ): RevisionDiffResponse {
-    this.ensureAccessibleDocument(documentId, actor);
-    this.ensureRevisionHistory(documentId, actor);
+  ): Promise<RevisionDiffResponse> {
+    await this.ensureAccessibleDocument(documentId, actor);
+    await this.ensureRevisionHistory(documentId, actor);
 
-    const revision = this.requireRevision(documentId, revisionId);
+    const revision = await this.requireRevision(documentId, revisionId);
     const compareToRevision = compareToRevisionId
-      ? this.requireRevision(documentId, compareToRevisionId)
+      ? await this.requireRevision(documentId, compareToRevisionId)
       : null;
     const currentSnapshot = compareToRevision
       ? null
-      : this.documentsService.getDocumentSnapshot(documentId, actor);
+      : await this.documentsService.getDocumentSnapshot(documentId, actor);
     const targetText = compareToRevision
       ? compareToRevision.snapshotText
       : currentSnapshot?.text ?? "";
@@ -241,22 +354,22 @@ export class VersionsService {
     };
   }
 
-  rollbackRevision(
+  async rollbackRevision(
     documentId: string,
     revisionId: string,
     actor: DocumentActor
-  ): RollbackRevisionResponse {
+  ): Promise<RollbackRevisionResponse> {
     const {
       role
-    } = this.ensureAccessibleDocument(documentId, actor);
+    } = await this.ensureAccessibleDocument(documentId, actor);
 
     if (!canRollback(role)) {
       throw new AppError("REVISION_FORBIDDEN", 403, "You do not have permission to roll back this document.");
     }
 
-    const revisions = this.ensureRevisionHistory(documentId, actor);
-    const targetRevision = this.requireRevision(documentId, revisionId);
-    const restoredSnapshot = this.documentsService.restoreDocumentSnapshot(
+    await this.ensureRevisionHistory(documentId, actor);
+    const targetRevision = await this.requireRevision(documentId, revisionId);
+    const restoredSnapshot = await this.documentsService.restoreDocumentSnapshot(
       documentId,
       {
         text: targetRevision.snapshotText,
@@ -264,25 +377,33 @@ export class VersionsService {
       },
       actor
     );
-    const rolledBackAt = restoredSnapshot.updatedAt;
-    const rollbackRevision: StoredRevision = {
-      revisionId: `rev_${randomUUID()}`,
-      documentId,
-      label: `Rollback to ${targetRevision.label}`,
-      authorUserId: actor.userId,
-      createdAt: rolledBackAt,
-      snapshotId: targetRevision.snapshotId,
-      contentType: targetRevision.contentType,
-      parentRevisionId: targetRevision.revisionId,
-      snapshotText: restoredSnapshot.text,
-      title: restoredSnapshot.title
-    };
 
-    revisions.push(rollbackRevision);
+    await ensureUser(this.prisma, {
+      email: `${actor.userId}@local.test`,
+      id: actor.userId,
+      name: actor.name
+    });
+
+    const rollbackRevisionId = `rev_${randomUUID()}`;
+
+    await this.prisma.revision.create({
+      data: {
+        revisionId: rollbackRevisionId,
+        documentId,
+        label: `Rollback to ${targetRevision.label}`,
+        authorUserId: actor.userId,
+        createdAt: new Date(restoredSnapshot.updatedAt),
+        snapshotId: targetRevision.snapshotId,
+        contentType: targetRevision.contentType,
+        parentRevisionId: targetRevision.revisionId,
+        snapshotText: restoredSnapshot.text,
+        title: restoredSnapshot.title
+      }
+    });
 
     return {
-      revisionId: rollbackRevision.revisionId,
-      rolledBackAt
+      revisionId: rollbackRevisionId,
+      rolledBackAt: restoredSnapshot.updatedAt
     };
   }
 }

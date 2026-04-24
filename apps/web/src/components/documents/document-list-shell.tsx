@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import type { PendingInvitation } from "@repo/shared-types";
 import { type DocumentRecord } from "../../lib/app-shell";
-import { archiveWorkspaceDocument, createWorkspaceDocument } from "../../lib/documents";
+import {
+  acceptInvitation,
+  archiveWorkspaceDocument,
+  createWorkspaceDocument,
+  listPendingInvitations,
+  rejectInvitation
+} from "../../lib/documents";
 
 interface DocumentListShellProps {
   authRequired?: boolean;
   documents: DocumentRecord[];
 }
+
+type DocumentListFilter = "all" | "editable" | "shared" | "read-only";
 
 function groupDocuments(documents: DocumentRecord[]) {
   const myDocuments = documents.filter((document) => document.role === "owner" || document.role === "editor");
@@ -32,12 +41,72 @@ function groupDocuments(documents: DocumentRecord[]) {
   ].filter((section) => section.documents.length > 0);
 }
 
+function toUsername(value: string) {
+  return value.includes("@") ? (value.split("@")[0] ?? value) : value;
+}
+
+function toShortDocumentId(value: string) {
+  return value.split("-")[0] ?? value;
+}
+
+function filterDocuments(documents: DocumentRecord[], activeFilter: DocumentListFilter) {
+  switch (activeFilter) {
+    case "editable":
+      return documents.filter((document) => document.role === "owner" || document.role === "editor");
+    case "shared":
+      return documents.filter((document) => document.role !== "owner");
+    case "read-only":
+      return documents.filter((document) => document.role === "commenter" || document.role === "viewer");
+    case "all":
+    default:
+      return documents;
+  }
+}
+
 export function DocumentListShell({ authRequired = false, documents }: DocumentListShellProps) {
   const router = useRouter();
+  const [activeFilter, setActiveFilter] = useState<DocumentListFilter>("all");
   const [isCreating, setIsCreating] = useState(false);
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const sections = groupDocuments(documents);
+  const [invitationErrorMessage, setInvitationErrorMessage] = useState<string | null>(null);
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
+  const [pendingInvitationAction, setPendingInvitationAction] = useState<string | null>(null);
+  const filteredDocuments = filterDocuments(documents, activeFilter);
+  const sections = groupDocuments(filteredDocuments);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadInvitations() {
+      if (authRequired) {
+        setPendingInvitations([]);
+        return;
+      }
+
+      try {
+        const invitations = await listPendingInvitations();
+
+        if (!isActive) {
+          return;
+        }
+
+        setPendingInvitations(invitations);
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        setInvitationErrorMessage(error instanceof Error ? error.message : "Failed to load invitations.");
+      }
+    }
+
+    void loadInvitations();
+
+    return () => {
+      isActive = false;
+    };
+  }, [authRequired]);
 
   async function handleCreateDocument() {
     if (isCreating) {
@@ -76,6 +145,30 @@ export function DocumentListShell({ authRequired = false, documents }: DocumentL
     }
   }
 
+  async function handleInvitationDecision(token: string, action: "accept" | "reject") {
+    if (pendingInvitationAction) {
+      return;
+    }
+
+    setPendingInvitationAction(token);
+    setInvitationErrorMessage(null);
+
+    try {
+      if (action === "accept") {
+        await acceptInvitation(token);
+      } else {
+        await rejectInvitation(token);
+      }
+
+      setPendingInvitations((current) => current.filter((invitation) => invitation.token !== token));
+      router.refresh();
+    } catch (error) {
+      setInvitationErrorMessage(error instanceof Error ? error.message : `Failed to ${action} invitation.`);
+    } finally {
+      setPendingInvitationAction(null);
+    }
+  }
+
   return (
     <div className="document-list-shell">
       <section className="page-intro-card">
@@ -99,10 +192,21 @@ export function DocumentListShell({ authRequired = false, documents }: DocumentL
           </div>
         </div>
         <div className="document-list-toolbar">
-          <span className="document-list-filter document-list-filter-active">All documents</span>
-          <span className="document-list-filter">Editable</span>
-          <span className="document-list-filter">Shared</span>
-          <span className="document-list-filter">Read-only</span>
+          {([
+            { key: "all", label: "All documents" },
+            { key: "editable", label: "Editable" },
+            { key: "shared", label: "Shared" },
+            { key: "read-only", label: "Read-only" }
+          ] as const).map((filter) => (
+            <button
+              className={`document-list-filter${activeFilter === filter.key ? " document-list-filter-active" : ""}`}
+              key={filter.key}
+              onClick={() => setActiveFilter(filter.key)}
+              type="button"
+            >
+              {filter.label}
+            </button>
+          ))}
         </div>
         <div className="page-intro-actions">
           <button
@@ -113,34 +217,61 @@ export function DocumentListShell({ authRequired = false, documents }: DocumentL
           >
             {isCreating ? "Creating..." : "New document"}
           </button>
-          <span className="document-list-action-note">
-            {documents.length > 0
-              ? "Create and delete actions now use the live documents API."
-              : authRequired
-                ? "Sign in first so the workspace can load or create real server-backed documents."
-                : "No documents are available for this account yet. Create one or accept an invitation from another profile."}
-          </span>
         </div>
         {errorMessage ? <p className="document-list-error">{errorMessage}</p> : null}
       </section>
 
-      {documents.length > 0 ? (
+      {!authRequired && pendingInvitations.length > 0 ? (
         <section className="blocked-note-card">
-          <strong>API-backed navigation active</strong>
-          <p>
-            The list and sidebar now reflect the same document workspace instead of mixing repo-file chrome with document routes.
-          </p>
+          <strong>Pending invitations</strong>
+          <p>People have shared documents with this account. Accept to add them to your workspace or reject to dismiss them.</p>
+          <div className="sharing-invitation-stack">
+            {pendingInvitations.map((entry) => (
+              <article className="sharing-invitation-card" key={entry.invitation.id}>
+                <div className="sharing-invitation-copy">
+                  <strong>Shared document</strong>
+                  <p>
+                    {toUsername(entry.invitation.inviteeEmail)} was invited as {entry.invitation.role}.
+                  </p>
+                  <span>Document {toShortDocumentId(entry.invitation.documentId)}</span>
+                </div>
+                <div className="document-card-actions">
+                  <button
+                    className="document-list-inline-action"
+                    disabled={pendingInvitationAction === entry.token}
+                    onClick={() => void handleInvitationDecision(entry.token, "accept")}
+                    type="button"
+                  >
+                    {pendingInvitationAction === entry.token ? "Working..." : "Accept"}
+                  </button>
+                  <button
+                    className="document-list-inline-action"
+                    disabled={pendingInvitationAction === entry.token}
+                    onClick={() => void handleInvitationDecision(entry.token, "reject")}
+                    type="button"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+          {invitationErrorMessage ? <p className="document-list-error">{invitationErrorMessage}</p> : null}
         </section>
-      ) : (
+      ) : null}
+
+      {filteredDocuments.length === 0 ? (
         <section className="blocked-note-card">
-          <strong>{authRequired ? "Sign in required" : "No documents yet"}</strong>
+          <strong>{authRequired ? "Sign in required" : documents.length > 0 ? "No documents match this filter" : "No documents yet"}</strong>
           <p>
             {authRequired
-              ? "The workspace request did not include a valid session. Use the `Sign in` entry in the sidebar or open `/auth` to continue."
-              : "This account does not have any server-backed documents yet. Create a document here or accept an invitation from another profile to see shared files."}
+              ? "Sign in to load or create documents."
+              : documents.length > 0
+                ? "Switch to another filter or open a matching document from a different view."
+                : "Create a document or accept an invitation to see shared files."}
           </p>
         </section>
-      )}
+      ) : null}
 
       <div className="document-section-stack">
         {sections.map((section) => (
@@ -164,11 +295,6 @@ export function DocumentListShell({ authRequired = false, documents }: DocumentL
                   </div>
                   <div className="document-card-stripe" aria-hidden="true" />
                   <h4>{document.title}</h4>
-                  <p>{document.summary}</p>
-                  <ul className="document-card-meta">
-                    <li>{document.updatedLabel}</li>
-                    <li>{document.role}</li>
-                  </ul>
                   <div className="document-card-footer">
                     <span>{document.updatedLabel}</span>
                     <div className="document-card-actions">

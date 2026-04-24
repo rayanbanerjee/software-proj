@@ -28,6 +28,33 @@ export function getPresenceEmptyStateCopy(
   }
 }
 
+export function getPresenceRoleLabel(
+  collaborator: CollaboratorPresenceSummary,
+  writerSlots: WriterSlotSnapshotEvent | null
+) {
+  if (writerSlots?.activeWriterSessionIds.includes(collaborator.sessionId)) {
+    return "Writer";
+  }
+
+  if (writerSlots?.queuedWriterSessionIds.includes(collaborator.sessionId)) {
+    return "Queued";
+  }
+
+  if (collaborator.accessLevel === "write" || collaborator.role === "owner" || collaborator.role === "editor") {
+    return "Writer";
+  }
+
+  if (collaborator.role === "commenter") {
+    return "Commenter";
+  }
+
+  if (collaborator.role === "viewer" || collaborator.accessLevel === "read") {
+    return "Viewer";
+  }
+
+  return collaborator.connectionStatus;
+}
+
 export function PresenceShell({
   collaborators,
   connectionStatus = "idle",
@@ -57,13 +84,7 @@ export function PresenceShell({
         ) : entries.map((collaborator) => {
           const isSelf = selfSessionId === collaborator.sessionId;
           const color = getCollaboratorColor(collaborator.userId || collaborator.sessionId);
-          const writerState = writerSlots
-            ? writerSlots.activeWriterSessionIds.includes(collaborator.sessionId)
-              ? "Writer"
-              : writerSlots.queuedWriterSessionIds.includes(collaborator.sessionId)
-                ? "Queued"
-                : "Viewer"
-            : collaborator.connectionStatus;
+          const writerState = getPresenceRoleLabel(collaborator, writerSlots);
 
           return (
           <div className="presence-ring-shell" key={collaborator.sessionId}>

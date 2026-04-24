@@ -104,7 +104,7 @@ describe("AI streaming endpoint", () => {
     });
 
     const documentId = createResponse.json().document.id as string;
-    app.documentsService.setMembership(documentId, "jwt:user_viewer", "viewer");
+    await app.documentsService.setMembership(documentId, "jwt:user_viewer", "viewer");
 
     const response = await app.inject({
       method: "POST",
@@ -130,6 +130,76 @@ describe("AI streaming endpoint", () => {
         statusCode: 403
       }
     });
+
+    await app.close();
+  });
+
+  it("falls back to non-streamed generation when provider streaming fails", async () => {
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      userId: "jwt:user_owner"
+    });
+
+    const aiService = app.aiService as any;
+
+    aiService.provider = {
+      async generate(input: { sourceText: string }) {
+        return {
+          proposedText: `[FALLBACK] ${input.sourceText}`,
+          summary: "Fallback generation succeeded."
+        };
+      },
+      async *streamText() {
+        throw new Error("Streaming not supported for this model.");
+      }
+    };
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "AI fallback doc"
+      }
+    });
+
+    const documentId = createResponse.json().document.id as string;
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/ai/stream`,
+      headers: ownerHeaders,
+      payload: {
+        action: "rewrite",
+        prompt: null,
+        context: {
+          scope: "selection",
+          selectedText: "hello world",
+          surroundingText: null
+        },
+        maskPersonalData: false
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const events = parseSseEvents(response.body);
+
+    expect(events[0]).toMatchObject({
+      type: "started",
+      status: "running"
+    });
+    expect(events.at(-1)).toMatchObject({
+      type: "completed",
+      status: "succeeded",
+      proposal: {
+        action: "rewrite",
+        documentId,
+        proposedText: "[FALLBACK] hello world",
+        summary: "Fallback generation succeeded."
+      }
+    });
+    expect(events.some((event) => event.type === "error")).toBe(false);
 
     await app.close();
   });

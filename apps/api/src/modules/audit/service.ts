@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
+import type { PrismaClient } from "@prisma/client";
 
 import type { AuditEventRecord } from "@repo/shared-types";
 
+import { ensureUser } from "../../common/user-store.js";
 import {
   auditEventRecordSchema,
   recordAuditEventInputSchema
@@ -10,33 +12,61 @@ import {
 export class AuditService {
   readonly moduleName = "audit";
 
-  private readonly events: AuditEventRecord[] = [];
+  constructor(private readonly prisma: PrismaClient) {}
 
-  recordEvent(input: {
+  async recordEvent(input: {
     action: string;
     actorUserId: string;
     documentId?: string | null;
     targetUserId?: string | null;
     metadata?: Record<string, string | null>;
-  }): AuditEventRecord {
+  }): Promise<AuditEventRecord> {
     const validatedInput = recordAuditEventInputSchema.parse(input);
-    const event: AuditEventRecord = {
-      id: randomUUID(),
-      action: validatedInput.action,
-      actorUserId: validatedInput.actorUserId,
-      documentId: validatedInput.documentId ?? null,
-      targetUserId: validatedInput.targetUserId ?? null,
-      occurredAt: new Date().toISOString(),
-      metadata: validatedInput.metadata ?? {}
-    };
 
-    const validatedEvent = auditEventRecordSchema.parse(event);
-    this.events.push(validatedEvent);
+    await ensureUser(this.prisma, {
+      email: `${validatedInput.actorUserId}@local.test`,
+      id: validatedInput.actorUserId,
+      name: null
+    });
 
-    return validatedEvent;
+    const event = await this.prisma.auditEvent.create({
+      data: {
+        id: randomUUID(),
+        action: validatedInput.action,
+        actorUserId: validatedInput.actorUserId,
+        documentId: validatedInput.documentId ?? null,
+        targetUserId: validatedInput.targetUserId ?? null,
+        metadata: validatedInput.metadata ?? {},
+        occurredAt: new Date()
+      }
+    });
+
+    return auditEventRecordSchema.parse({
+      id: event.id,
+      action: event.action,
+      actorUserId: event.actorUserId,
+      documentId: event.documentId,
+      targetUserId: event.targetUserId,
+      occurredAt: event.occurredAt.toISOString(),
+      metadata: (event.metadata as Record<string, string | null> | null) ?? {}
+    });
   }
 
-  listEvents(): AuditEventRecord[] {
-    return [...this.events];
+  async listEvents(): Promise<AuditEventRecord[]> {
+    const events = await this.prisma.auditEvent.findMany({
+      orderBy: {
+        occurredAt: "asc"
+      }
+    });
+
+    return events.map((event) => auditEventRecordSchema.parse({
+      id: event.id,
+      action: event.action,
+      actorUserId: event.actorUserId,
+      documentId: event.documentId,
+      targetUserId: event.targetUserId,
+      occurredAt: event.occurredAt.toISOString(),
+      metadata: (event.metadata as Record<string, string | null> | null) ?? {}
+    }));
   }
 }

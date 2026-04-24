@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
+import type { PrismaClient } from "@prisma/client";
 
 import type { IsoDateString, UserProfile } from "@repo/shared-types";
 
+import { ensureUser } from "../../common/user-store.js";
 import { toUserProfile } from "./user-profile.js";
 import { signJwt, verifyJwt } from "./jwt.js";
 
@@ -19,13 +21,8 @@ export interface IssuedAuthSession {
 interface AuthSessionServiceConfig {
   issuer: string;
   isProduction: boolean;
+  prisma: PrismaClient;
   sessionSecret: string;
-}
-
-interface LocalAuthUserRecord {
-  username: string;
-  passwordHash: string;
-  userId: string;
 }
 
 export interface JwtLoginIdentity {
@@ -38,9 +35,12 @@ export interface JwtLoginIdentity {
 
 export type LocalAuthResult =
   | { kind: "authenticated"; identity: JwtLoginIdentity; username: string }
-  | { kind: "created"; identity: JwtLoginIdentity; username: string }
   | { kind: "user_not_found" }
   | { kind: "invalid_password" };
+
+export type LocalSignupResult =
+  | { kind: "created"; identity: JwtLoginIdentity; username: string }
+  | { kind: "user_exists" };
 
 export interface VerifiedAuthSession extends AuthSessionPayload {
   token: string;
@@ -113,47 +113,74 @@ function parseCookies(cookieHeader: string | undefined): Map<string, string> {
 }
 
 export class AuthSessionService {
-  private readonly localUsers = new Map<string, LocalAuthUserRecord>();
-
   constructor(private readonly config: AuthSessionServiceConfig) {}
 
-  authenticateLocalUser(input: {
+  async authenticateLocalUser(input: {
     username: string;
     password: string;
-    createUserIfMissing?: boolean;
-  }): LocalAuthResult {
+  }): Promise<LocalAuthResult> {
     const username = normalizeUsername(input.username);
-    const passwordHash = hashPassword(input.password);
-    const existingUser = this.localUsers.get(username);
-
-    if (!existingUser) {
-      if (!input.createUserIfMissing) {
-        return { kind: "user_not_found" };
+    const credential = await this.config.prisma.localAuthCredential.findUnique({
+      where: {
+        username
+      },
+      include: {
+        user: true
       }
+    });
 
-      const createdUser: LocalAuthUserRecord = {
-        username,
-        passwordHash,
-        userId: normalizeUserId(username)
-      };
-
-      this.localUsers.set(username, createdUser);
-
-      return {
-        kind: "created",
-        username,
-        identity: toLocalIdentity(createdUser.username, createdUser.userId)
-      };
+    if (!credential) {
+      return { kind: "user_not_found" };
     }
 
-    if (existingUser.passwordHash !== passwordHash) {
+    if (credential.passwordHash !== hashPassword(input.password)) {
       return { kind: "invalid_password" };
     }
 
     return {
       kind: "authenticated",
       username,
-      identity: toLocalIdentity(existingUser.username, existingUser.userId)
+      identity: {
+        email: credential.user.email,
+        imageUrl: credential.user.imageUrl,
+        name: credential.user.name,
+        userId: credential.user.id
+      }
+    };
+  }
+
+  async registerLocalUser(input: {
+    username: string;
+    password: string;
+  }): Promise<LocalSignupResult> {
+    const username = normalizeUsername(input.username);
+    const existingCredential = await this.config.prisma.localAuthCredential.findUnique({
+      where: {
+        username
+      }
+    });
+
+    if (existingCredential) {
+      return { kind: "user_exists" };
+    }
+    const userId = normalizeUserId(username);
+    await ensureUser(this.config.prisma, {
+      email: `${username}@local.test`,
+      id: userId,
+      name: username
+    });
+    await this.config.prisma.localAuthCredential.create({
+      data: {
+        userId,
+        username,
+        passwordHash: hashPassword(input.password)
+      }
+    });
+
+    return {
+      kind: "created",
+      username,
+      identity: toLocalIdentity(username, userId)
     };
   }
 

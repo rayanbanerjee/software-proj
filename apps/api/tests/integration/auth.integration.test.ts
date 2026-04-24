@@ -16,20 +16,19 @@ afterEach(() => {
 });
 
 describe("auth integration flow", () => {
-  it("covers login, cookie-backed auth, and bearer reuse in one flow", async () => {
+  it("covers signup, cookie-backed auth, and bearer reuse in one flow", async () => {
     const app = await createApiTestApp();
 
     const loginResponse = await app.inject({
       method: "POST",
-      url: "/v1/auth/login",
+      url: "/v1/auth/signup",
       payload: {
         password: "dev-password",
-        username: "stub-user",
-        createUserIfMissing: true
+        username: "stub-user"
       }
     });
 
-    expect(loginResponse.statusCode).toBe(200);
+    expect(loginResponse.statusCode).toBe(201);
     expect(loginResponse.json()).toMatchObject({
       outcome: "created",
       session: {

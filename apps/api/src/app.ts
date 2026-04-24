@@ -5,6 +5,7 @@ import Fastify from "fastify";
 
 import { registerErrorHandling } from "./common/error-handler.js";
 import { createAppLogger, type AppLogger } from "./common/logger.js";
+import { createPrismaClient } from "./common/prisma.js";
 import { registerRateLimiting } from "./common/rate-limit.js";
 import { registerRequestLogging } from "./common/request-logging.js";
 import { parseApiEnv } from "./config/env.js";
@@ -90,9 +91,13 @@ export async function createApp(options: CreateAppOptions = {}) {
     logger: options.logger ?? env.NODE_ENV !== "test"
   });
   const appLogger = options.appLogger ?? createAppLogger(app.log, { service: "api" });
+  const prisma = createPrismaClient();
 
   app.decorate("apiEnv", env);
   app.decorate("appLogger", appLogger);
+  app.decorate("prisma", prisma);
+
+  await prisma.$connect();
 
   await app.register(cors, {
     credentials: true,
@@ -112,6 +117,10 @@ export async function createApp(options: CreateAppOptions = {}) {
   await registerHealthRoutes(app);
   await registerSharingModule(app);
   await registerVersionsModule(app);
+
+  app.addHook("onClose", async () => {
+    await prisma.$disconnect();
+  });
 
   return {
     app,

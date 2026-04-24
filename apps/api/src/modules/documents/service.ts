@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import prismaClientPkg, { type Prisma, type PrismaClient } from "@prisma/client";
 
 import {
   canComment,
@@ -15,40 +16,44 @@ import type {
   CreateDocumentResponse,
   DocumentContent,
   DocumentSessionState,
-  JoinDocumentSessionResponse,
-  GetDocumentMetadataResponse,
   GetDocumentContentResponse,
+  GetDocumentMetadataResponse,
+  JoinDocumentSessionResponse,
+  ListDocumentsResponse,
   DocumentMetadata,
   DocumentPermissionSummary,
   DocumentRole,
   DocumentSummary,
-  ListDocumentsResponse,
   RenameDocumentResponse,
+  SharedMembership,
   UpdateDocumentContentResponse
 } from "@repo/shared-types";
+
 import { AppError } from "../../common/errors.js";
-import { readJsonFile, resolveDataPath, writeJsonFile } from "../../common/file-store.js";
+import { ensureUser } from "../../common/user-store.js";
 import {
   createRichTextDocumentFromPlainText,
   isRichTextDocument,
   type RichTextDocument
 } from "./rich-text.js";
 
-type StoredMembership = {
-  role: DocumentRole;
-  userId: string;
-};
+const { Prisma: PrismaRuntime } = prismaClientPkg;
 
 type StoredDocument = {
   archivedAt: string | null;
   content: string;
   createdAt: string;
-  defaultRole?: DocumentRole | null;
+  defaultRole: DocumentRole | null;
   id: string;
-  memberships: StoredMembership[];
-  richContent?: RichTextDocument | null;
+  richContent: RichTextDocument | null;
   title: string;
   updatedAt: string;
+};
+
+type StoredMembership = {
+  displayName: string | null;
+  role: DocumentRole;
+  userId: string;
 };
 
 type DocumentSnapshot = {
@@ -62,8 +67,6 @@ export type DocumentActor = {
   name: string | null;
   userId: string;
 };
-
-const DEFAULT_SHARED_DOCUMENT_ROLE: DocumentRole = "editor";
 
 function toPermissionSummary(role: DocumentRole): DocumentPermissionSummary {
   return {
@@ -131,103 +134,191 @@ function toCollaboratorSessionSummary(
   };
 }
 
+function toDocumentRole(value: string): DocumentRole {
+  if (value === "owner" || value === "editor" || value === "commenter" || value === "viewer") {
+    return value;
+  }
+
+  throw new Error(`Unsupported document role: ${value}`);
+}
+
+function toStoredDocument(record: {
+  archivedAt: Date | null;
+  content: string;
+  createdAt: Date;
+  defaultRole: string | null;
+  id: string;
+  richContent: unknown;
+  title: string;
+  updatedAt: Date;
+}): StoredDocument {
+  const richContent = record.richContent && isRichTextDocument(record.richContent)
+    ? record.richContent
+    : record.richContent === null
+      ? null
+      : createRichTextDocumentFromPlainText(record.content);
+
+  return {
+    archivedAt: record.archivedAt?.toISOString() ?? null,
+    content: record.content,
+    createdAt: record.createdAt.toISOString(),
+    defaultRole: record.defaultRole ? toDocumentRole(record.defaultRole) : null,
+    id: record.id,
+    richContent,
+    title: record.title,
+    updatedAt: record.updatedAt.toISOString()
+  };
+}
+
+function toPrismaJsonValue(value: RichTextDocument | null): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput {
+  if (value === null) {
+    return PrismaRuntime.JsonNull;
+  }
+
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
 export class DocumentsService {
-  private readonly documents = new Map<string, StoredDocument>();
-  private readonly storagePath: string;
+  constructor(private readonly prisma: PrismaClient) {}
 
-  constructor(dataDir: string) {
-    this.storagePath = resolveDataPath(dataDir, "documents.json");
+  private async ensureActorUser(actor: DocumentActor) {
+    await ensureUser(this.prisma, {
+      email: `${actor.userId}@local.test`,
+      id: actor.userId,
+      name: actor.name
+    });
+  }
 
-    const storedDocuments = readJsonFile<StoredDocument[]>(this.storagePath, []);
-
-    for (const document of storedDocuments) {
-      if (!document.richContent) {
-        document.richContent = createRichTextDocumentFromPlainText(document.content);
-      } else if (!isRichTextDocument(document.richContent)) {
-        document.richContent = null;
+  private async findMembership(documentId: string, userId: string) {
+    return this.prisma.documentMembership.findUnique({
+      where: {
+        documentId_userId: {
+          documentId,
+          userId
+        }
       }
-
-      this.documents.set(document.id, document);
-    }
+    });
   }
 
-  private persistDocuments() {
-    writeJsonFile(this.storagePath, Array.from(this.documents.values()));
-  }
-
-  private getMembership(document: StoredDocument, userId: string): StoredMembership | undefined {
-    return document.memberships.find((entry) => entry.userId === userId);
-  }
-
-  private getDefaultRole(document: StoredDocument): DocumentRole | null {
-    return document.defaultRole ?? DEFAULT_SHARED_DOCUMENT_ROLE;
-  }
-
-  private getEffectiveRole(document: StoredDocument, userId: string): DocumentRole | null {
-    return this.getMembership(document, userId)?.role ?? this.getDefaultRole(document);
-  }
-
-  private requireDocument(documentId: string): StoredDocument {
-    const document = this.documents.get(documentId);
+  private async getEffectiveRole(documentId: string, userId: string): Promise<DocumentRole | null> {
+    const document = await this.prisma.document.findUnique({
+      where: {
+        id: documentId
+      },
+      select: {
+        defaultRole: true,
+        memberships: {
+          where: {
+            userId
+          },
+          select: {
+            role: true
+          },
+          take: 1
+        }
+      }
+    });
 
     if (!document) {
       throw new AppError("DOCUMENT_NOT_FOUND", 404, "Document not found.");
     }
 
-    return document;
+    const membership = document.memberships[0];
+    return membership ? toDocumentRole(membership.role) : document.defaultRole ? toDocumentRole(document.defaultRole) : null;
   }
 
-  createDocument(title: string, actor: DocumentActor): CreateDocumentResponse {
-    const now = new Date().toISOString();
-    const document: StoredDocument = {
-      id: randomUUID(),
-      title,
-      content: "",
-      richContent: createRichTextDocumentFromPlainText(""),
-      archivedAt: null,
-      createdAt: now,
-      defaultRole: DEFAULT_SHARED_DOCUMENT_ROLE,
-      updatedAt: now,
-      memberships: [
-        {
-          userId: actor.userId,
-          role: "owner"
-        }
-      ]
-    };
+  private async requireDocument(documentId: string): Promise<StoredDocument> {
+    const document = await this.prisma.document.findUnique({
+      where: {
+        id: documentId
+      }
+    });
 
-    this.documents.set(document.id, document);
-    this.persistDocuments();
+    if (!document) {
+      throw new AppError("DOCUMENT_NOT_FOUND", 404, "Document not found.");
+    }
+
+    return toStoredDocument(document);
+  }
+
+  async createDocument(title: string, actor: DocumentActor): Promise<CreateDocumentResponse> {
+    await this.ensureActorUser(actor);
+    const documentId = randomUUID();
+    const created = await this.prisma.document.create({
+      data: {
+        id: documentId,
+        ownerUserId: actor.userId,
+        title,
+        content: "",
+        richContent: toPrismaJsonValue(createRichTextDocumentFromPlainText("")),
+        defaultRole: null,
+        memberships: {
+          create: {
+            userId: actor.userId,
+            displayName: actor.name,
+            role: "owner"
+          }
+        }
+      }
+    });
 
     return {
-      document: toDocumentMetadata(document, "owner")
+      document: toDocumentMetadata(toStoredDocument(created), "owner")
     };
   }
 
-  listDocuments(actor: DocumentActor): ListDocumentsResponse {
-    const documents = Array.from(this.documents.values())
-      .map((document) => {
-        const role = this.getEffectiveRole(document, actor.userId);
+  async listDocuments(actor: DocumentActor): Promise<ListDocumentsResponse> {
+    const documents = await this.prisma.document.findMany({
+      where: {
+        archivedAt: null,
+        OR: [
+          {
+            memberships: {
+              some: {
+                userId: actor.userId
+              }
+            }
+          },
+          {
+            defaultRole: {
+              not: null
+            }
+          }
+        ]
+      },
+      include: {
+        memberships: {
+          where: {
+            userId: actor.userId
+          },
+          select: {
+            role: true
+          },
+          take: 1
+        }
+      },
+      orderBy: {
+        updatedAt: "desc"
+      }
+    });
+
+    return {
+      documents: documents.flatMap((document) => {
+        const membership = document.memberships[0];
+        const role = membership ? toDocumentRole(membership.role) : document.defaultRole ? toDocumentRole(document.defaultRole) : null;
 
         if (!role || !canView(role)) {
-          return null;
+          return [];
         }
 
-        if (document.archivedAt) {
-          return null;
-        }
-
-        return toDocumentSummary(document, role);
+        return [toDocumentSummary(toStoredDocument(document), role)];
       })
-      .filter((document): document is DocumentSummary => document !== null)
-      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-
-    return { documents };
+    };
   }
 
-  getDocumentMetadata(documentId: string, actor: DocumentActor): GetDocumentMetadataResponse {
-    const document = this.requireDocument(documentId);
-    const role = this.getEffectiveRole(document, actor.userId);
+  async getDocumentMetadata(documentId: string, actor: DocumentActor): Promise<GetDocumentMetadataResponse> {
+    const document = await this.requireDocument(documentId);
+    const role = await this.getEffectiveRole(documentId, actor.userId);
 
     if (!role || !canView(role)) {
       throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have access to this document.");
@@ -238,7 +329,7 @@ export class DocumentsService {
     };
   }
 
-  createDocumentSession(
+  async createDocumentSession(
     documentId: string,
     actor: DocumentActor,
     options: {
@@ -246,9 +337,9 @@ export class DocumentsService {
       lastKnownSessionId?: string;
       sessionToken: string;
     }
-  ): JoinDocumentSessionResponse {
-    const document = this.requireDocument(documentId);
-    const role = this.getEffectiveRole(document, actor.userId);
+  ): Promise<JoinDocumentSessionResponse> {
+    const document = await this.requireDocument(documentId);
+    const role = await this.getEffectiveRole(documentId, actor.userId);
 
     if (!role || !canView(role)) {
       throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have access to this document.");
@@ -257,13 +348,7 @@ export class DocumentsService {
     const joinedAt = new Date().toISOString();
     const sessionId = randomUUID();
     const resumedFromSessionId = options.lastKnownSessionId?.trim() || null;
-    const self = toCollaboratorSessionSummary(
-      document,
-      actor,
-      role,
-      sessionId,
-      joinedAt
-    );
+    const self = toCollaboratorSessionSummary(document, actor, role, sessionId, joinedAt);
     const session: DocumentSessionState = {
       documentId: document.id,
       joinedAt,
@@ -284,53 +369,52 @@ export class DocumentsService {
     };
   }
 
-  renameDocument(
-    documentId: string,
-    title: string,
-    actor: DocumentActor
-  ): RenameDocumentResponse {
-    const document = this.requireDocument(documentId);
-    const role = this.getEffectiveRole(document, actor.userId);
+  async renameDocument(documentId: string, title: string, actor: DocumentActor): Promise<RenameDocumentResponse> {
+    const role = await this.getEffectiveRole(documentId, actor.userId);
 
     if (!role || !canEdit(role)) {
       throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have permission to rename this document.");
     }
 
-    document.title = title;
-    document.updatedAt = new Date().toISOString();
-    this.persistDocuments();
+    const updated = await this.prisma.document.update({
+      where: {
+        id: documentId
+      },
+      data: {
+        title
+      }
+    });
 
     return {
-      document: toDocumentMetadata(document, role)
+      document: toDocumentMetadata(toStoredDocument(updated), role)
     };
   }
 
-  archiveDocument(
-    documentId: string,
-    actor: DocumentActor
-  ): ArchiveDocumentResponse {
-    const document = this.requireDocument(documentId);
-
-    const membership = this.getMembership(document, actor.userId);
+  async archiveDocument(documentId: string, actor: DocumentActor): Promise<ArchiveDocumentResponse> {
+    const membership = await this.findMembership(documentId, actor.userId);
 
     if (!membership || membership.role !== "owner") {
       throw new AppError("DOCUMENT_FORBIDDEN", 403, "Only owners can archive this document.");
     }
 
-    const archivedAt = new Date().toISOString();
-    document.archivedAt = archivedAt;
-    document.updatedAt = archivedAt;
-    this.persistDocuments();
+    const updated = await this.prisma.document.update({
+      where: {
+        id: documentId
+      },
+      data: {
+        archivedAt: new Date()
+      }
+    });
 
     return {
-      documentId: document.id,
-      archivedAt
+      documentId: updated.id,
+      archivedAt: updated.archivedAt?.toISOString() ?? updated.updatedAt.toISOString()
     };
   }
 
-  getDocumentContent(documentId: string, actor: DocumentActor): GetDocumentContentResponse {
-    const document = this.requireDocument(documentId);
-    const role = this.getEffectiveRole(document, actor.userId);
+  async getDocumentContent(documentId: string, actor: DocumentActor): Promise<GetDocumentContentResponse> {
+    const document = await this.requireDocument(documentId);
+    const role = await this.getEffectiveRole(documentId, actor.userId);
 
     if (!role || !canView(role)) {
       throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have access to this document.");
@@ -341,53 +425,53 @@ export class DocumentsService {
     };
   }
 
-  updateDocumentContent(
-    documentId: string,
-    text: string,
-    actor: DocumentActor
-  ): UpdateDocumentContentResponse {
-    const document = this.requireDocument(documentId);
-    const role = this.getEffectiveRole(document, actor.userId);
+  async updateDocumentContent(documentId: string, text: string, actor: DocumentActor): Promise<UpdateDocumentContentResponse> {
+    const role = await this.getEffectiveRole(documentId, actor.userId);
 
     if (!role || !canEdit(role)) {
       throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have permission to edit this document.");
     }
 
-    document.content = text;
-    document.richContent = createRichTextDocumentFromPlainText(text);
-    document.updatedAt = new Date().toISOString();
-    this.persistDocuments();
+    const updated = await this.prisma.document.update({
+      where: {
+        id: documentId
+      },
+      data: {
+        content: text,
+        richContent: toPrismaJsonValue(createRichTextDocumentFromPlainText(text))
+      }
+    });
 
     return {
-      content: toDocumentContent(document)
+      content: toDocumentContent(toStoredDocument(updated))
     };
   }
 
-  syncDocumentContentFromCollab(
+  async syncDocumentContentFromCollab(
     documentId: string,
     input: {
       richContent?: RichTextDocument | null;
       text: string;
     }
   ) {
-    const document = this.requireDocument(documentId);
-
-    document.content = input.text;
-    document.richContent = input.richContent ?? createRichTextDocumentFromPlainText(input.text);
-    document.updatedAt = new Date().toISOString();
-    this.persistDocuments();
+    const updated = await this.prisma.document.update({
+      where: {
+        id: documentId
+      },
+      data: {
+        content: input.text,
+        richContent: toPrismaJsonValue(input.richContent ?? createRichTextDocumentFromPlainText(input.text))
+      }
+    });
 
     return {
-      content: toDocumentContent(document)
+      content: toDocumentContent(toStoredDocument(updated))
     };
   }
 
-  getDocumentSnapshot(
-    documentId: string,
-    actor: DocumentActor
-  ): DocumentSnapshot {
-    const document = this.requireDocument(documentId);
-    const role = this.getEffectiveRole(document, actor.userId);
+  async getDocumentSnapshot(documentId: string, actor: DocumentActor): Promise<DocumentSnapshot> {
+    const document = await this.requireDocument(documentId);
+    const role = await this.getEffectiveRole(documentId, actor.userId);
 
     if (!role || !canView(role)) {
       throw new AppError("DOCUMENT_FORBIDDEN", 403, "You do not have access to this document.");
@@ -401,7 +485,7 @@ export class DocumentsService {
     };
   }
 
-  restoreDocumentSnapshot(
+  async restoreDocumentSnapshot(
     documentId: string,
     snapshot: {
       richContent?: RichTextDocument | null;
@@ -410,64 +494,105 @@ export class DocumentsService {
     },
     actor: DocumentActor
   ) {
-    const document = this.requireDocument(documentId);
-    const role = this.getEffectiveRole(document, actor.userId);
+    const role = await this.getEffectiveRole(documentId, actor.userId);
 
     if (!role || !canRollback(role)) {
       throw new AppError("REVISION_FORBIDDEN", 403, "You do not have permission to roll back this document.");
     }
 
-    document.content = snapshot.text;
-    document.richContent = snapshot.richContent ?? createRichTextDocumentFromPlainText(snapshot.text);
-    document.title = snapshot.title;
-    document.updatedAt = new Date().toISOString();
-    this.persistDocuments();
+    const updated = await this.prisma.document.update({
+      where: {
+        id: documentId
+      },
+      data: {
+        content: snapshot.text,
+        richContent: toPrismaJsonValue(snapshot.richContent ?? createRichTextDocumentFromPlainText(snapshot.text)),
+        title: snapshot.title
+      }
+    });
 
     return {
-      text: document.content,
-      title: document.title,
-      updatedAt: document.updatedAt
+      text: updated.content,
+      title: updated.title,
+      updatedAt: updated.updatedAt.toISOString()
     };
   }
 
-  getDocumentRole(documentId: string, userId: string): DocumentRole | null {
-    const document = this.requireDocument(documentId);
-    return this.getEffectiveRole(document, userId);
+  async getDocumentRole(documentId: string, userId: string): Promise<DocumentRole | null> {
+    return this.getEffectiveRole(documentId, userId);
   }
 
-  setMembership(documentId: string, userId: string, role: DocumentRole): StoredMembership {
-    const document = this.requireDocument(documentId);
-    const existingMembership = this.getMembership(document, userId);
+  async setMembership(
+    documentId: string,
+    userId: string,
+    role: DocumentRole,
+    options: {
+      displayName?: string | null;
+    } = {}
+  ): Promise<StoredMembership> {
+    await ensureUser(this.prisma, {
+      email: `${userId}@local.test`,
+      id: userId,
+      name: options.displayName ?? null
+    });
 
-    if (existingMembership) {
-      existingMembership.role = role;
-      document.updatedAt = new Date().toISOString();
-      this.persistDocuments();
-      return existingMembership;
-    }
+    const membership = await this.prisma.documentMembership.upsert({
+      where: {
+        documentId_userId: {
+          documentId,
+          userId
+        }
+      },
+      update: {
+        displayName: options.displayName ?? undefined,
+        role
+      },
+      create: {
+        documentId,
+        userId,
+        displayName: options.displayName ?? null,
+        role
+      }
+    });
 
-    const membership = {
-      userId,
-      role
+    return {
+      displayName: membership.displayName,
+      role: toDocumentRole(membership.role),
+      userId: membership.userId
     };
-
-    document.memberships.push(membership);
-    document.updatedAt = new Date().toISOString();
-    this.persistDocuments();
-
-    return membership;
   }
 
-  removeMembership(documentId: string, userId: string): void {
-    const document = this.requireDocument(documentId);
-    const nextMemberships = document.memberships.filter((membership) => membership.userId !== userId);
+  async removeMembership(documentId: string, userId: string): Promise<void> {
+    const membership = await this.findMembership(documentId, userId);
 
-    if (nextMemberships.length === document.memberships.length) {
+    if (!membership) {
       throw new AppError("MEMBERSHIP_NOT_FOUND", 404, "Document membership not found.");
     }
 
-    document.memberships = nextMemberships;
-    document.updatedAt = new Date().toISOString();
-    this.persistDocuments();
+    await this.prisma.documentMembership.delete({
+      where: {
+        documentId_userId: {
+          documentId,
+          userId
+        }
+      }
+    });
+  }
+
+  async listMemberships(documentId: string): Promise<SharedMembership[]> {
+    const memberships = await this.prisma.documentMembership.findMany({
+      where: {
+        documentId
+      },
+      orderBy: {
+        createdAt: "asc"
+      }
+    });
+
+    return memberships.map((membership) => ({
+      displayName: membership.displayName,
+      userId: membership.userId,
+      role: toDocumentRole(membership.role)
+    }));
   }
 }

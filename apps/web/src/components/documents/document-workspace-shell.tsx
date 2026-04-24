@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { canRollback } from "@repo/authz";
 import type {
   AiAction,
   AiProposal,
@@ -26,6 +28,7 @@ import {
   listDocumentComments,
   renameWorkspaceDocument
 } from "../../lib/documents";
+import { rollbackRevision } from "../../lib/versions";
 import { DocumentStateShell } from "./document-state-shell";
 import { DocumentUtilityPanel } from "./document-utility-panel";
 import { EditorToolbarShell } from "./editor-toolbar-shell";
@@ -60,14 +63,24 @@ export function DocumentWorkspaceShell({
   versionHistoryEntries,
   view
 }: DocumentWorkspaceShellProps) {
+  const router = useRouter();
   const [documentTitle, setDocumentTitle] = useState(document.title);
   const [blameMode, setBlameMode] = useState(false);
+  const [revisionComparison, setRevisionComparison] = useState<null | {
+    errorMessage?: string | null;
+    isLoading: boolean;
+    label: string;
+    revisionId: string | null;
+    snapshotText?: string | null;
+    title?: string | null;
+  }>(null);
   const [commentDraft, setCommentDraft] = useState("");
   const [comments, setComments] = useState<CommentRecord[]>([]);
   const [commentsErrorMessage, setCommentsErrorMessage] = useState<string | null>(null);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isRenamingTitle, setIsRenamingTitle] = useState(false);
+  const [isRevertingRevision, setIsRevertingRevision] = useState(false);
   const [renameErrorMessage, setRenameErrorMessage] = useState<string | null>(null);
   const [aiState, setAiState] = useState<null | {
     action: AiAction;
@@ -93,6 +106,7 @@ export function DocumentWorkspaceShell({
   const apiDocumentId = realtimeDocumentId ?? null;
   const editorInstanceKey = `${document.id}:${realtimeDocumentId ?? "fallback"}`;
   const panelMode = blameMode ? "changes" : "comments";
+  const activeOverlay = blameMode ? null : overlay;
   const collaboratorSeeds = useMemo(() => {
     const entries = collab.collaborators.length > 0
       ? collab.collaborators
@@ -105,6 +119,25 @@ export function DocumentWorkspaceShell({
 
     return entries.map((collaborator) => collaborator.userId || collaborator.sessionId);
   }, [collab.collaborators, realtimeDocumentId]);
+
+  const exitBlameMode = useCallback(() => {
+    setBlameMode(false);
+    setRevisionComparison(null);
+  }, []);
+
+  const toggleBlameMode = useCallback(() => {
+    setBlameMode((current) => {
+      if (current) {
+        setRevisionComparison(null);
+      }
+
+      return !current;
+    });
+  }, []);
+
+  function isClientOnlyProposal(proposal: AiProposal) {
+    return proposal.requestId.startsWith("ai_") || proposal.proposalId.startsWith("streaming-");
+  }
 
   useEffect(() => {
     setDocumentTitle(document.title);
@@ -366,6 +399,16 @@ export function DocumentWorkspaceShell({
       return;
     }
 
+    if (isClientOnlyProposal(aiState.proposal)) {
+      setPendingAiApplication({
+        proposalId: aiState.proposal.proposalId,
+        selection: aiState.selection,
+        text: aiState.proposal.proposedText
+      });
+      setAiState(null);
+      return;
+    }
+
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
     const response = await fetch(`${apiBaseUrl}/v1/documents/${apiDocumentId}/ai/proposals/accept`, {
       body: JSON.stringify({
@@ -383,6 +426,48 @@ export function DocumentWorkspaceShell({
       setAiState({
         ...aiState,
         errorMessage: errorPayload?.error?.message ?? "Failed to apply AI proposal.",
+        requestStatus: "failed"
+      });
+      return;
+    }
+
+    setPendingAiApplication(null);
+    setAiState(null);
+  }
+
+  async function acceptEditedAiProposal(editedText: string) {
+    if (!aiState?.proposal || !apiDocumentId) {
+      return;
+    }
+
+    if (isClientOnlyProposal(aiState.proposal)) {
+      setPendingAiApplication({
+        proposalId: aiState.proposal.proposalId,
+        selection: aiState.selection,
+        text: editedText
+      });
+      setAiState(null);
+      return;
+    }
+
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+    const response = await fetch(`${apiBaseUrl}/v1/documents/${apiDocumentId}/ai/proposals/accept`, {
+      body: JSON.stringify({
+        proposalId: aiState.proposal.proposalId,
+        editedText
+      }),
+      credentials: "include",
+      headers: {
+        "content-type": "application/json"
+      },
+      method: "POST"
+    });
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => null);
+      setAiState({
+        ...aiState,
+        errorMessage: errorPayload?.error?.message ?? "Failed to apply edited AI proposal.",
         requestStatus: "failed"
       });
       return;
@@ -465,6 +550,56 @@ export function DocumentWorkspaceShell({
     }
   }
 
+  function handleRevisionRolledBack() {
+    router.refresh();
+
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 150);
+    }
+  }
+
+  async function handleWorkspaceRevisionRevert(revisionId: string) {
+    if (!apiDocumentId || isRevertingRevision || !canRollback(document.role)) {
+      return;
+    }
+
+    setIsRevertingRevision(true);
+
+    try {
+      await rollbackRevision(apiDocumentId, revisionId);
+      handleRevisionRolledBack();
+    } catch (error) {
+      setRevisionComparison((current) => current
+        ? {
+            ...current,
+            errorMessage: error instanceof Error ? error.message : "Failed to revert to this revision."
+          }
+        : current);
+    } finally {
+      setIsRevertingRevision(false);
+    }
+  }
+
+  const commentComposer = (
+    <form
+      className="document-comment-composer"
+      onSubmit={(event) => void handleCommentSubmit(event)}
+    >
+      <input
+        disabled={!apiDocumentId || isSubmittingComment}
+        onChange={(event) => setCommentDraft(event.target.value)}
+        placeholder={apiDocumentId ? "Add comment" : "Comments unavailable"}
+        type="text"
+        value={commentDraft}
+      />
+      <button disabled={!apiDocumentId || isSubmittingComment || commentDraft.trim().length === 0} type="submit">
+        {isSubmittingComment ? "..." : "Send"}
+      </button>
+    </form>
+  );
+
   return (
     <div className="document-workspace-shell">
       <div className="document-workspace-grid">
@@ -483,8 +618,9 @@ export function DocumentWorkspaceShell({
           <EditorToolbarShell
             blameMode={blameMode}
             documentId={document.id}
-            onToggleBlame={() => setBlameMode((current) => !current)}
-            overlay={overlay === "ai" ? null : overlay}
+            onExitBlame={exitBlameMode}
+            onToggleBlame={toggleBlameMode}
+            overlay={activeOverlay === "ai" ? null : activeOverlay}
             showDebugControls={showDebugControls}
             syncState={syncState}
             view={view}
@@ -540,8 +676,13 @@ export function DocumentWorkspaceShell({
                 setPendingAiApplication(null);
                 setAiState(null);
               }}
+              onExitBlame={exitBlameMode}
               onRenameTitle={handleRenameTitle}
               pendingAiApplication={pendingAiApplication}
+              revisionComparison={blameMode ? revisionComparison : null}
+              revisionRevertEnabled={canRollback(document.role)}
+              isRevertingRevision={isRevertingRevision}
+              onRevertRevision={handleWorkspaceRevisionRevert}
               role={document.role}
               serverStateVector={serverStateVector}
               syncState={syncState}
@@ -550,36 +691,26 @@ export function DocumentWorkspaceShell({
             <DocumentStateShell document={document} view={view} />
           )}
 
-          <form
-            className="document-comment-composer"
-            onSubmit={(event) => void handleCommentSubmit(event)}
-          >
-            <input
-              disabled={!apiDocumentId || isSubmittingComment}
-              onChange={(event) => setCommentDraft(event.target.value)}
-              placeholder={apiDocumentId ? "Add a document comment" : "Comments require a server document"}
-              type="text"
-              value={commentDraft}
-            />
-            <button disabled={!apiDocumentId || isSubmittingComment || commentDraft.trim().length === 0} type="submit">
-              {isSubmittingComment ? "..." : "Send"}
-            </button>
-          </form>
-
-          {overlay === "sharing" ? <SharingModalShell /> : null}
-          {overlay === "export" ? <ExportModalShell documentId={document.id} panelState={exportPanelState} /> : null}
+          {activeOverlay === "sharing" ? <SharingModalShell documentId={document.id} role={document.role} /> : null}
+          {activeOverlay === "export" ? (
+            <ExportModalShell documentId={document.id} documentTitle={documentTitle} panelState={exportPanelState} />
+          ) : null}
         </div>
 
         <aside className="document-workspace-sidebar document-workspace-sidebar-v2">
           <DocumentUtilityPanel
             aiState={aiState}
-            collaborators={collab.collaborators}
             comments={comments}
+            commentComposer={commentComposer}
             commentsErrorMessage={commentsErrorMessage}
+            documentId={apiDocumentId}
             isLoadingComments={isLoadingComments}
             mode={panelMode}
             onAcceptProposal={acceptAiProposal}
+            onAcceptEditedProposal={acceptEditedAiProposal}
+            onExitBlame={exitBlameMode}
             onRejectProposal={rejectAiProposal}
+            onRevisionComparisonChange={setRevisionComparison}
             versionHistoryEntries={versionHistoryEntries}
           />
         </aside>

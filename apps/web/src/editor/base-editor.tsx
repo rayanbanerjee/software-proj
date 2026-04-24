@@ -3,8 +3,8 @@
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
-import { EditorContent, useEditor } from "@tiptap/react";
-import { useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { EditorContent, useEditor, type Editor } from "@tiptap/react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { AiAction } from "@repo/shared-types";
 import {
   baseEditorExtensions,
@@ -79,6 +79,14 @@ function editorHasMeaningfulContent(value: { getJSON: () => unknown }) {
   });
 }
 
+function getEditorPlainText(editor: Editor | null) {
+  if (!editor) {
+    return "";
+  }
+
+  return editor.state.doc.textBetween(0, editor.state.doc.content.size, "\n\n").trim();
+}
+
 interface BaseEditorProps {
   accessLevel?: "none" | "read" | "write";
   blameMode?: boolean;
@@ -93,7 +101,10 @@ interface BaseEditorProps {
   documentId?: string;
   initialTitle?: string;
   isRenamingTitle?: boolean;
+  isRevertingRevision?: boolean;
   onRenameTitle?: (nextTitle: string) => Promise<void> | void;
+  onExitBlame?: () => void;
+  onRevertRevision?: (revisionId: string) => Promise<void> | void;
   onAiActionSelect?: (payload: { action: AiAction; from: number; selectedText: string; to: number }) => void;
   pendingAiApplication?: null | {
     proposalId: string;
@@ -103,6 +114,15 @@ interface BaseEditorProps {
     };
     text: string;
   };
+  revisionComparison?: null | {
+    errorMessage?: string | null;
+    isLoading: boolean;
+    label: string;
+    revisionId: string | null;
+    snapshotText?: string | null;
+    title?: string | null;
+  };
+  revisionRevertEnabled?: boolean;
   onAiApplicationHandled?: (proposalId: string) => void;
   role?: DocumentRecord["role"];
   serverStateVector?: string | null;
@@ -170,9 +190,14 @@ export function BaseEditor({
   documentId = "route-shell-document",
   initialTitle = "Untitled document",
   isRenamingTitle = false,
+  isRevertingRevision = false,
   onRenameTitle,
+  onExitBlame,
+  onRevertRevision,
   onAiActionSelect,
   pendingAiApplication = null,
+  revisionComparison = null,
+  revisionRevertEnabled = false,
   onAiApplicationHandled,
   role = "owner",
   serverStateVector = null,
@@ -180,7 +205,12 @@ export function BaseEditor({
 }: BaseEditorProps) {
   const [aiMenu, setAiMenu] = useState<null | { text: string; x: number; y: number }>(null);
   const [hasHydratedDraft, setHasHydratedDraft] = useState(false);
+  const [currentDocumentText, setCurrentDocumentText] = useState("");
   const [title, setTitle] = useState(initialTitle);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const committedTitleRef = useRef(initialTitle);
+  const isSubmittingTitleRef = useRef(false);
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
   const hasCollaboration = Boolean(collaborationDocument);
   const readOnly = accessLevel !== "write" || isEditorReadOnly(role);
   const currentCollaboratorColor = getCollaboratorColors([
@@ -209,6 +239,8 @@ export function BaseEditor({
       content: hasCollaboration ? undefined : (starterContent as never),
       extensions: editorExtensions,
       onUpdate({ editor: currentEditor }) {
+        setCurrentDocumentText(getEditorPlainText(currentEditor));
+
         if (typeof window === "undefined" || hasCollaboration) {
           return;
         }
@@ -305,6 +337,26 @@ export function BaseEditor({
   }, [documentId, editor, hasCollaboration, hasHydratedDraft, serverStateVector, syncState]);
 
   useEffect(() => {
+    if (!editor) {
+      setCurrentDocumentText("");
+      return;
+    }
+
+    function updateCurrentDocumentText() {
+      setCurrentDocumentText(getEditorPlainText(editor));
+    }
+
+    updateCurrentDocumentText();
+    editor.on("transaction", updateCurrentDocumentText);
+    editor.on("update", updateCurrentDocumentText);
+
+    return () => {
+      editor.off("transaction", updateCurrentDocumentText);
+      editor.off("update", updateCurrentDocumentText);
+    };
+  }, [editor, documentId]);
+
+  useEffect(() => {
     if (!editor || !pendingAiApplication || readOnly) {
       return;
     }
@@ -312,6 +364,21 @@ export function BaseEditor({
     editor.chain().focus().insertContentAt(pendingAiApplication.selection, pendingAiApplication.text).run();
     onAiApplicationHandled?.(pendingAiApplication.proposalId);
   }, [editor, onAiApplicationHandled, pendingAiApplication, readOnly]);
+
+  useEffect(() => {
+    committedTitleRef.current = initialTitle;
+    setTitle(initialTitle);
+    setIsEditingTitle(false);
+  }, [initialTitle]);
+
+  useEffect(() => {
+    if (!isEditingTitle) {
+      return;
+    }
+
+    titleInputRef.current?.focus();
+    titleInputRef.current?.select();
+  }, [isEditingTitle]);
 
   useEffect(() => {
     if (!editor) {
@@ -396,17 +463,30 @@ export function BaseEditor({
   }
 
   async function commitTitleChange() {
-    const trimmedTitle = title.trim();
-
-    if (!onRenameTitle || trimmedTitle.length === 0 || trimmedTitle === initialTitle) {
-      setTitle(initialTitle);
+    if (isSubmittingTitleRef.current) {
       return;
     }
 
+    const trimmedTitle = title.trim();
+    const committedTitle = committedTitleRef.current;
+
+    if (!onRenameTitle || trimmedTitle.length === 0 || trimmedTitle === committedTitle) {
+      setTitle(committedTitle);
+      setIsEditingTitle(false);
+      return;
+    }
+
+    isSubmittingTitleRef.current = true;
+
     try {
       await onRenameTitle(trimmedTitle);
+      committedTitleRef.current = trimmedTitle;
+      setTitle(trimmedTitle);
+      setIsEditingTitle(false);
     } catch {
-      setTitle(initialTitle);
+      setTitle(committedTitle);
+    } finally {
+      isSubmittingTitleRef.current = false;
     }
   }
 
@@ -415,30 +495,55 @@ export function BaseEditor({
   }
 
   async function handleTitleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setTitle(committedTitleRef.current);
+      setIsEditingTitle(false);
+      event.currentTarget.blur();
+      return;
+    }
+
     if (event.key !== "Enter") {
       return;
     }
 
     event.preventDefault();
+    event.currentTarget.blur();
     await commitTitleChange();
   }
 
   return (
-    <section className="base-editor-shell">
+    <section className="base-editor-shell" data-revert-preview={blameMode && revisionComparison ? "true" : "false"}>
       <label className="base-editor-title">
-        <input
-          aria-label="Document title"
-          className="base-editor-title-input"
-          disabled={readOnly || isRenamingTitle}
-          onBlur={() => void handleTitleBlur()}
-          onChange={(event) => setTitle(event.target.value)}
-          onKeyDown={(event) => void handleTitleKeyDown(event)}
-          readOnly={readOnly}
-          type="text"
-          value={title}
-        />
+        {readOnly ? (
+          <div className="base-editor-title-display" aria-label="Document title">
+            {title}
+          </div>
+        ) : isEditingTitle ? (
+          <input
+            ref={titleInputRef}
+            aria-label="Document title"
+            className="base-editor-title-input"
+            disabled={isRenamingTitle}
+            onBlur={() => void handleTitleBlur()}
+            onChange={(event) => setTitle(event.target.value)}
+            onKeyDown={(event) => void handleTitleKeyDown(event)}
+            type="text"
+            value={title}
+          />
+        ) : (
+          <button
+            aria-label="Rename document"
+            className="base-editor-title-display base-editor-title-trigger"
+            disabled={isRenamingTitle}
+            onClick={() => setIsEditingTitle(true)}
+            type="button"
+          >
+            {title}
+          </button>
+        )}
         <small>
-          {getEditorModeLabel(role)} · {isRenamingTitle ? "Saving title..." : syncState === "online" ? "Synced" : syncState}
+          {getEditorModeLabel(role)} · {isRenamingTitle ? "Saving title..." : readOnly ? (syncState === "online" ? "Synced" : syncState) : isEditingTitle ? "Press Enter to save" : "Click title to rename"}
         </small>
       </label>
 
@@ -502,8 +607,70 @@ export function BaseEditor({
         </div>
       </div>
 
+      {blameMode ? (
+        <div className="base-editor-blame-banner" role="status">
+          <div>
+            <strong>Blame mode is on</strong>
+            <span>Select a revision in the sidebar to inspect what changed, preview the document state, or revert.</span>
+          </div>
+          {onExitBlame ? (
+            <button className="base-editor-blame-exit" onClick={onExitBlame} type="button">
+              Back to writing
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {blameMode && revisionComparison ? (
+        <section className="base-editor-revert-preview" aria-label="Revision selected for revert">
+          <div className="base-editor-revert-preview-header">
+            <div>
+              <span className="section-chip">Comparison</span>
+              <strong>{revisionComparison.label}</strong>
+            </div>
+            <button
+              className="base-editor-revert-action"
+              disabled={
+                !revisionComparison.revisionId ||
+                revisionComparison.isLoading ||
+                isRevertingRevision ||
+                !revisionRevertEnabled
+              }
+              onClick={() => {
+                if (revisionComparison.revisionId) {
+                  void onRevertRevision?.(revisionComparison.revisionId);
+                }
+              }}
+              type="button"
+            >
+              {isRevertingRevision ? "Reverting..." : "Revert to this revision"}
+            </button>
+          </div>
+          {revisionComparison.errorMessage ? (
+            <p className="base-editor-revert-preview-error">{revisionComparison.errorMessage}</p>
+          ) : (
+            <div className="base-editor-compare-grid">
+              <article className="base-editor-revert-page">
+                <span>Selected revision</span>
+                <strong>{revisionComparison.title ?? "Revision snapshot"}</strong>
+                <pre>
+                  {revisionComparison.isLoading
+                    ? "Loading revision snapshot..."
+                    : revisionComparison.snapshotText?.trim() || "No snapshot text available for this revision."}
+                </pre>
+              </article>
+              <article className="base-editor-revert-page base-editor-current-page">
+                <span>Current workspace</span>
+                <strong>{title}</strong>
+                <pre>{currentDocumentText || "No current document text available."}</pre>
+              </article>
+            </div>
+          )}
+        </section>
+      ) : null}
+
       <div
-        className="base-editor-frame"
+        className={`base-editor-frame${blameMode && revisionComparison ? " base-editor-frame-suppressed" : ""}`}
         data-blame-mode={blameMode ? "true" : "false"}
         data-read-only={readOnly ? "true" : "false"}
       >

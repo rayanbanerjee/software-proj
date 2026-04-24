@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
+import { canEdit, canView } from "@repo/authz";
 import { DocumentsService, type DocumentActor } from "./service.js";
 import { notifyCollabDocumentContentSync } from "./collab-sync.js";
 import { protectedRoute, requireCurrentUser } from "../auth/guard.js";
@@ -27,6 +28,10 @@ const internalDocumentContentSyncBodySchema = z.object({
   text: z.string()
 });
 
+const internalCollabAccessBodySchema = z.object({
+  userId: z.string().trim().min(1)
+});
+
 function getActor(user: { id: string; name: string | null }): DocumentActor {
   return {
     userId: user.id,
@@ -35,7 +40,7 @@ function getActor(user: { id: string; name: string | null }): DocumentActor {
 }
 
 export async function registerDocumentsModule(app: FastifyInstance) {
-  app.decorate("documentsService", new DocumentsService(app.apiEnv.API_DATA_DIR));
+  app.decorate("documentsService", new DocumentsService(app.prisma));
 
   app.post("/internal/documents/:documentId/content-sync", async (request, reply) => {
     const token = request.headers["x-api-token"];
@@ -48,7 +53,10 @@ export async function registerDocumentsModule(app: FastifyInstance) {
 
     const params = request.params as { documentId: string };
     const body = internalDocumentContentSyncBodySchema.parse(request.body);
-    const response = app.documentsService.syncDocumentContentFromCollab(params.documentId, body);
+    const response = await app.documentsService.syncDocumentContentFromCollab(params.documentId, body);
+    await app.versionsService.captureRevision(params.documentId, {
+      label: "Collaborative edit"
+    });
 
     return reply.status(202).send({
       content: response.content,
@@ -56,24 +64,51 @@ export async function registerDocumentsModule(app: FastifyInstance) {
     });
   });
 
+  app.post("/internal/documents/:documentId/collab-access", async (request, reply) => {
+    const token = request.headers["x-api-token"];
+
+    if (token !== app.apiEnv.SESSION_SECRET) {
+      return reply.status(401).send({
+        error: "Invalid internal collab access token."
+      });
+    }
+
+    const params = request.params as { documentId: string };
+    const body = internalCollabAccessBodySchema.parse(request.body);
+    const role = await app.documentsService.getDocumentRole(params.documentId, body.userId);
+
+    if (!role || !canView(role)) {
+      return reply.status(403).send({
+        error: "Document access is denied."
+      });
+    }
+
+    return {
+      documentId: params.documentId,
+      userId: body.userId,
+      role,
+      accessLevel: canEdit(role) ? "write" : "read"
+    };
+  });
+
   app.post("/v1/documents", protectedRoute, async (request, reply) => {
     const actor = getActor(requireCurrentUser(request));
     const body = createDocumentBodySchema.parse(request.body);
-    const response = app.documentsService.createDocument(body.title, actor);
+    const response = await app.documentsService.createDocument(body.title, actor);
 
     return reply.status(201).send(response);
   });
 
   app.get("/v1/documents", protectedRoute, async (request) => {
     const actor = getActor(requireCurrentUser(request));
-    return app.documentsService.listDocuments(actor);
+    return await app.documentsService.listDocuments(actor);
   });
 
   app.get("/v1/documents/:documentId", protectedRoute, async (request) => {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string };
 
-    return app.documentsService.getDocumentMetadata(params.documentId, actor);
+    return await app.documentsService.getDocumentMetadata(params.documentId, actor);
   });
 
   app.post(
@@ -92,7 +127,7 @@ export async function registerDocumentsModule(app: FastifyInstance) {
         initializeIfEmpty: true
       });
 
-      return app.documentsService.createDocumentSession(params.documentId, actor, {
+      return await app.documentsService.createDocumentSession(params.documentId, actor, {
         collabBaseUrl: app.apiEnv.COLLAB_URL,
         lastKnownSessionId: body.lastKnownSessionId,
         sessionToken: request.authSession.token
@@ -104,7 +139,7 @@ export async function registerDocumentsModule(app: FastifyInstance) {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string };
 
-    return app.documentsService.getDocumentContent(params.documentId, actor);
+    return await app.documentsService.getDocumentContent(params.documentId, actor);
   });
 
   app.patch("/v1/documents/:documentId", protectedRoute, async (request) => {
@@ -112,7 +147,13 @@ export async function registerDocumentsModule(app: FastifyInstance) {
     const params = request.params as { documentId: string };
     const body = renameDocumentBodySchema.parse(request.body);
 
-    return app.documentsService.renameDocument(params.documentId, body.title, actor);
+    const response = await app.documentsService.renameDocument(params.documentId, body.title, actor);
+    await app.versionsService.captureRevision(params.documentId, {
+      actor,
+      label: `Rename: ${body.title}`
+    });
+
+    return response;
   });
 
   app.put(
@@ -123,7 +164,11 @@ export async function registerDocumentsModule(app: FastifyInstance) {
       const params = request.params as { documentId: string };
       const body = updateDocumentContentBodySchema.parse(request.body);
 
-      const response = app.documentsService.updateDocumentContent(params.documentId, body.text, actor);
+      const response = await app.documentsService.updateDocumentContent(params.documentId, body.text, actor);
+      await app.versionsService.captureRevision(params.documentId, {
+        actor,
+        label: "Document edit"
+      });
       await notifyCollabDocumentContentSync(app, params.documentId, actor);
 
       return response;
@@ -134,6 +179,6 @@ export async function registerDocumentsModule(app: FastifyInstance) {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string };
 
-    return app.documentsService.archiveDocument(params.documentId, actor);
+    return await app.documentsService.archiveDocument(params.documentId, actor);
   });
 }

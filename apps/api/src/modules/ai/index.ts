@@ -16,6 +16,7 @@ import { StubStreamingProvider } from "./stub-streaming-provider.js";
 
 const proposalDecisionSchema = z.object({
   proposalId: z.string().trim().min(1),
+  editedText: z.string().optional(),
   reason: z.string().trim().min(1).optional()
 });
 
@@ -42,20 +43,30 @@ function getActor(user: { id: string; name: string | null }): DocumentActor {
   };
 }
 
+function parseProviderList(value: string | undefined) {
+  return value
+    ?.split(",")
+    .map((provider) => provider.trim())
+    .filter((provider) => provider.length > 0);
+}
+
 export async function registerAiModule(app: FastifyInstance) {
   const provider = app.apiEnv.OPENROUTER_API_KEY
     ? new OpenRouterProviderClient({
         apiKey: app.apiEnv.OPENROUTER_API_KEY,
+        allowFallbacks: app.apiEnv.OPENROUTER_ALLOW_FALLBACKS,
         appName: app.apiEnv.OPENROUTER_APP_NAME,
         appUrl: app.apiEnv.OPENROUTER_APP_URL,
         baseUrl: app.apiEnv.OPENROUTER_BASE_URL,
-        model: app.apiEnv.OPENROUTER_MODEL
+        model: app.apiEnv.OPENROUTER_MODEL,
+        providers: parseProviderList(app.apiEnv.OPENROUTER_PROVIDERS),
+        streamModel: app.apiEnv.OPENROUTER_STREAM_MODEL
       })
     : app.apiEnv.NODE_ENV === "test"
       ? new StubStreamingProvider()
       : new NotConfiguredProviderClient();
 
-  app.decorate("aiService", new AiService(app.documentsService, provider, app.apiEnv.API_DATA_DIR));
+  app.decorate("aiService", new AiService(app.prisma, app.documentsService, provider));
 
   app.get("/v1/ai/prompt-templates", protectedRoute, async () => {
     return listPromptTemplates();
@@ -65,13 +76,15 @@ export async function registerAiModule(app: FastifyInstance) {
     const currentUser = requireCurrentUser(request);
     const body = retrieveContextBodySchema.parse(request.body) as RetrieveRagContextRequest;
     const actor = getActor(currentUser);
-    const documents = app.documentsService.listDocuments(actor).documents;
-    const documentContents = documents.map((document) =>
-      app.documentsService.getDocumentContent(document.id, actor).content
+    const documents = (await app.documentsService.listDocuments(actor)).documents;
+    const documentContents = await Promise.all(
+      documents.map(async (document) =>
+        (await app.documentsService.getDocumentContent(document.id, actor)).content
+      )
     );
     const visibleDocumentIds = new Set(documents.map((document) => document.id));
-    const auditEvents = app.auditService
-      .listEvents()
+    const auditEvents = (await app.auditService
+      .listEvents())
       .filter((event) => event.documentId === null || visibleDocumentIds.has(event.documentId));
 
     return retrieveRagContext({
@@ -103,7 +116,7 @@ export async function registerAiModule(app: FastifyInstance) {
     const actor = getActor(requireCurrentUser(request));
     const params = request.params as { documentId: string; requestId: string };
 
-    return app.aiService.getRequestStatus(params.documentId, params.requestId, actor);
+    return await app.aiService.getRequestStatus(params.documentId, params.requestId, actor);
   });
 
   app.post("/v1/documents/:documentId/ai/proposals/accept", protectedRoute, async (request) => {
@@ -111,7 +124,12 @@ export async function registerAiModule(app: FastifyInstance) {
     const params = request.params as { documentId: string };
     const body = proposalDecisionSchema.parse(request.body);
 
-    const response = app.aiService.acceptProposal(params.documentId, body.proposalId, actor);
+    const response = await app.aiService.acceptProposal(
+      params.documentId,
+      body.proposalId,
+      actor,
+      body.editedText
+    );
     await notifyCollabDocumentContentSync(app, params.documentId, actor);
 
     return response;
@@ -122,7 +140,7 @@ export async function registerAiModule(app: FastifyInstance) {
     const params = request.params as { documentId: string };
     const body = proposalDecisionSchema.parse(request.body);
 
-    return app.aiService.rejectProposal(params.documentId, body.proposalId, actor);
+    return await app.aiService.rejectProposal(params.documentId, body.proposalId, actor);
   });
 
   app.post(
@@ -132,7 +150,7 @@ export async function registerAiModule(app: FastifyInstance) {
       const currentUser = requireCurrentUser(request);
       const params = request.params as { documentId: string };
       const body = streamAiRequestBodySchema.parse(request.body);
-      const role = app.documentsService.getDocumentRole(params.documentId, currentUser.id);
+      const role = await app.documentsService.getDocumentRole(params.documentId, currentUser.id);
 
       if (!role || !canUseAi(role)) {
         throw new AppError(
@@ -144,10 +162,14 @@ export async function registerAiModule(app: FastifyInstance) {
 
       reply.hijack();
       reply.raw.writeHead(200, {
+        "access-control-allow-credentials": "true",
+        "access-control-allow-origin": app.apiEnv.WEB_ORIGIN,
         "cache-control": "no-cache, no-transform",
         connection: "keep-alive",
-        "content-type": "text/event-stream; charset=utf-8"
+        "content-type": "text/event-stream; charset=utf-8",
+        vary: "Origin"
       });
+      reply.raw.flushHeaders();
 
       for await (const event of app.aiService.streamProposal({
         ...body,
@@ -164,4 +186,6 @@ export async function registerAiModule(app: FastifyInstance) {
 
 function writeSseEvent(reply: FastifyReply, event: AiStreamEvent) {
   reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
+  const raw = reply.raw as typeof reply.raw & { flush?: () => void };
+  raw.flush?.();
 }

@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { GetAiRequestStatusResponse } from "@repo/shared-types";
 
-import { makeAiRequestFixture } from "@repo/test-fixtures";
-
 import {
   applyApiTestEnv,
   createApiTestApp,
@@ -10,6 +8,22 @@ import {
 } from "./harness.js";
 
 const originalEnv = { ...process.env };
+
+function makeAiRequestFixture(input: {
+  action: "rewrite" | "summarize" | "translate" | "restructure";
+  context: {
+    scope: "document" | "selection";
+    selectedText: string | null;
+    surroundingText: string | null;
+  };
+  documentId: string;
+  maskPersonalData: boolean;
+}) {
+  return {
+    ...input,
+    prompt: null
+  };
+}
 
 async function waitForAiRequest(
   app: Awaited<ReturnType<typeof createApiTestApp>>,
@@ -104,7 +118,7 @@ describe("ai integration flow", () => {
     const requestId = submitResponse.json().requestId as string;
     await waitForAiRequest(app, documentId, requestId, ownerHeaders);
 
-    app.aiService.markRequestStaleForTest(requestId, {
+    await app.aiService.markRequestStaleForTest(requestId, {
       sourceText: "Document text changed after the AI request."
     });
 

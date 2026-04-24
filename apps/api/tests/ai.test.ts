@@ -7,6 +7,7 @@ import {
   createApiTestApp,
   createSessionHeaders
 } from "./integration/harness.js";
+import { OpenRouterProviderClient } from "../src/modules/ai/openrouter-provider.js";
 
 const originalEnv = { ...process.env };
 
@@ -441,7 +442,7 @@ describe("ai module", () => {
     const requestId = submitResponse.json().requestId as string;
     await waitForAiRequest(app, documentId, requestId, ownerHeaders);
 
-    app.aiService.markRequestStaleForTest(requestId, {
+    await app.aiService.markRequestStaleForTest(requestId, {
       sourceText: "Revised document text after edits."
     });
 
@@ -628,6 +629,66 @@ describe("ai module", () => {
     });
 
     await app.close();
+  });
+
+  it("requires a streaming-capable OpenRouter provider for streamed text", async () => {
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode('data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n')
+          );
+          controller.enqueue(
+            encoder.encode('data: {"choices":[{"delta":{"content":" world"}}]}\n\n')
+          );
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        }
+      })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const provider = new OpenRouterProviderClient({
+      apiKey: "openrouter-test-key",
+      baseUrl: "https://openrouter.ai/api/v1",
+      model: "default-model",
+      streamModel: "stream-model"
+    });
+
+    const chunks: string[] = [];
+
+    for await (const chunk of provider.streamText({
+      action: "rewrite",
+      context: {
+        scope: "selection",
+        selectedText: "hello",
+        surroundingText: null
+      },
+      maskPersonalData: false,
+      prompt: null
+    })) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toEqual(["Hello", " world"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(init.body)) as {
+      model?: string;
+      provider?: { require_parameters?: boolean };
+      stream?: boolean;
+    };
+
+    expect(body).toMatchObject({
+      model: "stream-model",
+      provider: {
+        require_parameters: true
+      },
+      stream: true
+    });
   });
 
   it("stores failed request status when the OpenRouter call fails", async () => {

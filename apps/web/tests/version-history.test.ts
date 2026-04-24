@@ -19,28 +19,49 @@ describe("version history data hook", () => {
         new Date("2026-04-02T10:05:00.000Z")
       )
     ).toEqual({
+      authorLabel: "google:user_owner",
+      changeDescription: "Revision rev_12345 captured by google:user_owner.",
+      changeDetails: [],
       key: "rev_12345678abcdef",
       label: "Initial snapshot: Kickoff",
-      summary: "Revision rev_12345 captured by google:user_owner.",
+      summary: "Changed by google:user_owner. Revision rev_12345 captured by google:user_owner.",
       when: "5 minutes ago"
     });
   });
 
   it("returns fetched revision history when the API responds successfully", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        revisions: [
-          {
-            revisionId: "rev_abcdefgh123456",
-            documentId: "doc-1",
-            label: "Rollback to Initial snapshot: Kickoff",
-            authorUserId: "google:user_owner",
-            createdAt: "2026-04-02T10:00:00.000Z"
-          }
-        ]
-      })
-    } as Response);
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          revisions: [
+            {
+              revisionId: "rev_abcdefgh123456",
+              documentId: "doc-1",
+              label: "Rollback to Initial snapshot: Kickoff",
+              authorUserId: "google:user_owner",
+              createdAt: "2026-04-02T10:00:00.000Z"
+            }
+          ]
+        })
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          documentId: "doc-1",
+          revisionId: "rev_abcdefgh123456",
+          compareToRevisionId: null,
+          summary: "Changed 1 section.",
+          changes: [
+            {
+              field: "content",
+              kind: "modified",
+              description: "Reworked the opening paragraph."
+            }
+          ]
+        })
+      } as Response);
 
     await expect(
       getVersionHistoryEntries("doc-1", {
@@ -51,15 +72,27 @@ describe("version history data hook", () => {
       })
     ).resolves.toEqual([
       {
+        authorLabel: "google:user_owner",
+        changeDescription: "Reworked the opening paragraph.",
+        changeDetails: ["Reworked the opening paragraph."],
         key: "rev_abcdefgh123456",
         label: "Rollback to Initial snapshot: Kickoff",
-        summary: "Revision rev_abcde captured by google:user_owner.",
+        summary: "Changed by google:user_owner. Reworked the opening paragraph.",
         when: "2 hours ago"
       }
     ]);
 
     expect(fetchImpl).toHaveBeenCalledWith(
       "http://localhost:4000/v1/documents/doc-1/versions",
+      expect.objectContaining({
+        cache: "no-store",
+        headers: {
+          cookie: "collab_session=test-token"
+        }
+      })
+    );
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "http://localhost:4000/v1/documents/doc-1/versions/rev_abcdefgh123456/diff",
       expect.objectContaining({
         cache: "no-store",
         headers: {

@@ -181,7 +181,44 @@ describe("exports module", () => {
     expect(artifactResponse.headers["content-type"]).toBe(
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     );
+    expect(artifactResponse.headers["content-disposition"]).toBe("attachment; filename=\"download-doc.docx\"");
     expect(artifactResponse.rawPayload.subarray(0, 2).toString("utf8")).toBe("PK");
+
+    await app.close();
+  });
+
+  it("rejects export creation for viewers", async () => {
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+    const viewerHeaders = createSessionHeaders(app, {
+      email: "viewer@example.com",
+      subject: "user_viewer"
+    });
+
+    const createDocumentResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Viewer export doc"
+      }
+    });
+    const documentId = createDocumentResponse.json().document.id as string;
+    await app.documentsService.setMembership(documentId, "google:user_viewer", "viewer");
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/exports`,
+      headers: viewerHeaders,
+      payload: {
+        format: "pdf"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
 
     await app.close();
   });
@@ -279,6 +316,97 @@ describe("exports module", () => {
     await app.close();
   });
 
+  it("renders PDF exports with wrapped text and multiple pages", async () => {
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      subject: "user_owner"
+    });
+
+    const createDocumentResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Long PDF export doc"
+      }
+    });
+    const documentId = createDocumentResponse.json().document.id as string;
+    const longParagraph = Array.from({ length: 90 }, (_, index) =>
+      `Paragraph ${index + 1} contains enough export text to require wrapping inside the generated PDF page.`
+    ).join("\n");
+
+    await app.inject({
+      method: "POST",
+      url: `/internal/documents/${documentId}/content-sync`,
+      headers: {
+        "x-api-token": process.env.SESSION_SECRET as string
+      },
+      payload: {
+        richText: {
+          type: "doc",
+          content: [
+            {
+              type: "heading",
+              attrs: {
+                level: 1
+              },
+              content: [
+                {
+                  type: "text",
+                  text: "Export heading"
+                }
+              ]
+            },
+            {
+              type: "paragraph",
+              content: [
+                {
+                  type: "text",
+                  text: longParagraph
+                }
+              ]
+            }
+          ]
+        },
+        text: `Export heading\n${longParagraph}`
+      }
+    });
+
+    const createExportResponse = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/exports`,
+      headers: ownerHeaders,
+      payload: {
+        format: "pdf"
+      }
+    });
+    const exportJobId = createExportResponse.json().exportJobId as string;
+    await waitForExportJob(app, documentId, exportJobId, ownerHeaders);
+
+    const downloadResponse = await app.inject({
+      method: "GET",
+      url: `/v1/documents/${documentId}/exports/${exportJobId}/download`,
+      headers: ownerHeaders
+    });
+    const downloadUrl = new URL(`http://localhost${downloadResponse.json().downloadUrl}`);
+    const artifactResponse = await app.inject({
+      method: "GET",
+      url: `${downloadUrl.pathname}${downloadUrl.search}`,
+      headers: ownerHeaders
+    });
+    const pdfBody = artifactResponse.body;
+
+    expect(artifactResponse.statusCode).toBe(200);
+    expect(artifactResponse.headers["content-type"]).toBe("application/pdf");
+    expect(pdfBody).toContain("/Count ");
+    expect(pdfBody).toContain("Export heading");
+    expect(pdfBody).toContain("Paragraph 90");
+    expect((pdfBody.match(/\/Type \/Page\b/g) ?? []).length).toBeGreaterThan(1);
+
+    await app.close();
+  });
+
   it("rejects invalid artifact tokens", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
@@ -325,7 +453,7 @@ describe("exports module", () => {
     await app.close();
   });
 
-  it("allows export access for other users through the default shared editor role", async () => {
+  it("rejects export access for unrelated users", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
@@ -355,12 +483,7 @@ describe("exports module", () => {
       }
     });
 
-    expect(response.statusCode).toBe(201);
-    expect(response.json()).toMatchObject({
-      exportJobId: expect.any(String),
-      requestedAt: expect.any(String),
-      status: "queued"
-    });
+    expect(response.statusCode).toBe(403);
 
     await app.close();
   });

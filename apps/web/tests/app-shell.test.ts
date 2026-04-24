@@ -36,9 +36,9 @@ describe("workspace navigation", () => {
         matchPrefix: "/documents/"
       },
       {
-        href: "/auth",
+        href: "/auth/sign-in",
         label: "Auth",
-        summary: "Signed-out, loading, and signed-in shell previews."
+        summary: "Dedicated sign-in and sign-up routes for local account access."
       }
     ]);
   });

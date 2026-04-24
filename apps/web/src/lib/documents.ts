@@ -1,13 +1,20 @@
 import type {
   CommentRecord,
+  CreateInvitationResponse,
   CreateCommentResponse,
   CreateDocumentResponse,
   DocumentMetadata,
+  DocumentRole,
   DocumentSummary,
   GetDocumentMetadataResponse,
+  ListDocumentSharingResponse,
   ListCommentsResponse,
   ListDocumentsResponse,
-  RenameDocumentResponse
+  ListPendingInvitationsResponse,
+  PendingInvitation,
+  RejectInvitationResponse,
+  RenameDocumentResponse,
+  UpdateDocumentRoleResponse
 } from "@repo/shared-types";
 
 import { getDocumentRecord, type DocumentRecord } from "./app-shell";
@@ -221,6 +228,161 @@ export async function createDocumentComment(
 
   const payload = await response.json() as CreateCommentResponse;
   return payload.comment;
+}
+
+export async function getDocumentSharingState(
+  documentId: string,
+  options: {
+    apiBaseUrl?: string;
+    fetchImpl?: typeof fetch;
+  } = {}
+) {
+  const apiBaseUrl = options.apiBaseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const response = await fetchImpl(`${apiBaseUrl}/v1/documents/${documentId}/sharing`, {
+    credentials: "include"
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => null);
+    throw new Error(errorPayload?.error?.message ?? "Failed to load sharing state.");
+  }
+
+  const payload = await response.json() as ListDocumentSharingResponse;
+  return payload.sharing;
+}
+
+export async function createDocumentInvitation(
+  documentId: string,
+  invitee: string,
+  role: Exclude<DocumentRole, "owner">,
+  options: {
+    apiBaseUrl?: string;
+    fetchImpl?: typeof fetch;
+  } = {}
+) {
+  const apiBaseUrl = options.apiBaseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const response = await fetchImpl(`${apiBaseUrl}/v1/documents/${documentId}/invitations`, {
+    body: JSON.stringify({ invitee, role }),
+    credentials: "include",
+    headers: {
+      "content-type": "application/json"
+    },
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => null);
+    throw new Error(errorPayload?.error?.message ?? "Failed to send invitation.");
+  }
+
+  const payload = await response.json() as CreateInvitationResponse;
+  return payload;
+}
+
+export async function updateDocumentMemberRole(
+  documentId: string,
+  userId: string,
+  role: Exclude<DocumentRole, "owner">,
+  options: {
+    apiBaseUrl?: string;
+    fetchImpl?: typeof fetch;
+  } = {}
+) {
+  const apiBaseUrl = options.apiBaseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const response = await fetchImpl(
+    `${apiBaseUrl}/v1/documents/${documentId}/members/${encodeURIComponent(userId)}`,
+    {
+      body: JSON.stringify({ role }),
+      credentials: "include",
+      headers: {
+        "content-type": "application/json"
+      },
+      method: "PATCH"
+    }
+  );
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => null);
+    throw new Error(errorPayload?.error?.message ?? "Failed to update member role.");
+  }
+
+  return response.json() as Promise<UpdateDocumentRoleResponse>;
+}
+
+export async function listPendingInvitations(
+  options: {
+    apiBaseUrl?: string;
+    fetchImpl?: typeof fetch;
+  } = {}
+): Promise<PendingInvitation[]> {
+  const apiBaseUrl = options.apiBaseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const response = await fetchImpl(`${apiBaseUrl}/v1/invitations`, {
+    credentials: "include"
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => null);
+    throw new Error(errorPayload?.error?.message ?? "Failed to load invitations.");
+  }
+
+  const payload = await response.json() as ListPendingInvitationsResponse;
+  return payload.invitations;
+}
+
+export async function acceptInvitation(
+  token: string,
+  options: {
+    apiBaseUrl?: string;
+    fetchImpl?: typeof fetch;
+  } = {}
+) {
+  const apiBaseUrl = options.apiBaseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const response = await fetchImpl(`${apiBaseUrl}/v1/invitations/accept`, {
+    body: JSON.stringify({ token }),
+    credentials: "include",
+    headers: {
+      "content-type": "application/json"
+    },
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => null);
+    throw new Error(errorPayload?.error?.message ?? "Failed to accept invitation.");
+  }
+
+  return response.json();
+}
+
+export async function rejectInvitation(
+  token: string,
+  options: {
+    apiBaseUrl?: string;
+    fetchImpl?: typeof fetch;
+  } = {}
+) {
+  const apiBaseUrl = options.apiBaseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const response = await fetchImpl(`${apiBaseUrl}/v1/invitations/reject`, {
+    body: JSON.stringify({ token }),
+    credentials: "include",
+    headers: {
+      "content-type": "application/json"
+    },
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => null);
+    throw new Error(errorPayload?.error?.message ?? "Failed to reject invitation.");
+  }
+
+  return response.json() as Promise<RejectInvitationResponse>;
 }
 
 export async function getWorkspaceDocumentsState(

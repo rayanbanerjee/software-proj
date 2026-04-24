@@ -48,7 +48,7 @@ describe("sharing integration flow", () => {
       url: `/v1/documents/${documentId}/invitations`,
       headers: ownerSessionHeaders,
       payload: {
-        email: "editor@example.com",
+        invitee: "editor@example.com",
         role: "editor"
       }
     });
@@ -58,7 +58,7 @@ describe("sharing integration flow", () => {
       url: `/v1/documents/${documentId}/invitations`,
       headers: ownerSessionHeaders,
       payload: {
-        email: "viewer@example.com",
+        invitee: "viewer@example.com",
         role: "viewer"
       }
     });
@@ -104,7 +104,7 @@ describe("sharing integration flow", () => {
       url: `/v1/documents/${documentId}/invitations`,
       headers: editorSessionHeaders,
       payload: {
-        email: "third@example.com",
+        invitee: "third@example.com",
         role: "viewer"
       }
     });

@@ -6,6 +6,7 @@ import type { ExportPanelState } from "../../lib/export-panel-state";
 
 interface ExportModalShellProps {
   documentId: string;
+  documentTitle: string;
   panelState: ExportPanelState;
 }
 
@@ -17,10 +18,34 @@ type ExportJobState = {
   status: string;
 };
 
-export function ExportModalShell({ documentId, panelState }: ExportModalShellProps) {
+function buildExportFilename(title: string, format: string) {
+  const safeTitle = title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+
+  return `${safeTitle || "document"}.${format}`;
+}
+
+function formatExportStatus(format: string, status: string) {
+  if (status === "succeeded") {
+    return `${format.toUpperCase()} export ready.`;
+  }
+
+  if (status === "failed") {
+    return `${format.toUpperCase()} export failed.`;
+  }
+
+  return `${format.toUpperCase()} export ${status}.`;
+}
+
+export function ExportModalShell({ documentId, documentTitle, panelState }: ExportModalShellProps) {
   const [job, setJob] = useState<ExportJobState | null>(panelState.job);
   const [summary, setSummary] = useState(panelState.summary);
   const [isRequestingFormat, setIsRequestingFormat] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -85,7 +110,7 @@ export function ExportModalShell({ documentId, panelState }: ExportModalShellPro
           format: statusPayload.job.format,
           status: statusPayload.job.status
         });
-        setSummary(`Latest export job ${statusPayload.job.exportJobId} is ${statusPayload.job.status}.`);
+        setSummary(formatExportStatus(statusPayload.job.format, statusPayload.job.status));
       } catch (error) {
         if (!isActive) {
           return;
@@ -141,11 +166,50 @@ export function ExportModalShell({ documentId, panelState }: ExportModalShellPro
         format,
         status: payload.status
       });
-      setSummary(`Latest export job ${payload.exportJobId} is ${payload.status}.`);
+      setSummary(formatExportStatus(format, payload.status));
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Failed to queue export.");
     } finally {
       setIsRequestingFormat(null);
+    }
+  }
+
+  async function downloadExport(activeJob: ExportJobState) {
+    if (!activeJob.downloadUrl) {
+      return;
+    }
+
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+
+    setErrorMessage(null);
+    setIsDownloading(true);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}${activeJob.downloadUrl}`, {
+        credentials: "include"
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to download export.");
+      }
+
+      const blob = await response.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const anchor = window.document.createElement("a");
+
+      anchor.href = objectUrl;
+      anchor.download = buildExportFilename(documentTitle, activeJob.format);
+      window.document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(objectUrl);
+      }, 0);
+      setSummary(`Downloaded ${buildExportFilename(documentTitle, activeJob.format)}.`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to download export.");
+    } finally {
+      setIsDownloading(false);
     }
   }
 
@@ -158,13 +222,18 @@ export function ExportModalShell({ documentId, panelState }: ExportModalShellPro
       <p>{summary}</p>
       {job ? (
         <div className="overlay-caption">
-          <strong>Latest job:</strong> {job.format} · {job.status}
+          <strong>Latest export:</strong> {job.format.toUpperCase()} · {job.status}
           {job.downloadUrl ? (
             <>
               {" · "}
-              <a href={`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000"}${job.downloadUrl}`}>
-                Download
-              </a>
+              <button
+                className="overlay-inline-action"
+                disabled={isDownloading}
+                onClick={() => void downloadExport(job)}
+                type="button"
+              >
+                {isDownloading ? "Downloading..." : "Download"}
+              </button>
             </>
           ) : null}
         </div>

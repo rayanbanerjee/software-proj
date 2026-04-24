@@ -8,147 +8,192 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  name          String?
-  imageUrl      String?
-  aiRequests    AiRequest[]
-  auditEvents   AuditEvent[]
-  exportJobs    ExportJob[]
-  invitationsSent Invitation[]
-  memberships   DocumentMembership[]
-  revisions     Revision[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String                @id
+  email              String                @unique
+  name               String?
+  imageUrl           String?
+  localAuth          LocalAuthCredential?
+  documentsOwned     Document[]            @relation("DocumentOwner")
+  documentMemberships DocumentMembership[]
+  comments           Comment[]
+  invitationsSent    Invitation[]          @relation("InvitationSender")
+  revisions          Revision[]
+  aiRequests         AiRequest[]
+  exportJobs         ExportJob[]
+  auditEvents        AuditEvent[]          @relation("AuditActor")
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+}
+
+model LocalAuthCredential {
+  userId       String   @id
+  username     String   @unique
+  passwordHash String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Document {
-  id          String               @id @default(cuid())
-  title       String
-  archivedAt  DateTime?
-  aiRequests  AiRequest[]
-  auditEvents AuditEvent[]
-  exportJobs  ExportJob[]
-  invitations Invitation[]
-  memberships DocumentMembership[]
-  revisions   Revision[]
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  id             String               @id
+  ownerUserId    String
+  title          String
+  content        String
+  richContent    Json?
+  defaultRole    DocumentRole?
+  archivedAt     DateTime?
+  owner          User                 @relation("DocumentOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  memberships    DocumentMembership[]
+  invitations    Invitation[]
+  comments       Comment[]
+  revisions      Revision[]
+  aiRequests     AiRequest[]
+  exportJobs     ExportJob[]
+  auditEvents    AuditEvent[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([ownerUserId])
+  @@index([updatedAt])
 }
 
 model DocumentMembership {
-  id         String       @id @default(cuid())
-  userId     String
-  documentId String
-  role       DocumentRole
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  document   Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  id          String       @id @default(cuid())
+  documentId  String
+  userId      String
+  displayName String?
+  role        DocumentRole
+  document    Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   @@unique([documentId, userId])
   @@index([userId])
 }
 
 model Invitation {
-  id            String           @id @default(cuid())
-  documentId    String
+  id             String       @id
+  documentId     String
   invitedByUserId String
-  inviteeEmail  String
-  role          DocumentRole
-  tokenHash     String
-  expiresAt     DateTime
-  acceptedAt    DateTime?
-  revokedAt     DateTime?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  document      Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  invitedByUser User             @relation(fields: [invitedByUserId], references: [id], onDelete: Cascade)
+  inviteeEmail   String
+  role           DocumentRole
+  acceptToken    String
+  tokenHash      String
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  document       Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  invitedByUser  User         @relation("InvitationSender", fields: [invitedByUserId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@index([documentId, createdAt])
   @@index([inviteeEmail])
   @@index([tokenHash])
 }
 
-model Revision {
-  id               String    @id @default(cuid())
-  documentId       String
-  createdByUserId  String?
-  label            String
-  snapshotRef      String
-  snapshotMimeType String?
-  sourceRevisionId String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  document         Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  createdByUser    User?     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
-  sourceRevision   Revision? @relation("RevisionLineage", fields: [sourceRevisionId], references: [id], onDelete: SetNull)
-  derivedRevisions Revision[] @relation("RevisionLineage")
+model Comment {
+  id           String   @id
+  documentId   String
+  authorUserId String
+  authorName   String?
+  body         String
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  authorUser   User     @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([documentId, createdAt])
-  @@index([createdByUserId])
-  @@index([sourceRevisionId])
+  @@index([authorUserId])
+}
+
+model Revision {
+  revisionId      String    @id
+  documentId      String
+  authorUserId    String
+  label           String
+  snapshotId      String
+  contentType     String
+  parentRevisionId String?
+  snapshotText    String
+  title           String
+  document        Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  authorUser      User      @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  parentRevision  Revision? @relation("RevisionLineage", fields: [parentRevisionId], references: [revisionId], onDelete: SetNull)
+  childRevisions  Revision[] @relation("RevisionLineage")
+  createdAt       DateTime
+
+  @@index([documentId, createdAt])
+  @@index([authorUserId])
+  @@index([parentRevisionId])
 }
 
 model AiRequest {
-  id               String          @id @default(cuid())
-  documentId       String
-  requestedByUserId String
-  action           AiAction
-  status           AiRequestStatus @default(queued)
-  scope            AiSelectionScope
-  prompt           String?
-  selectedText     String?
-  surroundingText  String?
-  maskPersonalData Boolean         @default(false)
-  errorMessage     String?
-  startedAt        DateTime?
-  completedAt      DateTime?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  document         Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  requestedByUser  User            @relation(fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  requestId              String          @id
+  documentId             String
+  requestedByUserId      String
+  action                 AiAction
+  status                 AiRequestStatus
+  scope                  AiSelectionScope
+  prompt                 String?
+  selectedText           String?
+  surroundingText        String?
+  maskPersonalData       Boolean         @default(false)
+  baseDocumentText       String
+  sourceFingerprint      Json
+  forcedCurrentFingerprint Json?
+  proposal               Json?
+  errorMessage           String?
+  document               Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  requestedByUser        User            @relation(fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  queuedAt               DateTime
+  startedAt              DateTime?
+  completedAt            DateTime?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
 
-  @@index([documentId, createdAt])
+  @@index([documentId, queuedAt])
   @@index([requestedByUserId])
   @@index([status])
 }
 
 model ExportJob {
-  id               String          @id @default(cuid())
+  exportJobId      String          @id
   documentId       String
   requestedByUserId String
   format           ExportFormat
-  status           ExportJobStatus @default(queued)
-  storageKey       String?
-  downloadUrl      String?
+  status           ExportJobStatus
+  artifactKey      String?
+  mimeType         String?
   errorMessage     String?
+  document         Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  requestedByUser  User            @relation(fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  requestedAt      DateTime
   completedAt      DateTime?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
-  document         Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  requestedByUser  User            @relation(fields: [requestedByUserId], references: [id], onDelete: Cascade)
 
-  @@index([documentId, createdAt])
+  @@index([documentId, requestedAt])
   @@index([requestedByUserId])
   @@index([status])
 }
 
 model AuditEvent {
-  id               String           @id @default(cuid())
-  documentId       String?
-  actorUserId      String?
-  eventType        AuditEventType
-  targetType       AuditTargetType
-  targetId         String?
-  metadata         Json?
-  createdAt        DateTime         @default(now())
-  actorUser        User?            @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
-  document         Document?        @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  id           String   @id
+  action       String
+  actorUserId  String
+  documentId   String?
+  targetUserId String?
+  metadata     Json?
+  actorUser    User     @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  document     Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  occurredAt   DateTime
+  createdAt    DateTime @default(now())
 
-  @@index([documentId, createdAt])
-  @@index([actorUserId, createdAt])
-  @@index([eventType, createdAt])
+  @@index([documentId, occurredAt])
+  @@index([actorUserId, occurredAt])
+  @@index([action, occurredAt])
 }
 
 enum DocumentRole {
@@ -190,25 +235,4 @@ enum ExportJobStatus {
   running
   succeeded
   failed
-}
-
-enum AuditEventType {
-  document_created
-  document_renamed
-  document_archived
-  access_granted
-  access_updated
-  access_revoked
-  ai_requested
-  ai_applied
-  export_requested
-  export_completed
-}
-
-enum AuditTargetType {
-  document
-  membership
-  ai_request
-  export_job
-  revision
 }

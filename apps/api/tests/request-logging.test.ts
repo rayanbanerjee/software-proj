@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AppLogger, LogContext } from "../src/common/logger.js";
-import { createApp } from "../src/app.js";
-import { applyApiTestEnv } from "./integration/harness.js";
+import { applyApiTestEnv, createApiTestApp } from "./integration/harness.js";
 
 const originalEnv = { ...process.env };
 
@@ -42,7 +41,7 @@ function createSpyLogger() {
 describe("request logging middleware", () => {
   it("logs completed requests through the shared logger abstraction", async () => {
     const spyLogger = createSpyLogger();
-    const { app } = await createApp({
+    const app = await createApiTestApp({
       appLogger: spyLogger.logger
     });
 

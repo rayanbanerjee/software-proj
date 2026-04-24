@@ -48,6 +48,29 @@ describe("collab lifecycle hooks", () => {
     });
 
     await harness.server.configuration.onDisconnect?.(firstPayload as never);
+    await harness.server.configuration.onChange?.({
+      ...firstPayload,
+      clientsCount: 1,
+      transactionOrigin: {},
+      update: new Uint8Array()
+    } as never);
+
+    const revivedBroadcast = JSON.parse(firstPayload.document.broadcasts.at(-1) ?? "{}");
+
+    expect(revivedBroadcast).toMatchObject({
+      type: "presence.snapshot",
+      documentId: "doc-1",
+      collaborators: [
+        expect.objectContaining({
+          sessionId: "socket-1",
+          userId: "jwt:user_owner",
+          connectionStatus: "active",
+          isPresent: true
+        })
+      ]
+    });
+
+    await harness.server.configuration.onDisconnect?.(firstPayload as never);
 
     const reconnectPayload = harness.createHookPayload({
       requestParameters: new URLSearchParams([

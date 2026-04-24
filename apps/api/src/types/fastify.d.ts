@@ -1,3 +1,4 @@
+import type { PrismaClient } from "@prisma/client";
 import type { UserProfile } from "@repo/shared-types";
 import type { AppLogger } from "../common/logger.js";
 import type { AiService } from "../modules/ai/service.js";
@@ -22,6 +23,7 @@ declare module "fastify" {
     documentsService: DocumentsService;
     exportsService: ExportsService;
     googleIdTokenVerifier: GoogleIdTokenVerifier | null;
+    prisma: PrismaClient;
     sharingService: SharingService;
     versionsService: VersionsService;
   }

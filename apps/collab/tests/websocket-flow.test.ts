@@ -52,7 +52,10 @@ describe("collab websocket flow", () => {
   });
 
   it("keeps read-only websocket sessions out of active writer slots while preserving presence", async () => {
-    const harness = createCollabTestHarness();
+    const harness = createCollabTestHarness({
+      accessLevel: "read",
+      role: "viewer"
+    });
     const token = harness.createSignedSessionTokenForTest({
       email: "viewer@example.com",
       name: "Viewer Demo",
@@ -60,7 +63,7 @@ describe("collab websocket flow", () => {
     });
     const payload = harness.createHookPayload({
       requestParameters: new URLSearchParams([
-        ["accessLevel", "read"]
+        ["accessLevel", "write"]
       ]),
       socketId: "socket-read"
     });
@@ -86,6 +89,15 @@ describe("collab websocket flow", () => {
         id: "google:user_viewer"
       }
     });
+    expect(payload.connectionConfig.readOnly).toBe(true);
+    expect(harness.accessRequests).toEqual([
+      expect.objectContaining({
+        body: {
+          userId: "google:user_viewer"
+        },
+        url: "http://localhost:4000/internal/documents/doc-1/collab-access"
+      })
+    ]);
     expect(writerSnapshot).toMatchObject({
       type: "writer.slot.snapshot",
       documentId: "doc-1",
@@ -99,8 +111,10 @@ describe("collab websocket flow", () => {
         expect.objectContaining({
           sessionId: "socket-read",
           userId: "google:user_viewer",
+          accessLevel: "read",
           connectionStatus: "active",
-          isPresent: true
+          isPresent: true,
+          role: "viewer"
         })
       ]
     });

@@ -19,3 +19,5 @@ COPY packages/ui/package.json packages/ui/package.json
 RUN pnpm install --frozen-lockfile
 
 COPY . .
+
+RUN pnpm --filter @repo/api prisma:generate

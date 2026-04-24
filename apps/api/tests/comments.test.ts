@@ -94,7 +94,7 @@ describe("comments module", () => {
     });
     const documentId = createDocumentResponse.json().document.id as string;
 
-    app.documentsService.setMembership(documentId, "google:user_viewer", "viewer");
+    await app.documentsService.setMembership(documentId, "google:user_viewer", "viewer");
 
     const response = await app.inject({
       method: "POST",

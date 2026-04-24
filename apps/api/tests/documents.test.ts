@@ -49,7 +49,7 @@ describe("documents module", () => {
     await app.close();
   });
 
-  it("lists documents for other authenticated users with the default shared editor role", async () => {
+  it("does not list private documents for unrelated authenticated users", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
@@ -93,20 +93,13 @@ describe("documents module", () => {
 
     expect(otherUserResponse.statusCode).toBe(200);
     expect(otherUserResponse.json()).toEqual({
-      documents: [
-        {
-          id: expect.any(String),
-          role: "editor",
-          title: "Visible to owner",
-          updatedAt: expect.any(String)
-        }
-      ]
+      documents: []
     });
 
     await app.close();
   });
 
-  it("exposes documents to unrelated accounts in development with shared editor access", async () => {
+  it("keeps documents private for unrelated accounts in development", async () => {
     const originalNodeEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = "development";
     try {
@@ -137,14 +130,7 @@ describe("documents module", () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.json()).toEqual({
-        documents: [
-          {
-            id: expect.any(String),
-            role: "editor",
-            title: "Private across dev accounts",
-            updatedAt: expect.any(String)
-          }
-        ]
+        documents: []
       });
 
       await app.close();
@@ -191,7 +177,7 @@ describe("documents module", () => {
     await app.close();
   });
 
-  it("returns shared editor metadata for other authenticated users by default", async () => {
+  it("rejects metadata access for unrelated authenticated users", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
@@ -219,15 +205,12 @@ describe("documents module", () => {
       headers: otherHeaders
     });
 
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
-      document: {
-        id: documentId,
-        title: "Shared metadata document",
-        permissions: {
-          role: "editor",
-          canEdit: true
-        }
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "DOCUMENT_FORBIDDEN",
+        message: "You do not have access to this document.",
+        statusCode: 403
       }
     });
 
@@ -292,6 +275,47 @@ describe("documents module", () => {
           accessLevel: "write"
         }
       }
+    });
+
+    await app.close();
+  });
+
+  it("returns authoritative websocket access for the collab server", async () => {
+    const app = await createApiTestApp();
+    const ownerHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      userId: "jwt:user_owner"
+    });
+    const viewerUserId = "jwt:user_viewer";
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerHeaders,
+      payload: {
+        title: "Realtime permissions"
+      }
+    });
+    const documentId = createResponse.json().document.id as string;
+    await app.documentsService.setMembership(documentId, viewerUserId, "viewer");
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/internal/documents/${documentId}/collab-access`,
+      headers: {
+        "x-api-token": process.env.SESSION_SECRET as string
+      },
+      payload: {
+        userId: viewerUserId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      accessLevel: "read",
+      documentId,
+      role: "viewer",
+      userId: viewerUserId
     });
 
     await app.close();
@@ -457,7 +481,7 @@ describe("documents module", () => {
     await app.close();
   });
 
-  it("grants metadata and rename access for other users through the default shared editor role", async () => {
+  it("rejects metadata and rename access for unrelated users", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
@@ -485,17 +509,7 @@ describe("documents module", () => {
       headers: otherHeaders
     });
 
-    expect(metadataResponse.statusCode).toBe(200);
-    expect(metadataResponse.json()).toMatchObject({
-      document: {
-        id: documentId,
-        title: "Private doc",
-        permissions: {
-          role: "editor",
-          canEdit: true
-        }
-      }
-    });
+    expect(metadataResponse.statusCode).toBe(403);
 
     const renameResponse = await app.inject({
       method: "PATCH",
@@ -506,21 +520,12 @@ describe("documents module", () => {
       }
     });
 
-    expect(renameResponse.statusCode).toBe(200);
-    expect(renameResponse.json()).toMatchObject({
-      document: {
-        id: documentId,
-        title: "Shared rename",
-        permissions: {
-          role: "editor"
-        }
-      }
-    });
+    expect(renameResponse.statusCode).toBe(403);
 
     await app.close();
   });
 
-  it("creates session bootstrap for other users through the default shared editor role", async () => {
+  it("rejects session bootstrap for unrelated users", async () => {
     const app = await createApiTestApp();
     const ownerHeaders = createSessionHeaders(app, {
       email: "owner@example.com",
@@ -548,16 +553,7 @@ describe("documents module", () => {
       payload: {}
     });
 
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
-      session: {
-        documentId,
-        self: {
-          role: "editor",
-          accessLevel: "write"
-        }
-      }
-    });
+    expect(response.statusCode).toBe(403);
 
     await app.close();
   });

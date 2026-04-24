@@ -18,11 +18,10 @@ describe("auth login endpoint", () => {
 
     await app.inject({
       method: "POST",
-      url: "/v1/auth/login",
+      url: "/v1/auth/signup",
       payload: {
         username: "owner",
-        password: "dev-password",
-        createUserIfMissing: true
+        password: "dev-password"
       }
     });
 
@@ -81,11 +80,10 @@ describe("auth login endpoint", () => {
 
     await app.inject({
       method: "POST",
-      url: "/v1/auth/login",
+      url: "/v1/auth/signup",
       payload: {
         username: "owner",
-        password: "dev-password",
-        createUserIfMissing: true
+        password: "dev-password"
       }
     });
 
@@ -128,33 +126,6 @@ describe("auth login endpoint", () => {
         code: "AUTH_USER_NOT_FOUND",
         message: "Username does not exist.",
         statusCode: 404
-      }
-    });
-
-    await app.close();
-  });
-
-  it("creates a new local user when explicitly requested", async () => {
-    const app = await createApiTestApp();
-
-    const response = await app.inject({
-      method: "POST",
-      url: "/v1/auth/login",
-      payload: {
-        username: "new-user",
-        password: "dev-password",
-        createUserIfMissing: true
-      }
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
-      outcome: "created",
-      session: {
-        user: {
-          email: "new-user@local.test",
-          name: "new-user"
-        }
       }
     });
 

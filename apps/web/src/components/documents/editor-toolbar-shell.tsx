@@ -49,6 +49,7 @@ interface EditorToolbarShellProps {
   documentId: string;
   overlay: DocumentOverlay;
   onToggleBlame: () => void;
+  onExitBlame?: () => void;
   showDebugControls?: boolean;
   syncState: SyncConnectionState;
   view: DocumentScreenState;
@@ -59,23 +60,19 @@ export function EditorToolbarShell({
   documentId,
   overlay,
   onToggleBlame,
+  onExitBlame,
   showDebugControls = false,
   syncState,
   view
 }: EditorToolbarShellProps) {
   const overlayLinks: { key: Exclude<DocumentOverlay, null>; label: string; icon: string }[] = [
-    { key: "sharing", label: "Sharing", icon: "S" },
+    { key: "sharing", label: "Sharing", icon: "+" },
     { key: "export", label: "Export", icon: "E" }
   ];
   const viewLinks: DocumentScreenState[] = ["ready", "empty", "error"];
 
   return (
     <section className="editor-toolbar-shell">
-      <div className="editor-toolbar-icon-row">
-        <span className="editor-toolbar-dot editor-toolbar-dot-blue" />
-        <span className="editor-toolbar-dot editor-toolbar-dot-green" />
-        <span className="editor-toolbar-dot editor-toolbar-dot-dark" />
-      </div>
       <div className="editor-toolbar-group editor-toolbar-group-compact">
         <div className="toolbar-pill-group">
           {overlayLinks.map((item) => {
@@ -83,7 +80,7 @@ export function EditorToolbarShell({
 
             return (
               <Link
-                className={`toolbar-link${overlay === item.key ? " toolbar-link-active" : ""}`}
+                className={`toolbar-link${item.key === "sharing" ? " toolbar-link-share" : ""}${overlay === item.key ? " toolbar-link-active" : ""}`}
                 href={buildDocumentHref(documentId, {
                   overlay: nextOverlay,
                   permissionState: "normal",
@@ -106,6 +103,16 @@ export function EditorToolbarShell({
           >
             B
           </button>
+          {blameMode && onExitBlame ? (
+            <button
+              className="toolbar-link toolbar-link-button toolbar-link-back"
+              onClick={onExitBlame}
+              title="Back to writing"
+              type="button"
+            >
+              ←
+            </button>
+          ) : null}
         </div>
       </div>
 

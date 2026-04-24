@@ -42,6 +42,8 @@ function mapSessionCollaborators(
     connectionStatus: collaborator.connectionStatus,
     displayName: collaborator.displayName,
     documentId: collaborator.documentId,
+    role: collaborator.role,
+    accessLevel: collaborator.accessLevel,
     isPresent: collaborator.isPresent,
     lastSeenAt: collaborator.lastSeenAt,
     sessionId: collaborator.sessionId,

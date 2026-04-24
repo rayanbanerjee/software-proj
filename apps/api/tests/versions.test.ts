@@ -156,11 +156,16 @@ describe("versions module", () => {
       headers: ownerHeaders
     });
 
-    expect(updatedListResponse.json().revisions).toHaveLength(2);
+    expect(updatedListResponse.json().revisions).toHaveLength(3);
     expect(updatedListResponse.json().revisions[0]).toMatchObject({
       authorUserId: "google:user_owner",
       documentId,
       label: "Rollback to Initial snapshot: Rollback doc"
+    });
+    expect(updatedListResponse.json().revisions[1]).toMatchObject({
+      authorUserId: "google:user_owner",
+      documentId,
+      label: "Document edit"
     });
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:4001/internal/events/document-rollback",
@@ -345,7 +350,7 @@ describe("versions module", () => {
       }
     });
     const documentId = createResponse.json().document.id as string;
-    app.documentsService.setMembership(documentId, "google:user_editor", "editor");
+    await app.documentsService.setMembership(documentId, "google:user_editor", "editor");
 
     const listResponse = await app.inject({
       method: "GET",

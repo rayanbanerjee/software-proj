@@ -10,7 +10,7 @@
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_JWKS_URL`
 
-If `GOOGLE_CLIENT_ID` is not configured, Google callback auth returns `503` and the local username/password login flow remains available.
+If `GOOGLE_CLIENT_ID` is not configured, Google callback auth returns `503` and the local username/password sign-in and sign-up flows remain available.
 
 ## `POST /v1/auth/callback`
 
@@ -57,15 +57,14 @@ Failure cases:
 
 ## `POST /v1/auth/login`
 
-Accepts a local username/password payload for development flows and issues the same JWT-backed API session contract.
+Accepts a local username/password payload for existing development accounts and issues the same JWT-backed API session contract.
 
 Request body:
 
 ```json
 {
   "username": "owner",
-  "password": "dev-password",
-  "createUserIfMissing": false
+  "password": "dev-password"
 }
 ```
 
@@ -91,7 +90,43 @@ Failure cases:
 
 - `400 BAD_REQUEST` when username or password is missing
 - `401 AUTH_INVALID_CREDENTIALS` when the password is wrong
-- `404 AUTH_USER_NOT_FOUND` when the user does not exist and auto-create was not requested
+- `404 AUTH_USER_NOT_FOUND` when the user does not exist
+
+## `POST /v1/auth/signup`
+
+Accepts a local username/password payload, creates a new development account, and immediately issues the same JWT-backed API session contract.
+
+Request body:
+
+```json
+{
+  "username": "new-user",
+  "password": "dev-password"
+}
+```
+
+Response:
+
+```json
+{
+  "outcome": "created",
+  "session": {
+    "issuedAt": "2026-04-19T10:00:00.000Z",
+    "expiresAt": "2026-04-26T10:00:00.000Z",
+    "user": {
+      "id": "jwt:8fd74a1147a6f2d2",
+      "email": "new-user@local.test",
+      "name": "new-user",
+      "imageUrl": null
+    }
+  }
+}
+```
+
+Failure cases:
+
+- `400 BAD_REQUEST` when username or password is missing
+- `409 AUTH_USER_EXISTS` when the username has already been registered
 
 ## `GET /v1/auth/me`
 

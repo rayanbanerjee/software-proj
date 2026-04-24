@@ -8,6 +8,7 @@ import * as Y from "yjs";
 import { yXmlFragmentToProsemirrorJSON } from "y-prosemirror";
 
 import type {
+  DocumentRole,
   DocumentPermissionUpdatedEvent,
   DocumentRollbackEvent,
   SessionAccessLevel
@@ -45,6 +46,13 @@ type InternalCollabRuntime = CollabDocumentsRuntime & {
   writerSlots?: WriterSlotManager;
 };
 
+type CollabAccessResponse = {
+  accessLevel: SessionAccessLevel;
+  documentId: string;
+  role: DocumentRole;
+  userId: string;
+};
+
 const COLLAPSE_DATA_DIR = join(
   dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -52,6 +60,8 @@ const COLLAPSE_DATA_DIR = join(
   "documents"
 );
 const INTERNAL_CONTENT_SYNC_ORIGIN = "internal-content-sync";
+const TIPTAP_FRAGMENT_NAME = "default";
+const RICH_TEXT_FRAGMENT_NAMES = [TIPTAP_FRAGMENT_NAME, "prosemirror"] as const;
 
 function sanitizeDocumentName(documentName: string) {
   return documentName.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -91,7 +101,7 @@ function writeJson(
 
 function createCollabDocumentFromPlainText(text: string) {
   const document = new Y.Doc();
-  const fragment = document.getXmlFragment("prosemirror");
+  const fragment = document.getXmlFragment(TIPTAP_FRAGMENT_NAME);
   const normalized = text.replace(/\r\n/g, "\n");
   const lines = normalized.length > 0 ? normalized.split("\n") : [""];
   const paragraphs = lines.map((line) => {
@@ -113,7 +123,7 @@ function createCollabDocumentFromPlainText(text: string) {
 
 function cloneXmlFragmentChildren(document: Y.Doc) {
   return document
-    .getXmlFragment("prosemirror")
+    .getXmlFragment(TIPTAP_FRAGMENT_NAME)
     .toArray()
     .filter((node): node is Y.XmlElement | Y.XmlText => node instanceof Y.XmlElement || node instanceof Y.XmlText)
     .map((node) => node.clone());
@@ -121,7 +131,7 @@ function cloneXmlFragmentChildren(document: Y.Doc) {
 
 function applyPlainTextToRuntimeDocument(document: Y.Doc, text: string) {
   const nextDocument = createCollabDocumentFromPlainText(text);
-  const fragment = document.getXmlFragment("prosemirror");
+  const fragment = document.getXmlFragment(TIPTAP_FRAGMENT_NAME);
   const nextChildren = cloneXmlFragmentChildren(nextDocument);
 
   document.transact(() => {
@@ -136,7 +146,19 @@ function applyPlainTextToRuntimeDocument(document: Y.Doc, text: string) {
 }
 
 function isRuntimeDocumentEmpty(document: Y.Doc) {
-  return document.getXmlFragment("prosemirror").length === 0;
+  const fragment = getExistingXmlFragment(document);
+
+  if (fragment) {
+    return fragment.length === 0;
+  }
+
+  const sharedDefault = document.share.get(TIPTAP_FRAGMENT_NAME);
+
+  if (sharedDefault instanceof Y.Text) {
+    return sharedDefault.length === 0;
+  }
+
+  return true;
 }
 
 function xmlNodeToPlainText(node: Y.XmlElement | Y.XmlText): string {
@@ -152,8 +174,14 @@ function xmlNodeToPlainText(node: Y.XmlElement | Y.XmlText): string {
 }
 
 function extractPlainTextFromRuntimeDocument(document: Y.Doc) {
-  const lines = document
-    .getXmlFragment("prosemirror")
+  const fragment = getExistingXmlFragment(document);
+
+  if (!fragment) {
+    const sharedDefault = document.share.get(TIPTAP_FRAGMENT_NAME);
+    return sharedDefault instanceof Y.Text ? sharedDefault.toString() : "";
+  }
+
+  const lines = fragment
     .toArray()
     .filter((node): node is Y.XmlElement | Y.XmlText => node instanceof Y.XmlElement || node instanceof Y.XmlText)
     .map((node) => xmlNodeToPlainText(node));
@@ -161,13 +189,38 @@ function extractPlainTextFromRuntimeDocument(document: Y.Doc) {
   return lines.join("\n");
 }
 
+function getExistingXmlFragment(document: Y.Doc) {
+  for (const fragmentName of RICH_TEXT_FRAGMENT_NAMES) {
+    const sharedType = document.share.get(fragmentName);
+
+    if (sharedType instanceof Y.XmlFragment) {
+      return sharedType;
+    }
+  }
+
+  return null;
+}
+
 function extractRichTextFromRuntimeDocument(document: Y.Doc) {
-  return yXmlFragmentToProsemirrorJSON(document.getXmlFragment("prosemirror"));
+  const fragment = getExistingXmlFragment(document);
+
+  if (!fragment) {
+    return null;
+  }
+
+  return yXmlFragmentToProsemirrorJSON(fragment);
 }
 
 function getApiContentSyncUrl(apiInternalUrl: string, documentId: string) {
   const url = new URL(apiInternalUrl);
   url.pathname = `/internal/documents/${documentId}/content-sync`;
+  url.search = "";
+  return url.toString();
+}
+
+function getApiCollabAccessUrl(apiInternalUrl: string, documentId: string) {
+  const url = new URL(apiInternalUrl);
+  url.pathname = `/internal/documents/${encodeURIComponent(documentId)}/collab-access`;
   url.search = "";
   return url.toString();
 }
@@ -434,13 +487,89 @@ function requestHeadersValue(
   return Array.isArray(value) ? value[0] : value;
 }
 
+function isCollabAccessResponse(value: unknown): value is CollabAccessResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<CollabAccessResponse>;
+
+  return (
+    typeof candidate.documentId === "string"
+    && typeof candidate.userId === "string"
+    && (candidate.role === "owner" || candidate.role === "editor" || candidate.role === "commenter" || candidate.role === "viewer")
+    && (candidate.accessLevel === "read" || candidate.accessLevel === "write")
+  );
+}
+
+async function resolveCollabAccess(
+  env: Pick<CollabEnv, "apiInternalUrl" | "sessionSecret">,
+  documentId: string,
+  userId: string,
+  fetchFn: typeof fetch = fetch
+): Promise<CollabAccessResponse> {
+  const endpoint = getApiCollabAccessUrl(env.apiInternalUrl, documentId);
+  const response = await fetchFn(endpoint, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-token": env.sessionSecret
+    },
+    body: JSON.stringify({
+      userId
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Document access check failed with status ${response.status}.`);
+  }
+
+  const payload: unknown = await response.json();
+
+  if (!isCollabAccessResponse(payload)) {
+    throw new Error("Document access check returned an invalid payload.");
+  }
+
+  if (payload.documentId !== documentId || payload.userId !== userId) {
+    throw new Error("Document access check returned a mismatched identity.");
+  }
+
+  return payload;
+}
+
 export function createCollabServer(
   env: CollabEnv = getCollabEnv(),
-  logger: CollabLogger = createCollabLogger()
+  logger: CollabLogger = createCollabLogger(),
+  services: {
+    accessFetch?: typeof fetch;
+    contentSyncFetch?: typeof fetch;
+  } = {}
 ) {
+  const accessFetch = services.accessFetch ?? fetch;
   const presence = new PresenceManager();
   const persistedStates = new Map<string, Uint8Array>();
   const writerSlots = new WriterSlotManager();
+  function refreshPresenceFromContext(documentId: string, context: CollabSessionContext & {
+    presenceSessionId?: string;
+    role?: DocumentRole;
+  }) {
+    if (!context.user || !context.presenceSessionId) {
+      return false;
+    }
+
+    const accessLevel = context.accessLevel ?? "read";
+
+    presence.refreshConnection(documentId, context.presenceSessionId, {
+      accessLevel,
+      displayName: context.user.name,
+      role: context.role,
+      user: context.user
+    });
+    writerSlots.registerConnection(documentId, context.presenceSessionId, context.user.id, accessLevel);
+
+    return true;
+  }
+
   async function syncDocumentContent(input: {
     documentId: string;
     initializeIfEmpty: boolean;
@@ -491,11 +620,18 @@ export function createCollabServer(
     async onAuthenticate(data) {
       try {
         const sessionContext = verifyCollabSessionToken(data.token, env.sessionSecret, env.jwtIssuer);
+        const access = await resolveCollabAccess(env, data.documentName, sessionContext.user.id, accessFetch);
+
+        data.connectionConfig.readOnly = access.accessLevel === "read";
 
         return {
+          accessLevel: access.accessLevel,
+          role: access.role,
           session: sessionContext.session,
           user: sessionContext.user
-        } satisfies Pick<CollabSessionContext, "session" | "user">;
+        } satisfies Pick<CollabSessionContext, "accessLevel" | "session" | "user"> & {
+          role: DocumentRole;
+        };
       } catch (error) {
         logger.error("collab.authentication.rejected", {
           documentName: data.documentName,
@@ -538,7 +674,7 @@ export function createCollabServer(
       const text = extractPlainTextFromRuntimeDocument(data.document);
 
       try {
-        const response = await fetch(endpoint, {
+        const response = await (services.contentSyncFetch ?? fetch)(endpoint, {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -565,13 +701,27 @@ export function createCollabServer(
         });
       }
     },
+    async onChange(data) {
+      if (data.transactionOrigin === INTERNAL_CONTENT_SYNC_ORIGIN) {
+        return;
+      }
+
+      const context = data.context as CollabSessionContext & {
+        presenceSessionId?: string;
+        role?: DocumentRole;
+      };
+
+      if (refreshPresenceFromContext(data.documentName, context)) {
+        data.document.broadcastStateless(JSON.stringify(writerSlots.buildSnapshotEvent(data.documentName)));
+        data.document.broadcastStateless(JSON.stringify(presence.buildSnapshotEvent(data.documentName)));
+      }
+    },
     async onConnect(data) {
       return {
-        accessLevel: (data.requestParameters.get("accessLevel") === "read" ? "read" : "write") as SessionAccessLevel,
         reconnectSessionId: data.requestParameters.get("lastKnownSessionId"),
         presenceSessionId: data.socketId,
         stateVector: data.requestParameters.get("stateVector")
-      } satisfies Omit<CollabSessionContext, "session" | "user">;
+      } satisfies Omit<CollabSessionContext, "accessLevel" | "session" | "user">;
     },
     async connected(data) {
       const context = data.context as CollabSessionContext & {
@@ -585,15 +735,17 @@ export function createCollabServer(
           document.name,
           context.presenceSessionId,
           context.user.id,
-          context.accessLevel ?? "write"
+          context.accessLevel ?? "read"
         );
         const resumed = presence.resumeConnection(
           document.name,
           context.presenceSessionId,
           context.reconnectSessionId,
           {
-          displayName: context.user.name,
-          user: context.user
+            accessLevel: context.accessLevel,
+            displayName: context.user.name,
+            role: (context as { role?: DocumentRole }).role,
+            user: context.user
           }
         );
         document.broadcastStateless(JSON.stringify(writerSlots.buildSnapshotEvent(document.name)));
@@ -622,19 +774,13 @@ export function createCollabServer(
     async onAwarenessUpdate(data) {
       const context = data.context as CollabSessionContext & {
         presenceSessionId?: string;
+        role?: DocumentRole;
       };
 
-      if (!context.user || !context.presenceSessionId) {
-        return;
+      if (refreshPresenceFromContext(data.documentName, context)) {
+        data.document.broadcastStateless(JSON.stringify(writerSlots.buildSnapshotEvent(data.documentName)));
+        data.document.broadcastStateless(JSON.stringify(presence.buildSnapshotEvent(data.documentName)));
       }
-
-      const updated = presence.markAwarenessActive(data.documentName, context.presenceSessionId);
-
-      if (!updated) {
-        return;
-      }
-
-      data.document.broadcastStateless(JSON.stringify(presence.buildSnapshotEvent(data.documentName)));
     },
     async onDisconnect(data) {
       const context = data.context as CollabSessionContext & {

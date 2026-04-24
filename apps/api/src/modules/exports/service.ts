@@ -1,5 +1,7 @@
-import { createHash, createHmac, randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
+import type { PrismaClient } from "@prisma/client";
 
+import { canExport } from "@repo/authz";
 import type {
   ExportFormat,
   ExportJobSummary,
@@ -12,10 +14,8 @@ import {
   createFileReadStream,
   ensureDirectory,
   readFileStats,
-  readJsonFile,
   resolveDataPath,
-  writeBufferFile,
-  writeJsonFile
+  writeBufferFile
 } from "../../common/file-store.js";
 import type { DocumentActor, DocumentsService } from "../documents/service.js";
 import { renderArtifact } from "./renderers.js";
@@ -25,18 +25,6 @@ type ExportJobMimeType =
   | "text/plain; charset=utf-8"
   | "application/pdf"
   | "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-
-export interface ExportJobRecord {
-  artifactKey: string | null;
-  completedAt: string | null;
-  documentId: string;
-  errorMessage: string | null;
-  exportJobId: string;
-  format: ExportFormat;
-  mimeType: ExportJobMimeType | null;
-  requestedAt: string;
-  status: "queued" | "running" | "succeeded" | "failed";
-}
 
 export interface ExportDownloadLink {
   downloadUrl: string;
@@ -50,14 +38,53 @@ interface ResolvedArtifact {
   size: number;
 }
 
+function isIgnorablePrismaLifecycleError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.message.includes("Engine is not yet connected")
+    || error.message.includes("Response from the Engine was empty");
+}
+
+function toSafeExportFileName(title: string, format: string) {
+  const baseName = title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+
+  return `${baseName || "document"}.${format}`;
+}
+
+function toExportJobSummary(job: {
+  completedAt: Date | null;
+  documentId: string;
+  exportJobId: string;
+  format: string;
+  requestedAt: Date;
+  status: string;
+}): ExportJobSummary {
+  return {
+    exportJobId: job.exportJobId,
+    documentId: job.documentId,
+    format: job.format as ExportFormat,
+    status: job.status as ExportJobSummary["status"],
+    requestedAt: job.requestedAt.toISOString(),
+    completedAt: job.completedAt?.toISOString() ?? null,
+    downloadUrl: null
+  };
+}
+
 export class ExportsService {
   readonly moduleName = "exports";
 
-  private readonly jobs = new Map<string, ExportJobRecord>();
   private readonly artifactsDir: string;
-  private readonly jobsPath: string;
+  private readonly inFlightJobIds = new Set<string>();
 
   constructor(
+    private readonly prisma: PrismaClient,
     private readonly documentsService: DocumentsService,
     private readonly config: {
       dataDir: string;
@@ -65,46 +92,50 @@ export class ExportsService {
       sessionSecret: string;
     }
   ) {
-    this.jobsPath = resolveDataPath(config.dataDir, "exports", "jobs.json");
     this.artifactsDir = resolveDataPath(config.dataDir, "object-storage", config.bucketName);
+    ensureDirectory(this.artifactsDir);
+    void this.resumePendingJobs();
+  }
 
-    const storedJobs = readJsonFile<ExportJobRecord[]>(this.jobsPath, []);
+  private async resumePendingJobs() {
+    const jobs = await this.prisma.exportJob.findMany({
+      where: {
+        status: {
+          in: ["queued", "running"]
+        }
+      },
+      select: {
+        exportJobId: true
+      }
+    });
 
-    for (const job of storedJobs) {
-      this.jobs.set(job.exportJobId, job);
+    for (const job of jobs) {
+      this.scheduleJobProcessing(job.exportJobId);
+    }
+  }
+
+  private async ensureExportableDocument(documentId: string, actor: DocumentActor) {
+    const metadata = await this.documentsService.getDocumentMetadata(documentId, actor);
+
+    if (!canExport(metadata.document.permissions.role)) {
+      throw new AppError("EXPORT_FORBIDDEN", 403, "You do not have permission to export this document.");
     }
 
-    ensureDirectory(this.artifactsDir);
+    return metadata.document;
   }
 
-  private persistJobs() {
-    writeJsonFile(this.jobsPath, Array.from(this.jobs.values()));
-  }
-
-  private ensureAccessibleDocument(documentId: string, actor: DocumentActor) {
-    this.documentsService.getDocumentMetadata(documentId, actor);
-  }
-
-  private requireJob(documentId: string, exportJobId: string) {
-    const job = this.jobs.get(exportJobId);
+  private async requireJob(documentId: string, exportJobId: string) {
+    const job = await this.prisma.exportJob.findUnique({
+      where: {
+        exportJobId
+      }
+    });
 
     if (!job || job.documentId !== documentId) {
       throw new AppError("EXPORT_NOT_FOUND", 404, "Export job was not found for this document.");
     }
 
     return job;
-  }
-
-  private toSummary(job: ExportJobRecord): ExportJobSummary {
-    return {
-      exportJobId: job.exportJobId,
-      documentId: job.documentId,
-      format: job.format,
-      status: job.status,
-      requestedAt: job.requestedAt,
-      completedAt: job.completedAt,
-      downloadUrl: null
-    };
   }
 
   private buildArtifactKey(documentId: string, exportJobId: string, format: ExportFormat) {
@@ -115,45 +146,83 @@ export class ExportsService {
     return resolveDataPath(this.artifactsDir, artifactKey);
   }
 
-  private async processJob(
-    exportJobId: string,
-    snapshot: {
-      richContent: Parameters<typeof renderArtifact>[1]["richContent"];
-      text: string;
-      title: string;
-    }
-  ) {
-    const job = this.jobs.get(exportJobId);
-
-    if (!job || job.status !== "queued") {
+  private scheduleJobProcessing(exportJobId: string) {
+    if (this.inFlightJobIds.has(exportJobId)) {
       return;
     }
 
-    job.status = "running";
-    this.persistJobs();
+    this.inFlightJobIds.add(exportJobId);
+    queueMicrotask(() => {
+      void this.processJob(exportJobId)
+        .catch((error) => {
+          if (!isIgnorablePrismaLifecycleError(error)) {
+            throw error;
+          }
+        })
+        .finally(() => {
+          this.inFlightJobIds.delete(exportJobId);
+        });
+    });
+  }
+
+  private async processJob(exportJobId: string) {
+    const job = await this.prisma.exportJob.findUnique({
+      where: {
+        exportJobId
+      }
+    });
+
+    if (!job || (job.status !== "queued" && job.status !== "running")) {
+      return;
+    }
+
+    await this.prisma.exportJob.update({
+      where: {
+        exportJobId
+      },
+      data: {
+        status: "running"
+      }
+    });
 
     try {
-      const rendered = renderArtifact(job.format, {
+      const snapshot = await this.documentsService.getDocumentSnapshot(job.documentId, {
+        userId: job.requestedByUserId,
+        name: null
+      });
+      const rendered = renderArtifact(job.format as ExportFormat, {
         richContent: snapshot.richContent,
         text: snapshot.text,
         title: snapshot.title
       });
-      const artifactKey = this.buildArtifactKey(job.documentId, job.exportJobId, job.format);
+      const artifactKey = this.buildArtifactKey(job.documentId, job.exportJobId, job.format as ExportFormat);
       const artifactPath = this.getArtifactPath(artifactKey);
 
       writeBufferFile(artifactPath, rendered.content);
 
-      job.artifactKey = artifactKey;
-      job.completedAt = new Date().toISOString();
-      job.errorMessage = null;
-      job.mimeType = rendered.mimeType;
-      job.status = "succeeded";
-      this.persistJobs();
+      await this.prisma.exportJob.update({
+        where: {
+          exportJobId
+        },
+        data: {
+          artifactKey,
+          completedAt: new Date(),
+          errorMessage: null,
+          mimeType: rendered.mimeType,
+          status: "succeeded"
+        }
+      });
     } catch (error) {
-      job.completedAt = new Date().toISOString();
-      job.errorMessage = error instanceof Error ? error.message : "Export processing failed.";
-      job.status = "failed";
-      this.persistJobs();
+      await this.prisma.exportJob.update({
+        where: {
+          exportJobId
+        },
+        data: {
+          completedAt: new Date(),
+          errorMessage: error instanceof Error ? error.message : "Export processing failed.",
+          status: "failed"
+        }
+      });
     }
   }
 
@@ -172,37 +241,27 @@ export class ExportsService {
     input: CreateExportRequest,
     actor: DocumentActor
   ): Promise<RequestExportJobResponse> {
-    this.ensureAccessibleDocument(documentId, actor);
-    const snapshot = this.documentsService.getDocumentSnapshot(documentId, actor);
+    await this.ensureExportableDocument(documentId, actor);
     const exportJobId = `exp_${randomUUID()}`;
-    const requestedAt = new Date().toISOString();
-    const job: ExportJobRecord = {
-      artifactKey: null,
-      completedAt: null,
-      documentId,
-      errorMessage: null,
-      exportJobId,
-      format: input.format,
-      mimeType: null,
-      requestedAt,
-      status: "queued"
-    };
+    const requestedAt = new Date();
 
-    this.jobs.set(exportJobId, job);
-    this.persistJobs();
-
-    queueMicrotask(() => {
-      void this.processJob(exportJobId, {
-        richContent: snapshot.richContent,
-        text: snapshot.text,
-        title: snapshot.title
-      });
+    await this.prisma.exportJob.create({
+      data: {
+        exportJobId,
+        documentId,
+        requestedByUserId: actor.userId,
+        format: input.format,
+        status: "queued",
+        requestedAt
+      }
     });
+
+    this.scheduleJobProcessing(exportJobId);
 
     return {
       exportJobId,
-      status: job.status,
-      requestedAt
+      status: "queued",
+      requestedAt: requestedAt.toISOString()
     };
   }
 
@@ -211,11 +270,11 @@ export class ExportsService {
     exportJobId: string,
     actor: DocumentActor
   ): Promise<GetExportJobStatusResponse> {
-    this.ensureAccessibleDocument(documentId, actor);
-    const job = this.requireJob(documentId, exportJobId);
+    await this.ensureExportableDocument(documentId, actor);
+    const job = await this.requireJob(documentId, exportJobId);
 
     return {
-      job: this.toSummary(job)
+      job: toExportJobSummary(job)
     };
   }
 
@@ -225,7 +284,7 @@ export class ExportsService {
     actor: DocumentActor
   ): Promise<ExportDownloadLink | null> {
     await this.getExportJob(documentId, exportJobId, actor);
-    const job = this.requireJob(documentId, exportJobId);
+    const job = await this.requireJob(documentId, exportJobId);
 
     if (job.status !== "succeeded") {
       return null;
@@ -253,8 +312,8 @@ export class ExportsService {
       token: string;
     }
   ): Promise<ResolvedArtifact> {
-    await this.getExportJob(documentId, exportJobId, actor);
-    const job = this.requireJob(documentId, exportJobId);
+    const document = await this.ensureExportableDocument(documentId, actor);
+    const job = await this.requireJob(documentId, exportJobId);
 
     if (job.status !== "succeeded" || !job.artifactKey || !job.mimeType) {
       throw new AppError("EXPORT_NOT_READY", 409, "Export artifact is not ready for download.");
@@ -278,9 +337,9 @@ export class ExportsService {
     const fileStats = readFileStats(filePath);
 
     return {
-      fileName: createHash("sha1").update(job.exportJobId).digest("hex").slice(0, 12) + `.${job.format}`,
+      fileName: toSafeExportFileName(document.title, job.format),
       filePath,
-      mimeType: job.mimeType,
+      mimeType: job.mimeType as ExportJobMimeType,
       size: fileStats.size
     };
   }

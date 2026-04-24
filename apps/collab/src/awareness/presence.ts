@@ -1,9 +1,17 @@
-import type { CollaboratorPresenceSummary, PresenceSnapshotEvent, UserProfile } from "@repo/shared-types";
+import type {
+  CollaboratorPresenceSummary,
+  DocumentRole,
+  PresenceSnapshotEvent,
+  SessionAccessLevel,
+  UserProfile
+} from "@repo/shared-types";
 
 type PresenceEntry = CollaboratorPresenceSummary;
 
 type SessionIdentity = {
+  accessLevel?: SessionAccessLevel;
   displayName: string | null;
+  role?: DocumentRole;
   user: Pick<UserProfile, "id" | "name">;
 };
 
@@ -13,7 +21,7 @@ type ResumeResult = {
 };
 
 export const PRESENCE_SWEEP_INTERVAL_MS = 5_000;
-export const PRESENCE_STALE_TIMEOUT_MS = 45_000;
+export const PRESENCE_STALE_TIMEOUT_MS = 30 * 60_000;
 
 export class PresenceManager {
   private readonly documents = new Map<string, Map<string, PresenceEntry>>();
@@ -38,6 +46,8 @@ export class PresenceManager {
       documentId,
       userId: identity.user.id,
       displayName: identity.displayName ?? identity.user.name,
+      role: identity.role,
+      accessLevel: identity.accessLevel,
       isPresent: true,
       lastSeenAt: now,
       connectionStatus: "active"
@@ -97,6 +107,16 @@ export class PresenceManager {
 
     sessions.set(sessionId, updated);
     return updated;
+  }
+
+  refreshConnection(documentId: string, sessionId: string, identity: SessionIdentity): PresenceEntry {
+    const updated = this.markAwarenessActive(documentId, sessionId);
+
+    if (updated) {
+      return updated;
+    }
+
+    return this.upsertConnection(documentId, sessionId, identity);
   }
 
   removeConnection(documentId: string, sessionId: string): PresenceEntry | null {

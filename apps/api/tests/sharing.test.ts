@@ -19,6 +19,92 @@ afterEach(() => {
 });
 
 describe("sharing module", () => {
+  it("lists pending invitations for the invitee and allows rejection", async () => {
+    const app = await createApiTestApp();
+    const ownerSessionHeaders = createSessionHeaders(app, {
+      email: "owner@example.com",
+      userId: "owner_user"
+    });
+    const viewerSessionHeaders = createSessionHeaders(app, {
+      email: "viewer@local.test",
+      userId: "viewer_user"
+    });
+
+    const createDocumentResponse = await app.inject({
+      method: "POST",
+      url: "/v1/documents",
+      headers: ownerSessionHeaders,
+      payload: {
+        title: "Invite inbox"
+      }
+    });
+
+    const documentId = createDocumentResponse.json().document.id as string;
+
+    const inviteResponse = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${documentId}/invitations`,
+      headers: ownerSessionHeaders,
+      payload: {
+        invitee: "viewer",
+        role: "commenter"
+      }
+    });
+
+    expect(inviteResponse.statusCode).toBe(201);
+
+    const pendingResponse = await app.inject({
+      method: "GET",
+      url: "/v1/invitations",
+      headers: viewerSessionHeaders
+    });
+
+    expect(pendingResponse.statusCode).toBe(200);
+    expect(pendingResponse.json()).toMatchObject({
+      invitations: [
+        {
+          invitation: {
+            documentId,
+            inviteeEmail: "viewer@local.test",
+            role: "commenter"
+          },
+          token: expect.any(String)
+        }
+      ]
+    });
+
+    const rejectResponse = await app.inject({
+      method: "POST",
+      url: "/v1/invitations/reject",
+      headers: viewerSessionHeaders,
+      payload: {
+        token: pendingResponse.json().invitations[0].token
+      }
+    });
+
+    expect(rejectResponse.statusCode).toBe(200);
+    expect(rejectResponse.json()).toMatchObject({
+      invitation: {
+        documentId,
+        inviteeEmail: "viewer@local.test",
+        revokedAt: expect.any(String)
+      }
+    });
+
+    const refreshedPendingResponse = await app.inject({
+      method: "GET",
+      url: "/v1/invitations",
+      headers: viewerSessionHeaders
+    });
+
+    expect(refreshedPendingResponse.statusCode).toBe(200);
+    expect(refreshedPendingResponse.json()).toEqual({
+      invitations: []
+    });
+
+    await app.close();
+  });
+
   it("creates and accepts an invitation, then allows the invited user to view the document", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({
       ok: true,
@@ -51,7 +137,7 @@ describe("sharing module", () => {
       url: `/v1/documents/${documentId}/invitations`,
       headers: ownerSessionHeaders,
       payload: {
-        email: "viewer@example.com",
+        invitee: "viewer@example.com",
         role: "viewer"
       }
     });
@@ -143,7 +229,7 @@ describe("sharing module", () => {
       url: `/v1/documents/${documentId}/invitations`,
       headers: ownerSessionHeaders,
       payload: {
-        email: "editor@example.com",
+        invitee: "editor@example.com",
         role: "editor"
       }
     });
@@ -223,17 +309,8 @@ describe("sharing module", () => {
       headers: editorSessionHeaders
     });
 
-    expect(metadataResponse.statusCode).toBe(200);
-    expect(metadataResponse.json()).toMatchObject({
-      document: {
-        id: documentId,
-        permissions: {
-          role: "editor",
-          canEdit: true
-        }
-      }
-    });
-    expect(app.auditService.listEvents().map((event) => event.action)).toEqual([
+    expect(metadataResponse.statusCode).toBe(403);
+    expect((await app.auditService.listEvents()).map((event) => event.action)).toEqual([
       "sharing.invitation.created",
       "sharing.invitation.accepted",
       "sharing.role.updated",
